@@ -34,4 +34,3 @@ dev = [
 
 [tool.uv.extra-build-dependencies]
 transformers = ["setuptools"]
-source = ["setuptools"]
