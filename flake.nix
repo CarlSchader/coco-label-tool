@@ -7,6 +7,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    personal-monorepo = {
+      url = "github:carlschader/personal-monorepo";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     uv2nix = {
       url = "github:pyproject-nix/uv2nix";
       inputs.pyproject-nix.follows = "pyproject-nix";

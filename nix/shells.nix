@@ -1,9 +1,11 @@
-{ self, nixpkgs, flake-utils, ...}:
+{ nixpkgs, flake-utils, personal-monorepo, ...}:
 flake-utils.lib.eachDefaultSystem  (system:
 let
   pkgs = import nixpkgs {
     inherit system;
   };
+
+  sops-export = personal-monorepo.packages.${system}.sops-export;
 
   libs = with pkgs; [
     addDriverRunpath.driverLink
@@ -23,6 +25,8 @@ in
           python312Packages.cmake
           uv
           nodejs_24
+          sops
+          sops-export
         ]);
 
       shellHook = ''
