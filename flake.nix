@@ -23,7 +23,6 @@
 
   outputs = { flake-utils, ...}@inputs:
     flake-utils.lib.meld inputs [
-      ./nix/aarch64-darwin.nix
-      ./nix/x86_64-linux.nix
+      ./nix
     ];
 }
