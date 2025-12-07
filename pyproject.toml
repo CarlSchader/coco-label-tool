@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
@@ -31,3 +31,7 @@ include = ["app*"]
 dev = [
     "ruff>=0.14.5",
 ]
+
+[tool.uv.extra-build-dependencies]
+transformers = ["setuptools"]
+source = ["setuptools"]
