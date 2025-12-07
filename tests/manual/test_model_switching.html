@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Model Switching Test</title>
+    <style>
+      body {
+        font-family: monospace;
+        padding: 20px;
+        background: #0a0f14;
+        color: #48d1cc;
+      }
+      select {
+        padding: 10px;
+        background: #333;
+        color: #48d1cc;
+        border: 2px solid #48d1cc;
+        border-radius: 4px;
+        font-weight: bold;
+        margin: 10px;
+      }
+      #log {
+        margin-top: 20px;
+        padding: 10px;
+        border: 1px solid #48d1cc;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Model Switching Test</h1>
+
+    <select id="model-type-select">
+      <option value="sam2">SAM2</option>
+      <option value="sam3">SAM3</option>
+    </select>
+
+    <select id="model-size-select"></select>
+
+    <div id="log"></div>
+
+    <script type="module">
+      import {
+        getModelInfoEndpoint,
+        formatModelDisplayName,
+      } from '../../static/js/utils/model-selection.js';
+
+      let currentModelType = 'sam2';
+      const log = document.getElementById('log');
+
+      function addLog(msg) {
+        log.textContent += msg + '\n';
+        console.log(msg);
+      }
+
+      async function loadModelInfo() {
+        try {
+          const endpoint = getModelInfoEndpoint(currentModelType);
+          addLog(`Fetching from: ${endpoint}`);
+
+          const response = await fetch(endpoint);
+          const data = await response.json();
+          addLog(`Response: ${JSON.stringify(data, null, 2)}`);
+
+          const select = document.getElementById('model-size-select');
+          select.innerHTML = '';
+
+          for (const size of data.available_sizes) {
+            const option = document.createElement('option');
+            option.value = size;
+            option.textContent = formatModelDisplayName(currentModelType, size);
+
+            if (data.current_model.includes(size)) {
+              option.selected = true;
+            }
+
+            select.appendChild(option);
+          }
+
+          addLog(`✅ Updated dropdown with ${data.available_sizes.length} options`);
+        } catch (error) {
+          addLog(`❌ Error: ${error.message}`);
+        }
+      }
+
+      document.getElementById('model-type-select').addEventListener('change', async (e) => {
+        currentModelType = e.target.value;
+        addLog(`\n=== Model type changed to: ${currentModelType} ===`);
+        await loadModelInfo();
+      });
+
+      // Initial load
+      addLog('=== Initial load ===');
+      loadModelInfo();
+    </script>
+  </body>
+</html>

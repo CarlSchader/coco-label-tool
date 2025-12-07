@@ -1,0 +1,117 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes"
+    />
+    <title>Responsive Layout Test</title>
+    <link rel="stylesheet" href="/static/css/styles.css" />
+    <style>
+      .test-info {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: rgba(0, 0, 0, 0.9);
+        color: #48d1cc;
+        padding: 10px;
+        border: 1px solid #48d1cc;
+        font-family: monospace;
+        font-size: 12px;
+        z-index: 10000;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="test-info">
+      <div>Width: <span id="width">-</span>px</div>
+      <div>Height: <span id="height">-</span>px</div>
+      <div>Breakpoint: <span id="breakpoint">-</span></div>
+    </div>
+
+    <h1>Responsive Layout Test</h1>
+
+    <div class="controls">
+      <button id="btn-previous">Previous</button>
+      <button id="btn-next">Next</button>
+      <span id="counter">Image 1 of 10</span>
+      <button id="btn-reset-prompts">Reset Prompts</button>
+      <button id="toggle-annotations-btn">Toggle Annotations</button>
+      <select id="model-size-select">
+        <option>Model Size: Large</option>
+      </select>
+      <button id="btn-manage-categories">Manage Categories</button>
+      <button id="save-btn">Save Annotation</button>
+    </div>
+
+    <div class="main-layout">
+      <div class="category-badges">
+        <div id="category-badges">
+          <div class="badge" style="background-color: #ff3232; color: white">super1:cat1</div>
+          <div class="badge" style="background-color: #3296ff; color: white">super2:cat2</div>
+          <div class="badge" style="background-color: #32c832; color: white">super3:cat3</div>
+          <div class="badge" style="background-color: #ff9632; color: white">super4:cat4</div>
+          <div class="badge" style="background-color: #9632ff; color: white">super5:cat5</div>
+        </div>
+      </div>
+
+      <div class="image-container">
+        <div class="image-wrapper" id="image-wrapper">
+          <img
+            id="image"
+            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='600'%3E%3Crect width='800' height='600' fill='%23222'/%3E%3Ctext x='400' y='300' font-family='monospace' font-size='24' fill='%2348d1cc' text-anchor='middle'%3ETest Image%3C/text%3E%3C/svg%3E"
+            alt="Test image"
+          />
+        </div>
+        <div class="info">
+          <p><strong>ID:</strong> <span>12345</span></p>
+          <p><strong>File:</strong> <span>test-image.jpg</span></p>
+          <p><strong>Dimensions:</strong> <span>800x600</span></p>
+        </div>
+        <div class="annotation-list" style="display: block">
+          <div>
+            <h4 style="margin: 0; display: inline">Annotations on this image:</h4>
+          </div>
+          <div id="annotation-items">
+            <div class="annotation-item">Annotation 1 - Category A</div>
+            <div class="annotation-item">Annotation 2 - Category B</div>
+            <div class="annotation-item">Annotation 3 - Category C</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="annotation-editor" style="display: block">
+        <h4>Edit Selected Annotations (0)</h4>
+        <div class="editor-section">
+          <label>Change Category</label>
+          <select id="edit-category-select">
+            <option value="">-- Select Category --</option>
+          </select>
+          <button id="btn-apply-category">Apply</button>
+        </div>
+        <div class="editor-section">
+          <button id="btn-delete-annotations" class="delete">Delete Selected</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function updateInfo() {
+        document.getElementById('width').textContent = window.innerWidth;
+        document.getElementById('height').textContent = window.innerHeight;
+
+        if (window.innerWidth <= 768) {
+          document.getElementById('breakpoint').textContent = 'Mobile';
+        } else if (window.innerWidth <= 1024) {
+          document.getElementById('breakpoint').textContent = 'Tablet';
+        } else {
+          document.getElementById('breakpoint').textContent = 'Desktop';
+        }
+      }
+
+      updateInfo();
+      window.addEventListener('resize', updateInfo);
+    </script>
+  </body>
+</html>

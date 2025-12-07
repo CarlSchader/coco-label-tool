@@ -1,0 +1,16 @@
+#!/bin/bash
+export PYTORCH_ENABLE_MPS_FALLBACK=1
+if [ -z "$1" ]; then
+    echo "Usage: ./run-server.sh /path/to/dataset.json"
+    exit 1
+fi
+
+export DATASET_PATH="$1"
+
+echo "Starting Label Tool server..."
+echo "COCO JSON file: $DATASET_PATH"
+echo "Server will be available at http://localhost:8000"
+echo ""
+
+
+python server.py
