@@ -1,4 +1,5 @@
 { 
+  self,
   nixpkgs, 
   flake-utils, 
   pyproject-nix,
@@ -10,6 +11,10 @@ flake-utils.lib.eachDefaultSystem (system:
 let
   inherit (nixpkgs) lib;
   pkgs = import nixpkgs { inherit system; };
+
+check-transformer = lib.trace
+  (if lib.isDerivation self.packages.${system}.transformers then "Transformer package is a derivation." else "Transformer package is NOT a derivation or is missing!")
+  self.packages.${system}.transformers;
 
   python = pkgs.python312;
 
@@ -25,17 +30,24 @@ let
   
   project-workspace = uv2nix.lib.workspace.loadWorkspace { workspaceRoot = ../.; };
   project-overlay = project-workspace.mkPyprojectOverlay {
-    sourcePreference = "wheel";  # Prefer binary wheels (like opencv-python) to avoid building from source
+    sourcePreference = "wheel";
+  };
+
+  pyproject-overrides = final: prev: {
+    "transformers" = self.packages.${system}.transformers;
   };
   
   project-pythonSet = pythonBase.overrideScope (
     lib.composeManyExtensions [
         pyproject-build-systems.overlays.wheel
         project-overlay
+        pyproject-overrides
       ]
   );
+
   project-env = project-pythonSet.mkVirtualEnv "label-tool-env" project-workspace.deps.default;
 in
 {
   packages.default = project-env;
+  packages.test = check-transformer;
 })

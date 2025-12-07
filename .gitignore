@@ -1,6 +1,8 @@
 # node
 node_modules/
 .direnv
+result
+result-bin
 
 # Python
 __pycache__/

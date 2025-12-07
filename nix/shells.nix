@@ -1,4 +1,4 @@
-{ nixpkgs, flake-utils, personal-monorepo, ...}:
+{ self, nixpkgs, flake-utils, personal-monorepo, ...}:
 flake-utils.lib.eachDefaultSystem  (system:
 let
   pkgs = import nixpkgs {
@@ -23,6 +23,7 @@ in
         (with pkgs; [
           python312
           python312Packages.cmake
+          self.packages.${system}.transformers
           uv
           nodejs_24
           sops

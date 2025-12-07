@@ -31,6 +31,3 @@ include = ["app*"]
 dev = [
     "ruff>=0.14.5",
 ]
-
-[tool.uv.extra-build-dependencies]
-transformers = ["setuptools"]
