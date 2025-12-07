@@ -1,5 +1,6 @@
 # node
 node_modules/
+.direnv
 
 # Python
 __pycache__/
@@ -39,7 +40,6 @@ env/
 
 # Environment
 .env
-.envrc
 
 # Logs
 *.log
