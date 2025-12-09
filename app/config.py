@@ -24,7 +24,7 @@ def _is_s3_uri(uri: Optional[str]) -> bool:
 # Dataset URI - can be S3 or local path
 DATASET_URI = os.environ.get(
     "DATASET_PATH",
-    "/Users/carl/cardbook-private/data/dev-dataset/dataset.json",
+    "", 
 )
 
 # Detect if remote

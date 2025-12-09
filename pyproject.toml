@@ -7,7 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn>=0.32.0",
-    "transformers @ git+https://github.com/huggingface/transformers.git",
+    # "transformers @ git+https://github.com/huggingface/transformers.git",
     "torch>=2.0.0",
     "pillow>=10.0.0",
     "numpy>=1.24.0",
@@ -19,9 +19,15 @@ dependencies = [
     "boto3>=1.34.0",
 ]
 
+[project.scripts]
+server = "server:main"
+
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["server"]
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -1,34 +1,16 @@
-{ self, nixpkgs, flake-utils, personal-monorepo, ...}:
+{ self, nixpkgs, flake-utils, ...}:
 flake-utils.lib.eachDefaultSystem  (system:
 let
   pkgs = import nixpkgs {
     inherit system;
   };
 
-  sops-export = personal-monorepo.packages.${system}.sops-export;
-
-  libs = with pkgs; [
-    addDriverRunpath.driverLink
-    stdenv.cc.cc.lib
-    zlib
-    libGL
-    glib
-  ];
-  
-  libs-path = pkgs.lib.makeLibraryPath libs;
+  libs-path = pkgs.lib.makeLibraryPath (self.common.${system}.libs ++ [ pkgs.addDriverRunpath.driverLink ] );
+  core-packages = self.common.${system}.core-packages;
 in
 {
   devShells.default = pkgs.mkShell {
-      buildInputs =
-        (with pkgs; [
-          python312
-          python312Packages.cmake
-          self.packages.${system}.transformers
-          uv
-          nodejs_24
-          sops
-          sops-export
-        ]);
+      buildInputs = core-packages;
 
       shellHook = ''
         export LD_LIBRARY_PATH="${libs-path}:$LD_LIBRARY_PATH"

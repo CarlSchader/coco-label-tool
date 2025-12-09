@@ -1,53 +1,72 @@
-{ 
-  self,
-  nixpkgs, 
-  flake-utils, 
-  pyproject-nix,
-  uv2nix,
-  pyproject-build-systems,
-  ... 
-}:
-flake-utils.lib.eachDefaultSystem (system:
+{ self, nixpkgs, flake-utils, ...}:
+flake-utils.lib.eachDefaultSystem  (system:
 let
-  inherit (nixpkgs) lib;
-  pkgs = import nixpkgs { inherit system; };
-
-check-transformer = lib.trace
-  (if lib.isDerivation self.packages.${system}.transformers then "Transformer package is a derivation." else "Transformer package is NOT a derivation or is missing!")
-  self.packages.${system}.transformers;
-
-  python = pkgs.python312;
-
-  pythonBase = pkgs.callPackage pyproject-nix.build.packages {
-    inherit python;
-    stdenv = if pkgs.stdenv.isDarwin then pkgs.stdenv.override {
-      targetPlatform = pkgs.stdenv.targetPlatform // {
-        # Set macOS SDK version to 13.0 to match opencv-python wheel requirements
-        darwinSdkVersion = "13.0";
-      };
-    } else pkgs.stdenv;
-  };
-  
-  project-workspace = uv2nix.lib.workspace.loadWorkspace { workspaceRoot = ../.; };
-  project-overlay = project-workspace.mkPyprojectOverlay {
-    sourcePreference = "wheel";
+  pkgs = import nixpkgs {
+    inherit system;
   };
 
-  pyproject-overrides = final: prev: {
-    "transformers" = self.packages.${system}.transformers;
-  };
-  
-  project-pythonSet = pythonBase.overrideScope (
-    lib.composeManyExtensions [
-        pyproject-build-systems.overlays.wheel
-        project-overlay
-        pyproject-overrides
-      ]
-  );
+  libs-path = pkgs.lib.makeLibraryPath (self.common.${system}.libs ++ [ pkgs.addDriverRunpath.driverLink ] );
+  core-packages = self.common.${system}.core-packages;
 
-  project-env = project-pythonSet.mkVirtualEnv "label-tool-env" project-workspace.deps.default;
+applicationScript = pkgs.writeShellScript "run-app-inner" ''
+#!${pkgs.bash}/bin/bash
+
+export XDG_CACHE_HOME="$TMPDIR/cache"
+
+echo "--- Setting up Python environment via uv ---"
+
+# Remove leading spaces from this block
+if test ! -d ".venv"; then
+  uv venv --clear
+fi
+
+uv sync
+source .venv/bin/activate
+uv pip install -e .
+echo "--- Setup complete. Running application... ---"
+    
+server "$@"
+  '';
+
+  applicationPackage = pkgs.stdenv.mkDerivation rec {
+    pname = "label-tool";
+    version = "1.0.0";
+    
+    # 1. Add makeWrapper tool
+    nativeBuildInputs = [ pkgs.makeWrapper ];
+    
+    # 2. Add the packages you need for the PATH/LD_LIBRARY_PATH
+    buildInputs = core-packages; # core-packages must contain all runtime tools (python, uv, libc, etc.)
+
+    # Skip unpack is no longer strictly needed if we use buildInputs
+    # but let's keep it simple for now and define the src as a file list.
+    dontUnpack = true; 
+    dontConfigure = true;
+    dontBuild = true;
+    
+    # Place the script in a temporary location where the build can find it
+    installPhase = ''
+      mkdir -p $out/bin 
+
+      # Copy the simplified script to the output location
+      cp ${applicationScript} $out/bin/label-tool-inner
+      chmod +x $out/bin/label-tool-inner
+
+      wrapProgram $out/bin/label-tool-inner \
+        --prefix PATH : ${pkgs.lib.makeBinPath buildInputs} \
+        --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath buildInputs} \
+        --prefix PYTHONPATH : "$out/${pkgs.python3.sitePackages}" \
+        --set HOME "$HOME"
+
+      mv $out/bin/label-tool-inner $out/bin/label-tool
+    '';
+  };
 in
 {
-  packages.default = project-env;
-  packages.test = check-transformer;
+  apps.default = {
+    type = "app";
+    program = "${applicationScript}";
+  };
+
+  packages.default = applicationPackage;
 })
