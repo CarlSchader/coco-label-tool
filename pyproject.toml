@@ -7,7 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn>=0.32.0",
-    "transformers @ git+https://github.com/huggingface/transformers.git",
+    "transformers @ git+https://github.com/huggingface/transformers.git@8ebfd84#egg=transformers",
     "torch>=2.0.0",
     "pillow>=10.0.0",
     "numpy>=1.24.0",
