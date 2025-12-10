@@ -34,5 +34,7 @@ export function hasBoxCornerInBounds(box, frameWidth, frameHeight) {
     { x: box.x2, y: box.y2 },
   ];
 
-  return corners.some((corner) => isPointInBounds(corner.x, corner.y, frameWidth, frameHeight));
+  return corners.some((corner) =>
+    isPointInBounds(corner.x, corner.y, frameWidth, frameHeight),
+  );
 }

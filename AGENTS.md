@@ -386,7 +386,7 @@ document.getElementById('my-button')?.addEventListener('click', myFunction);
 **Usage:**
 
 ```javascript
-import { getCategoryColor, rgbToHex } from './utils/colors.js';
+import { getCategoryColor, rgbToHex } from "./utils/colors.js";
 
 const rgb = getCategoryColor(category, categories, superCache, catCache);
 const hex = rgbToHex(rgb);
@@ -398,7 +398,7 @@ All magic numbers centralized in `static/js/config.js`:
 
 ```javascript
 CONFIG.canvas.pointRadius = 5;
-CONFIG.colors.positive = '#00ff00';
+CONFIG.colors.positive = "#00ff00";
 CONFIG.validation.containmentThreshold = 0.8;
 ```
 
@@ -430,9 +430,9 @@ CONFIG.validation.containmentThreshold = 0.8;
 Use `ModalManager` class from `modals.js`:
 
 ```javascript
-import { ModalManager } from './modals.js';
+import { ModalManager } from "./modals.js";
 
-const myModal = new ModalManager('myModalId');
+const myModal = new ModalManager("myModalId");
 myModal.show();
 myModal.hide();
 if (myModal.isVisible()) {
@@ -451,10 +451,10 @@ Helper functions:
 Use utilities from `api.js`:
 
 ```javascript
-import { apiGet, apiPost, showApiError } from './api.js';
+import { apiGet, apiPost, showApiError } from "./api.js";
 
 try {
-  const data = await apiPost('/api/endpoint', { foo: 'bar' });
+  const data = await apiPost("/api/endpoint", { foo: "bar" });
   // Handle success
 } catch (error) {
   showApiError(error);
@@ -468,9 +468,13 @@ try {
 **Incomplete Supercategories:**
 
 ```javascript
-import { checkIncompleteSupercategories } from './validation/incomplete.js';
+import { checkIncompleteSupercategories } from "./validation/incomplete.js";
 
-const issues = checkIncompleteSupercategories(currentImage, annotations, categories);
+const issues = checkIncompleteSupercategories(
+  currentImage,
+  annotations,
+  categories,
+);
 if (issues) {
   // Show warning
 }
@@ -479,9 +483,13 @@ if (issues) {
 **Nested Mask Mismatches:**
 
 ```javascript
-import { checkNestedMaskSupercategoryMismatch } from './validation/nested.js';
+import { checkNestedMaskSupercategoryMismatch } from "./validation/nested.js";
 
-const mismatches = checkNestedMaskSupercategoryMismatch(currentImage, annotations, categories);
+const mismatches = checkNestedMaskSupercategoryMismatch(
+  currentImage,
+  annotations,
+  categories,
+);
 if (mismatches) {
   // Show warning
 }
@@ -490,7 +498,7 @@ if (mismatches) {
 ### Geometry Utilities
 
 ```javascript
-import { isPolygonInsidePolygon, isPointInPolygon } from './utils/geometry.js';
+import { isPolygonInsidePolygon, isPointInPolygon } from "./utils/geometry.js";
 
 const contained = isPolygonInsidePolygon(innerSeg, outerSeg);
 const inside = isPointInPolygon(x, y, polygon);
@@ -603,18 +611,18 @@ For concept search (finding ALL instances), we'll need SAM3 Model (PCS) in the f
 
 ```javascript
 // tests/utils/myutil.test.js - WRITE THIS FIRST!
-import { myUtility } from '../../static/js/utils/myutil.js';
+import { myUtility } from "../../static/js/utils/myutil.js";
 
-describe('myUtility', () => {
-  test('does something specific', () => {
+describe("myUtility", () => {
+  test("does something specific", () => {
     expect(myUtility(input)).toBe(expectedOutput);
   });
 
-  test('handles edge case', () => {
+  test("handles edge case", () => {
     expect(myUtility(edgeCase)).toBe(expectedResult);
   });
 
-  test('handles null/undefined', () => {
+  test("handles null/undefined", () => {
     expect(myUtility(null)).toBeNull();
   });
 });
@@ -649,7 +657,7 @@ export function myUtility(params) {
 #### Step 4: Import in app.js
 
 ```javascript
-import { myUtility } from './utils/myutil.js';
+import { myUtility } from "./utils/myutil.js";
 ```
 
 #### Step 5: Create Wrapper if Needed
@@ -657,7 +665,7 @@ import { myUtility } from './utils/myutil.js';
 ```javascript
 // If utility needs DOM access or global state
 function myUtilityLocal() {
-  const domValue = document.getElementById('myElement').value;
+  const domValue = document.getElementById("myElement").value;
   return myUtility(domValue, globalState1, globalState2);
 }
 ```
@@ -668,12 +676,12 @@ function myUtilityLocal() {
 // ✅ GOOD: Pure utility in utils/box.js (fully testable)
 export function detectBoxInteraction(mouseX, mouseY, box, scaleX, scaleY) {
   // No DOM access, all parameters explicit
-  return { type: 'corner', corner: 'nw' };
+  return { type: "corner", corner: "nw" };
 }
 
 // ✅ GOOD: Wrapper in app.js (handles DOM)
 function detectBoxInteractionLocal(mouseX, mouseY) {
-  const img = document.getElementById('image');
+  const img = document.getElementById("image");
   const scaleX = img.naturalWidth / img.width;
   const scaleY = img.naturalHeight / img.height;
   return detectBoxInteraction(mouseX, mouseY, currentBox, scaleX, scaleY);
@@ -681,7 +689,7 @@ function detectBoxInteractionLocal(mouseX, mouseY) {
 
 // ❌ BAD: Mixing DOM access in utility (not testable)
 export function detectBoxInteraction(mouseX, mouseY) {
-  const img = document.getElementById('image'); // DOM access!
+  const img = document.getElementById("image"); // DOM access!
   const box = getCurrentBox(); // Global state!
   // This function cannot be unit tested!
 }
@@ -768,10 +776,10 @@ To change theme: Modify variables in `:root`, entire app updates automatically.
 **Test structure**:
 
 ```javascript
-import { myFunction } from '../../static/js/utils/myutil.js';
+import { myFunction } from "../../static/js/utils/myutil.js";
 
-describe('myFunction', () => {
-  test('does something', () => {
+describe("myFunction", () => {
+  test("does something", () => {
     expect(myFunction(input)).toBe(expected);
   });
 });
@@ -914,10 +922,10 @@ When adding features with user interaction (mouse/keyboard events):
 7. **Create wrapper in app.js** - Handle DOM access here
 
    ```javascript
-   import { myFeature } from './utils/myfeature.js';
+   import { myFeature } from "./utils/myfeature.js";
 
    function myFeatureLocal() {
-     const domValue = document.getElementById('element').value;
+     const domValue = document.getElementById("element").value;
      return myFeature(domValue, globalState);
    }
    ```
@@ -1142,8 +1150,8 @@ The frontend automatically routes to the correct endpoint based on `currentModel
 ```javascript
 // static/js/utils/model-selection.js
 export function getSegmentEndpoint(modelType) {
-  if (modelType === 'sam3') return '/api/segment-sam3';
-  return '/api/segment';
+  if (modelType === "sam3") return "/api/segment-sam3";
+  return "/api/segment";
 }
 ```
 

@@ -1,55 +1,73 @@
-import { CONFIG } from './config.js';
+import { CONFIG } from "./config.js";
 import {
   ModalManager,
   hideAllModals,
   createWarningListItem,
   createNestedMismatchListItem,
-} from './modals.js';
-import { apiGet, apiPost, showApiError } from './api.js';
-import { hashString, getSupercategoryColor, getCategoryColor, rgbToHex } from './utils/colors.js';
-import { isPolygonInsidePolygon, isPointInPolygon } from './utils/geometry.js';
-import { checkIncompleteSupercategories } from './validation/incomplete.js';
-import { checkNestedMaskSupercategoryMismatch } from './validation/nested.js';
+} from "./modals.js";
+import { apiGet, apiPost, showApiError } from "./api.js";
+import {
+  hashString,
+  getSupercategoryColor,
+  getCategoryColor,
+  rgbToHex,
+} from "./utils/colors.js";
+import { isPolygonInsidePolygon, isPointInPolygon } from "./utils/geometry.js";
+import { checkIncompleteSupercategories } from "./validation/incomplete.js";
+import { checkNestedMaskSupercategoryMismatch } from "./validation/nested.js";
 import {
   detectBoxInteraction,
   calculateBoxResize,
   getCursorForBoxInteraction,
   calculateDragBox,
   clampBoxToCanvas,
-} from './utils/box.js';
-import { findAnnotationAtPoint, findAnnotationsInBox } from './utils/annotations.js';
-import { isPointInBounds, hasBoxCornerInBounds } from './utils/bounds.js';
-import { prepareMasksForSaving, validateMaskCategoriesForSaving } from './utils/multi-mask-save.js';
-import { updateBoxInArray, findBoxIndexAtPoint } from './utils/box-manipulation.js';
+} from "./utils/box.js";
+import {
+  findAnnotationAtPoint,
+  findAnnotationsInBox,
+} from "./utils/annotations.js";
+import { isPointInBounds, hasBoxCornerInBounds } from "./utils/bounds.js";
+import {
+  prepareMasksForSaving,
+  validateMaskCategoriesForSaving,
+} from "./utils/multi-mask-save.js";
+import {
+  updateBoxInArray,
+  findBoxIndexAtPoint,
+} from "./utils/box-manipulation.js";
 import {
   getSegmentEndpoint,
   getModelInfoEndpoint,
   getSetModelSizeEndpoint,
   formatModelDisplayName,
-} from './utils/model-selection.js';
-import { getMaskColor, shouldDrawMultipleMasks } from './utils/mask-drawing.js';
+} from "./utils/model-selection.js";
+import { getMaskColor, shouldDrawMultipleMasks } from "./utils/mask-drawing.js";
 import {
   findTopPointOfMask,
   initializeMaskCategories,
   validateMaskCategories,
   naturalToScreen,
   offsetOverlappingDropdowns,
-} from './utils/mask-category.js';
-import { mergeMaskPolygons } from './utils/mask-merging.js';
-import { ModeRegistry } from './modes/mode-registry.js';
-import { ModeManager } from './modes/mode-manager.js';
-import { SAM2Mode } from './modes/sam2-mode.js';
-import { SAM3PVSImageMode } from './modes/sam3-pvs-image-mode.js';
-import { SAM3PCSImageMode } from './modes/sam3-pcs-image-mode.js';
+} from "./utils/mask-category.js";
+import { mergeMaskPolygons } from "./utils/mask-merging.js";
+import { ImagePreloader } from "./utils/image-preloader.js";
+import { ModeRegistry } from "./modes/mode-registry.js";
+import { ModeManager } from "./modes/mode-manager.js";
+import { SAM2Mode } from "./modes/sam2-mode.js";
+import { SAM3PVSImageMode } from "./modes/sam3-pvs-image-mode.js";
+import { SAM3PCSImageMode } from "./modes/sam3-pcs-image-mode.js";
 
 let images = [];
-let currentModelType = 'sam2';
+let currentModelType = "sam2";
 let currentIndex = 0;
 
 let totalImages = 0;
 let cachedIndices = [];
 let imageMap = {};
 let lastCacheRefreshIndex = 0;
+
+// Image preloader for async caching of nearby images
+const imagePreloader = new ImagePreloader({ preloadRadius: 4 });
 
 let pointModeEnabled = true;
 let boxModeEnabled = true;
@@ -61,7 +79,7 @@ let boxStartButton = 0; // Track which mouse button started the box drag (0=left
 let currentBox = null; // Legacy: kept for backward compatibility
 let currentBoxes = []; // New: array of boxes
 let currentBoxLabels = []; // Labels for each box (1=positive, 0=negative)
-let currentTextPrompt = ''; // Text prompt for SAM3 PCS mode
+let currentTextPrompt = ""; // Text prompt for SAM3 PCS mode
 let dragBox = null;
 let currentSegmentation = null;
 let categories = [];
@@ -90,39 +108,40 @@ let focusedMaskIndex = null; // Index of mask with focused dropdown (for highlig
 
 // S3 Support state
 let isS3Dataset = false;
-let s3SourceUri = '';
+let s3SourceUri = "";
 let s3IsDirty = false; // Track unsaved changes
 let s3UploadInProgress = false; // Prevent race conditions
 
 // S3 Support functions
 function updateS3UI() {
-  const banner = document.getElementById('s3-banner');
-  const saveBtn = document.getElementById('save-to-s3-btn');
-  const sourceUriSpan = document.getElementById('s3-source-uri');
-  const dirtyIndicator = document.getElementById('s3-dirty-indicator');
+  const banner = document.getElementById("s3-banner");
+  const saveBtn = document.getElementById("save-to-s3-btn");
+  const sourceUriSpan = document.getElementById("s3-source-uri");
+  const dirtyIndicator = document.getElementById("s3-dirty-indicator");
 
   if (isS3Dataset) {
     // Show S3 UI elements
-    if (banner) banner.style.display = 'block';
-    if (saveBtn) saveBtn.style.display = 'inline-block';
+    if (banner) banner.style.display = "block";
+    if (saveBtn) saveBtn.style.display = "inline-block";
     if (sourceUriSpan) sourceUriSpan.textContent = s3SourceUri;
-    if (dirtyIndicator) dirtyIndicator.style.display = s3IsDirty ? 'inline' : 'none';
+    if (dirtyIndicator)
+      dirtyIndicator.style.display = s3IsDirty ? "inline" : "none";
 
     // Update save button state
     if (saveBtn) {
       saveBtn.disabled = s3UploadInProgress || !s3IsDirty;
       if (s3UploadInProgress) {
-        saveBtn.textContent = 'Uploading...';
+        saveBtn.textContent = "Uploading...";
       } else if (s3IsDirty) {
-        saveBtn.textContent = 'Save to S3';
+        saveBtn.textContent = "Save to S3";
       } else {
-        saveBtn.textContent = 'Saved';
+        saveBtn.textContent = "Saved";
       }
     }
   } else {
     // Hide S3 UI elements for local datasets
-    if (banner) banner.style.display = 'none';
-    if (saveBtn) saveBtn.style.display = 'none';
+    if (banner) banner.style.display = "none";
+    if (saveBtn) saveBtn.style.display = "none";
   }
 }
 
@@ -130,86 +149,88 @@ function markS3Dirty() {
   if (isS3Dataset && !s3IsDirty) {
     s3IsDirty = true;
     updateS3UI();
-    console.log('S3 dataset marked as dirty (unsaved changes)');
+    console.log("S3 dataset marked as dirty (unsaved changes)");
   }
 }
 
 async function saveToS3() {
   if (!isS3Dataset) {
-    console.warn('saveToS3 called but not an S3 dataset');
+    console.warn("saveToS3 called but not an S3 dataset");
     return;
   }
 
   if (s3UploadInProgress) {
-    console.warn('S3 upload already in progress');
+    console.warn("S3 upload already in progress");
     return;
   }
 
   if (!s3IsDirty) {
-    console.log('No unsaved changes to upload');
+    console.log("No unsaved changes to upload");
     return;
   }
 
   s3UploadInProgress = true;
   updateS3UI();
 
-  const progressContainer = document.getElementById('s3-progress-container');
-  const progressFill = document.getElementById('s3-progress-fill');
-  const progressText = document.getElementById('s3-progress-text');
-  const saveStatus = document.getElementById('s3-save-status');
+  const progressContainer = document.getElementById("s3-progress-container");
+  const progressFill = document.getElementById("s3-progress-fill");
+  const progressText = document.getElementById("s3-progress-text");
+  const saveStatus = document.getElementById("s3-save-status");
 
   // Show progress UI
-  if (saveStatus) saveStatus.style.display = 'inline-block';
-  if (progressContainer) progressContainer.style.display = 'block';
-  if (progressFill) progressFill.style.width = '0%';
-  if (progressText) progressText.textContent = 'Preparing upload...';
+  if (saveStatus) saveStatus.style.display = "inline-block";
+  if (progressContainer) progressContainer.style.display = "block";
+  if (progressFill) progressFill.style.width = "0%";
+  if (progressText) progressText.textContent = "Preparing upload...";
 
   try {
     // Simulate progress (actual upload is single request)
-    if (progressFill) progressFill.style.width = '30%';
-    if (progressText) progressText.textContent = 'Uploading to S3...';
+    if (progressFill) progressFill.style.width = "30%";
+    if (progressText) progressText.textContent = "Uploading to S3...";
 
-    const response = await fetch('/api/save-to-s3', {
-      method: 'POST',
+    const response = await fetch("/api/save-to-s3", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
 
-    if (progressFill) progressFill.style.width = '90%';
+    if (progressFill) progressFill.style.width = "90%";
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `Upload failed: ${response.statusText}`);
+      throw new Error(
+        errorData.detail || `Upload failed: ${response.statusText}`,
+      );
     }
 
     const result = await response.json();
 
     // Success
-    if (progressFill) progressFill.style.width = '100%';
-    if (progressText) progressText.textContent = 'Upload complete!';
+    if (progressFill) progressFill.style.width = "100%";
+    if (progressText) progressText.textContent = "Upload complete!";
 
     s3IsDirty = false;
-    console.log('S3 upload successful:', result);
+    console.log("S3 upload successful:", result);
 
     // Hide progress after a delay
     setTimeout(() => {
-      if (progressContainer) progressContainer.style.display = 'none';
-      if (saveStatus) saveStatus.style.display = 'none';
+      if (progressContainer) progressContainer.style.display = "none";
+      if (saveStatus) saveStatus.style.display = "none";
       updateS3UI();
     }, 2000);
   } catch (error) {
-    console.error('S3 upload failed:', error);
+    console.error("S3 upload failed:", error);
     if (progressText) {
       progressText.textContent = `Upload failed: ${error.message}`;
-      progressText.style.color = '#ff5555';
+      progressText.style.color = "#ff5555";
     }
 
     // Reset progress text color after delay
     setTimeout(() => {
-      if (progressText) progressText.style.color = '';
-      if (progressContainer) progressContainer.style.display = 'none';
-      if (saveStatus) saveStatus.style.display = 'none';
+      if (progressText) progressText.style.color = "";
+      if (progressContainer) progressContainer.style.display = "none";
+      if (saveStatus) saveStatus.style.display = "none";
     }, 5000);
   } finally {
     s3UploadInProgress = false;
@@ -217,7 +238,11 @@ async function saveToS3() {
   }
 }
 
-let incompleteModal, nestedMismatchModal, combinedWarningModal, deleteModal, categoryModal;
+let incompleteModal,
+  nestedMismatchModal,
+  combinedWarningModal,
+  deleteModal,
+  categoryModal;
 
 // Mode system
 const modeRegistry = new ModeRegistry();
@@ -225,22 +250,22 @@ let modeManager = null;
 let currentModeId = null;
 
 // Register available modes
-modeRegistry.register('sam2', SAM2Mode, {
-  displayName: 'SAM2',
-  description: 'Original SAM2 with single box and point prompts',
-  modelType: 'sam2',
+modeRegistry.register("sam2", SAM2Mode, {
+  displayName: "SAM2",
+  description: "Original SAM2 with single box and point prompts",
+  modelType: "sam2",
 });
 
-modeRegistry.register('sam3-pvs-image', SAM3PVSImageMode, {
-  displayName: 'SAM3 PVS Image',
-  description: 'SAM3 Tracker with multiple boxes for multi-object segmentation',
-  modelType: 'sam3',
+modeRegistry.register("sam3-pvs-image", SAM3PVSImageMode, {
+  displayName: "SAM3 PVS Image",
+  description: "SAM3 Tracker with multiple boxes for multi-object segmentation",
+  modelType: "sam3",
 });
 
-modeRegistry.register('sam3-pcs-image', SAM3PCSImageMode, {
-  displayName: 'SAM3 PCS Image',
-  description: 'SAM3 Concept Search with text prompts to find ALL instances',
-  modelType: 'sam3-pcs',
+modeRegistry.register("sam3-pcs-image", SAM3PCSImageMode, {
+  displayName: "SAM3 PCS Image",
+  description: "SAM3 Concept Search with text prompts to find ALL instances",
+  modelType: "sam3-pcs",
 });
 
 function getSupercategoryColorLocal(supercategory) {
@@ -248,17 +273,26 @@ function getSupercategoryColorLocal(supercategory) {
 }
 
 function getCategoryColorLocal(category) {
-  return getCategoryColor(category, categories, supercategoryColors, categoryColors);
+  return getCategoryColor(
+    category,
+    categories,
+    supercategoryColors,
+    categoryColors,
+  );
 }
 
 function checkIncompleteSupercategoriesLocal() {
   const imgData = imageMap[currentIndex];
   try {
-    const result = checkIncompleteSupercategories(imgData, annotationsByImage, categories);
-    console.log('Incomplete check result:', result);
+    const result = checkIncompleteSupercategories(
+      imgData,
+      annotationsByImage,
+      categories,
+    );
+    console.log("Incomplete check result:", result);
     return result;
   } catch (error) {
-    console.error('Error in checkIncompleteSupercategories:', error);
+    console.error("Error in checkIncompleteSupercategories:", error);
     return null;
   }
 }
@@ -266,22 +300,26 @@ function checkIncompleteSupercategoriesLocal() {
 function checkNestedMaskSupercategoryMismatchLocal() {
   const imgData = imageMap[currentIndex];
   try {
-    const result = checkNestedMaskSupercategoryMismatch(imgData, annotationsByImage, categories);
-    console.log('Nested mismatch check result:', result);
+    const result = checkNestedMaskSupercategoryMismatch(
+      imgData,
+      annotationsByImage,
+      categories,
+    );
+    console.log("Nested mismatch check result:", result);
     return result;
   } catch (error) {
-    console.error('Error in checkNestedMaskSupercategoryMismatch:', error);
+    console.error("Error in checkNestedMaskSupercategoryMismatch:", error);
     return null;
   }
 }
 
 function populateCategoryBadges() {
-  const container = document.getElementById('category-badges');
-  container.innerHTML = '';
+  const container = document.getElementById("category-badges");
+  container.innerHTML = "";
 
   const sortedCategories = [...categories].sort((a, b) => {
-    const superA = a.supercategory || 'none';
-    const superB = b.supercategory || 'none';
+    const superA = a.supercategory || "none";
+    const superB = b.supercategory || "none";
     if (superA !== superB) {
       return superA.localeCompare(superB);
     }
@@ -289,21 +327,23 @@ function populateCategoryBadges() {
   });
 
   sortedCategories.forEach((cat) => {
-    const badge = document.createElement('div');
-    badge.className = 'badge';
+    const badge = document.createElement("div");
+    badge.className = "badge";
 
     const supercatDisplay =
-      cat.supercategory && cat.supercategory !== 'none' ? cat.supercategory : 'none';
+      cat.supercategory && cat.supercategory !== "none"
+        ? cat.supercategory
+        : "none";
     badge.textContent = `${supercatDisplay}:${cat.name}`;
 
     const rgb = getCategoryColorLocal(cat);
     const hexColor = rgbToHex(rgb);
     badge.style.backgroundColor = hexColor;
     badge.style.borderColor = hexColor;
-    badge.style.color = '#fff';
+    badge.style.color = "#fff";
 
     if (cat.id === selectedCategoryId) {
-      badge.classList.add('selected');
+      badge.classList.add("selected");
     }
 
     badge.onclick = () => handleCategoryClick(cat.id);
@@ -312,7 +352,7 @@ function populateCategoryBadges() {
 }
 
 function handleCategoryClick(catId) {
-  console.log('Category clicked:', catId, typeof catId);
+  console.log("Category clicked:", catId, typeof catId);
   selectedCategoryId = catId;
 
   // If there are unsaved masks, set all their categories to the clicked category
@@ -330,14 +370,14 @@ function handleCategoryClick(catId) {
 }
 
 function updateSaveButtonState() {
-  const saveBtn = document.getElementById('save-btn');
+  const saveBtn = document.getElementById("save-btn");
   const hasSegmentation = currentSegmentation !== null;
 
   // Check if all masks have categories selected
   const numMasks = currentSegmentation?.segmentation?.length || 0;
   const allCategoriesValid = validateMaskCategories(maskCategoryIds, numMasks);
 
-  console.log('Save button state:', {
+  console.log("Save button state:", {
     hasSegmentation,
     allCategoriesValid,
     maskCategoryIds,
@@ -349,17 +389,17 @@ function updateSaveButtonState() {
   saveBtn.disabled = !canSave;
 
   if (!canSave) {
-    saveBtn.style.opacity = '0.5';
-    saveBtn.style.cursor = 'not-allowed';
+    saveBtn.style.opacity = "0.5";
+    saveBtn.style.cursor = "not-allowed";
   } else {
-    saveBtn.style.opacity = '1';
-    saveBtn.style.cursor = 'pointer';
+    saveBtn.style.opacity = "1";
+    saveBtn.style.cursor = "pointer";
   }
 }
 
 function updateCacheInfo() {
   if (cachedIndices.length === 0) {
-    document.getElementById('cache-info').textContent = 'Cache: empty';
+    document.getElementById("cache-info").textContent = "Cache: empty";
     return;
   }
 
@@ -367,36 +407,41 @@ function updateCacheInfo() {
   let start = cachedIndices[0];
   let end = cachedIndices[0];
 
+  // Add preloader stats
+  const preloaderStats = imagePreloader.getStats();
+  const preloadInfo = ` | Preloaded: ${preloaderStats.cachedImages} images`;
+
   for (let i = 1; i < cachedIndices.length; i++) {
     if (cachedIndices[i] === end + 1) {
       end = cachedIndices[i];
     } else {
-      ranges.push(start === end ? `${start}` : `${start}-${end}`);
+      ranges.push(start === end ? `${start + 1}` : `${start + 1}-${end + 1}`);
       start = cachedIndices[i];
       end = cachedIndices[i];
     }
   }
-  ranges.push(start === end ? `${start}` : `${start}-${end}`);
+  ranges.push(start === end ? `${start + 1}` : `${start + 1}-${end + 1}`);
 
-  document.getElementById('cache-info').textContent = `Cached: ${ranges.join(', ')}`;
+  document.getElementById("cache-info").textContent =
+    `Cache: ${ranges.join(", ")}${preloadInfo}`;
 }
 
 async function loadDataset(preserveIndex = false) {
   // Fetch dataset info first to check if S3
   try {
-    const infoResponse = await fetch('/api/dataset-info');
+    const infoResponse = await fetch("/api/dataset-info");
     if (infoResponse.ok) {
       const info = await infoResponse.json();
       isS3Dataset = info.is_s3;
-      s3SourceUri = info.source_uri || '';
+      s3SourceUri = info.source_uri || "";
       s3IsDirty = info.is_dirty || false;
       updateS3UI();
     }
   } catch (error) {
-    console.warn('Failed to fetch dataset info:', error);
+    console.warn("Failed to fetch dataset info:", error);
   }
 
-  const response = await fetch('/api/dataset');
+  const response = await fetch("/api/dataset");
   const data = await response.json();
   images = data.images;
   imageMap = data.image_map;
@@ -405,7 +450,7 @@ async function loadDataset(preserveIndex = false) {
   annotationsByImage = data.annotations_by_image || {};
   updateCacheInfo();
 
-  const categoriesResponse = await fetch('/api/categories');
+  const categoriesResponse = await fetch("/api/categories");
   const categoriesData = await categoriesResponse.json();
   categories = categoriesData.categories;
 
@@ -416,9 +461,12 @@ async function loadDataset(preserveIndex = false) {
       showImage(currentIndex % totalImages);
     } else {
       const urlParams = new URLSearchParams(window.location.search);
-      const urlIndex = parseInt(urlParams.get('index'));
-      const startIndex = !isNaN(urlIndex) && urlIndex >= 0 && urlIndex < totalImages ? urlIndex : 0;
-      const hideAnnotations = urlParams.get('hideAnnotations') === 'true';
+      const urlIndex = parseInt(urlParams.get("index"));
+      const startIndex =
+        !isNaN(urlIndex) && urlIndex >= 0 && urlIndex < totalImages
+          ? urlIndex
+          : 0;
+      const hideAnnotations = urlParams.get("hideAnnotations") === "true";
       if (hideAnnotations !== annotationsVisible) {
         annotationsVisible = !hideAnnotations;
         updateToggleButton();
@@ -436,15 +484,15 @@ async function ensureImageLoaded(index) {
     const start = Math.max(0, index - margin);
     const end = Math.min(totalImages, index + margin);
 
-    await fetch('/api/load-range', {
-      method: 'POST',
+    await fetch("/api/load-range", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ start, end }),
     });
 
-    const response = await fetch('/api/dataset');
+    const response = await fetch("/api/dataset");
     const data = await response.json();
     images = data.images;
     imageMap = data.image_map;
@@ -461,15 +509,15 @@ async function showImage(index) {
   currentIndex = ((index % totalImages) + totalImages) % totalImages;
 
   const url = new URL(window.location);
-  url.searchParams.set('index', currentIndex);
+  url.searchParams.set("index", currentIndex);
   if (!annotationsVisible) {
-    url.searchParams.set('hideAnnotations', 'true');
+    url.searchParams.set("hideAnnotations", "true");
   } else {
-    url.searchParams.delete('hideAnnotations');
+    url.searchParams.delete("hideAnnotations");
   }
-  window.history.replaceState({}, '', url);
+  window.history.replaceState({}, "", url);
 
-  document.getElementById('spinner').classList.add('show');
+  document.getElementById("spinner").classList.add("show");
 
   await ensureImageLoaded(currentIndex);
 
@@ -477,20 +525,30 @@ async function showImage(index) {
 
   if (!img) {
     console.error(`Image at index ${currentIndex} not found in cache`);
-    document.getElementById('spinner').classList.remove('show');
+    document.getElementById("spinner").classList.remove("show");
     return;
   }
 
-  document.getElementById('image').src = '/api/image/' + img.id;
-  document.getElementById('image-id').textContent = img.id;
-  document.getElementById('file-name').textContent = img.file_name;
-  document.getElementById('dimensions').textContent = img.width + ' x ' + img.height;
-  document.getElementById('counter').textContent = `Image ${currentIndex + 1} of ${totalImages}`;
+  // Trigger async preloading of nearby images (don't wait)
+  imagePreloader.updateState(currentIndex, totalImages, imageMap);
 
-  const indexInput = document.getElementById('index-input');
+  // Periodically prune cache to prevent unbounded memory growth
+  if (currentIndex % 20 === 0) {
+    imagePreloader.pruneCache();
+  }
+
+  document.getElementById("image").src = "/api/image/" + img.id;
+  document.getElementById("image-id").textContent = img.id;
+  document.getElementById("file-name").textContent = img.file_name;
+  document.getElementById("dimensions").textContent =
+    img.width + " x " + img.height;
+  document.getElementById("counter").textContent =
+    `Image ${currentIndex + 1} of ${totalImages}`;
+
+  const indexInput = document.getElementById("index-input");
   if (indexInput) {
     indexInput.max = totalImages;
-    indexInput.value = '';
+    indexInput.value = "";
     indexInput.placeholder = `Go to (1-${totalImages})`;
   }
 
@@ -508,19 +566,19 @@ async function showImage(index) {
   selectedAnnotationIds.clear();
   updateAnnotationEditor();
   if (canvas) {
-    canvas.style.cursor = 'crosshair';
+    canvas.style.cursor = "crosshair";
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   }
   updateSaveButtonState();
   updateMergeButtonState();
 
-  const imgElement = document.getElementById('image');
+  const imgElement = document.getElementById("image");
   imgElement.onload = () => {
     setupCanvas();
     drawExistingAnnotations();
   };
 
-  document.getElementById('spinner').classList.remove('show');
+  document.getElementById("spinner").classList.remove("show");
 }
 
 function drawExistingAnnotations() {
@@ -529,32 +587,32 @@ function drawExistingAnnotations() {
 
   const annotations = annotationsByImage[imgData.id] || [];
 
-  const annotationListDiv = document.getElementById('annotation-list');
-  const annotationItemsDiv = document.getElementById('annotation-items');
+  const annotationListDiv = document.getElementById("annotation-list");
+  const annotationItemsDiv = document.getElementById("annotation-items");
 
   if (annotations.length === 0) {
-    annotationListDiv.style.display = 'none';
+    annotationListDiv.style.display = "none";
     return;
   }
 
-  annotationListDiv.style.display = 'block';
-  annotationItemsDiv.innerHTML = '';
+  annotationListDiv.style.display = "block";
+  annotationItemsDiv.innerHTML = "";
 
   annotations.forEach((ann) => {
     const category = categories.find((c) => c.id === ann.category_id);
-    const itemDiv = document.createElement('div');
-    itemDiv.className = 'annotation-item';
+    const itemDiv = document.createElement("div");
+    itemDiv.className = "annotation-item";
     if (selectedAnnotationIds.has(ann.id)) {
-      itemDiv.classList.add('selected');
+      itemDiv.classList.add("selected");
     }
     itemDiv.onclick = (e) => selectAnnotation(ann.id, e.ctrlKey || e.metaKey);
     const categoryLabel = category
-      ? category.supercategory && category.supercategory !== 'none'
+      ? category.supercategory && category.supercategory !== "none"
         ? `${category.supercategory} > ${category.name}`
         : category.name
-      : 'Unknown';
+      : "Unknown";
 
-    let colorIndicator = '';
+    let colorIndicator = "";
     if (category) {
       const rgb = getCategoryColorLocal(category);
       const hexColor = rgbToHex(rgb);
@@ -568,20 +626,20 @@ function drawExistingAnnotations() {
   });
 
   if (!canvas) {
-    canvas = document.getElementById('canvas');
-    ctx = canvas.getContext('2d');
-    const img = document.getElementById('image');
+    canvas = document.getElementById("canvas");
+    ctx = canvas.getContext("2d");
+    const img = document.getElementById("image");
     canvas.width = img.width;
     canvas.height = img.height;
-    canvas.style.width = img.width + 'px';
-    canvas.style.height = img.height + 'px';
+    canvas.style.width = img.width + "px";
+    canvas.style.height = img.height + "px";
   }
 
   if (!annotationsVisible) {
     return;
   }
 
-  const img = document.getElementById('image');
+  const img = document.getElementById("image");
   const scaleX = img.width / img.naturalWidth;
   const scaleY = img.height / img.naturalHeight;
 
@@ -617,7 +675,7 @@ function drawExistingAnnotations() {
     const isHovered = hoveredAnnotationId === annotation.id;
 
     if (isHovered && !isSelected) {
-      ctx.strokeStyle = CONFIG.colors.hover || '#ffff00';
+      ctx.strokeStyle = CONFIG.colors.hover || "#ffff00";
       ctx.lineWidth = 3;
     } else if (isSelected) {
       ctx.strokeStyle = CONFIG.colors.positive;
@@ -649,7 +707,7 @@ function drawExistingAnnotations() {
 
     if (category) {
       const categoryLabel =
-        category.supercategory && category.supercategory !== 'none'
+        category.supercategory && category.supercategory !== "none"
           ? `${category.supercategory} > ${category.name}`
           : category.name;
 
@@ -657,8 +715,8 @@ function drawExistingAnnotations() {
       const isSelected = selectedAnnotationIds.has(annotation.id);
       const labelColor = isSelected ? CONFIG.colors.positive : rgbToHex(rgb);
 
-      ctx.font = '10px Arial';
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+      ctx.font = "10px Arial";
+      ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
       const textWidth = ctx.measureText(categoryLabel).width;
       ctx.fillRect(minX - 2, minY - 14, textWidth + 4, 12);
 
@@ -675,7 +733,7 @@ function handleAnnotationClick(x, y, multiSelect = false) {
   const annotations = annotationsByImage[imgData.id] || [];
   if (annotations.length === 0) return;
 
-  const img = document.getElementById('image');
+  const img = document.getElementById("image");
   const scaleX = img.naturalWidth / img.width;
   const scaleY = img.naturalHeight / img.height;
 
@@ -699,7 +757,7 @@ function handleAnnotationBoxSelect(box, multiSelect = false) {
   const annotations = annotationsByImage[imgData.id] || [];
   if (annotations.length === 0) return;
 
-  const img = document.getElementById('image');
+  const img = document.getElementById("image");
 
   const clampedBox = clampBoxToCanvas(box, img.naturalWidth, img.naturalHeight);
   const selectedIds = findAnnotationsInBox(clampedBox, annotations, 1, 1);
@@ -718,7 +776,7 @@ function handleAnnotationBoxSelect(box, multiSelect = false) {
 
 function checkAnnotationHover(e) {
   const rect = canvas.getBoundingClientRect();
-  const img = document.getElementById('image');
+  const img = document.getElementById("image");
   const scaleX = img.naturalWidth / img.width;
   const scaleY = img.naturalHeight / img.height;
 
@@ -737,7 +795,7 @@ function checkAnnotationHover(e) {
 
   if (annotationId !== hoveredAnnotationId) {
     hoveredAnnotationId = annotationId;
-    canvas.style.cursor = annotationId ? 'pointer' : 'default';
+    canvas.style.cursor = annotationId ? "pointer" : "default";
     redrawCanvas();
   }
 }
@@ -750,7 +808,10 @@ function selectAnnotation(annotationId, multiSelect = false) {
       selectedAnnotationIds.add(annotationId);
     }
   } else {
-    if (selectedAnnotationIds.has(annotationId) && selectedAnnotationIds.size === 1) {
+    if (
+      selectedAnnotationIds.has(annotationId) &&
+      selectedAnnotationIds.size === 1
+    ) {
       selectedAnnotationIds.clear();
     } else {
       selectedAnnotationIds.clear();
@@ -767,22 +828,23 @@ function selectAnnotation(annotationId, multiSelect = false) {
 }
 
 function updateAnnotationEditor() {
-  const editor = document.getElementById('annotation-editor');
-  const countSpan = document.getElementById('selected-count');
-  const categorySelect = document.getElementById('edit-category-select');
+  const editor = document.getElementById("annotation-editor");
+  const countSpan = document.getElementById("selected-count");
+  const categorySelect = document.getElementById("edit-category-select");
 
   if (selectedAnnotationIds.size === 0) {
-    editor.style.display = 'none';
+    editor.style.display = "none";
   } else {
-    editor.style.display = 'block';
+    editor.style.display = "block";
     countSpan.textContent = selectedAnnotationIds.size;
 
-    categorySelect.innerHTML = '<option value="">-- Select Category --</option>';
+    categorySelect.innerHTML =
+      '<option value="">-- Select Category --</option>';
     categories.forEach((cat) => {
-      const option = document.createElement('option');
+      const option = document.createElement("option");
       option.value = cat.id;
       const label =
-        cat.supercategory && cat.supercategory !== 'none'
+        cat.supercategory && cat.supercategory !== "none"
           ? `${cat.supercategory} > ${cat.name}`
           : cat.name;
       option.textContent = label;
@@ -792,29 +854,30 @@ function updateAnnotationEditor() {
 }
 
 async function changeSelectedAnnotationsCategory() {
-  const categorySelect = document.getElementById('edit-category-select');
+  const categorySelect = document.getElementById("edit-category-select");
   const newCategoryId = parseInt(categorySelect.value);
 
   if (!newCategoryId) {
-    alert('Please select a category');
+    alert("Please select a category");
     return;
   }
 
   if (selectedAnnotationIds.size === 0) {
-    alert('Please select at least one annotation');
+    alert("Please select at least one annotation");
     return;
   }
 
   try {
-    const updatePromises = Array.from(selectedAnnotationIds).map((annotationId) =>
-      fetch('/api/update-annotation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          annotation_id: annotationId,
-          category_id: newCategoryId,
+    const updatePromises = Array.from(selectedAnnotationIds).map(
+      (annotationId) =>
+        fetch("/api/update-annotation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            annotation_id: annotationId,
+            category_id: newCategoryId,
+          }),
         }),
-      })
     );
 
     const responses = await Promise.all(updatePromises);
@@ -827,24 +890,24 @@ async function changeSelectedAnnotationsCategory() {
         drawExistingAnnotations();
       }
     } else {
-      alert('Error updating some annotations');
+      alert("Error updating some annotations");
     }
   } catch (error) {
-    console.error('Update annotations error:', error);
-    alert('Error updating annotations');
+    console.error("Update annotations error:", error);
+    alert("Error updating annotations");
   }
 }
 
 async function deleteSelectedAnnotations() {
   if (selectedAnnotationIds.size === 0) {
-    alert('Please select at least one annotation to delete');
+    alert("Please select at least one annotation to delete");
     return;
   }
 
   const count = selectedAnnotationIds.size;
   const message =
     count === 1
-      ? 'Are you sure you want to delete this annotation?'
+      ? "Are you sure you want to delete this annotation?"
       : `Are you sure you want to delete ${count} annotations?`;
 
   if (!confirm(message)) {
@@ -852,17 +915,18 @@ async function deleteSelectedAnnotations() {
   }
 
   try {
-    const deletePromises = Array.from(selectedAnnotationIds).map((annotationId) =>
-      fetch('/api/delete-annotation', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          annotation_id: annotationId,
-          confirmed: true,
+    const deletePromises = Array.from(selectedAnnotationIds).map(
+      (annotationId) =>
+        fetch("/api/delete-annotation", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            annotation_id: annotationId,
+            confirmed: true,
+          }),
         }),
-      })
     );
 
     const responses = await Promise.all(deletePromises);
@@ -877,55 +941,66 @@ async function deleteSelectedAnnotations() {
         drawExistingAnnotations();
       }
     } else {
-      alert('Error deleting some annotations');
+      alert("Error deleting some annotations");
     }
   } catch (error) {
-    console.error('Delete annotation error:', error);
-    alert('Error deleting annotations');
+    console.error("Delete annotation error:", error);
+    alert("Error deleting annotations");
   }
 }
 
 function previousImage() {
-  console.log('Previous button clicked, current index:', currentIndex);
+  console.log("Previous button clicked, current index:", currentIndex);
   navigateToImage(currentIndex - 1);
 }
 
 function nextImage() {
-  console.log('Next button clicked, current index:', currentIndex);
+  console.log("Next button clicked, current index:", currentIndex);
   navigateToImage(currentIndex + 1);
 }
 
 function navigateToImage(targetIndex) {
-  console.log('Navigate to image:', targetIndex, 'from:', currentIndex);
+  console.log("Navigate to image:", targetIndex, "from:", currentIndex);
   const incomplete = checkIncompleteSupercategoriesLocal();
   const nestedMismatches = checkNestedMaskSupercategoryMismatchLocal();
 
-  console.log('Validation checks - incomplete:', incomplete, 'nestedMismatches:', nestedMismatches);
+  console.log(
+    "Validation checks - incomplete:",
+    incomplete,
+    "nestedMismatches:",
+    nestedMismatches,
+  );
 
   if (incomplete && nestedMismatches) {
-    console.log('Showing combined warning');
+    console.log("Showing combined warning");
     pendingNavigationIndex = targetIndex;
     showCombinedWarning(incomplete, nestedMismatches);
   } else if (incomplete) {
-    console.log('Showing incomplete warning');
+    console.log("Showing incomplete warning");
     pendingNavigationIndex = targetIndex;
     showIncompleteSupercategoryWarning(incomplete);
   } else if (nestedMismatches) {
-    console.log('Showing nested mismatch warning');
+    console.log("Showing nested mismatch warning");
     pendingNavigationIndex = targetIndex;
     showNestedMaskMismatchWarning(nestedMismatches);
   } else {
-    console.log('Navigating directly to image:', targetIndex);
+    console.log("Navigating directly to image:", targetIndex);
     showImage(targetIndex);
   }
 }
 
 function showIncompleteSupercategoryWarning(incompleteData) {
-  const listDiv = incompleteModal.getContentElement('incomplete-supercategory-list');
-  listDiv.innerHTML = '';
+  const listDiv = incompleteModal.getContentElement(
+    "incomplete-supercategory-list",
+  );
+  listDiv.innerHTML = "";
 
   incompleteData.forEach((item) => {
-    const itemDiv = createWarningListItem(item.supercategory, item.annotated, item.missing);
+    const itemDiv = createWarningListItem(
+      item.supercategory,
+      item.annotated,
+      item.missing,
+    );
     listDiv.appendChild(itemDiv);
   });
 
@@ -933,8 +1008,10 @@ function showIncompleteSupercategoryWarning(incompleteData) {
 }
 
 function showNestedMaskMismatchWarning(mismatches) {
-  const listDiv = nestedMismatchModal.getContentElement('nested-mask-mismatch-list');
-  listDiv.innerHTML = '';
+  const listDiv = nestedMismatchModal.getContentElement(
+    "nested-mask-mismatch-list",
+  );
+  listDiv.innerHTML = "";
 
   mismatches.forEach((mismatch) => {
     const itemDiv = createNestedMismatchListItem(mismatch);
@@ -945,23 +1022,24 @@ function showNestedMaskMismatchWarning(mismatches) {
 }
 
 function showCombinedWarning(incompleteData, nestedMismatches) {
-  const contentDiv = document.getElementById('combined-warning-content');
-  contentDiv.innerHTML = '';
+  const contentDiv = document.getElementById("combined-warning-content");
+  contentDiv.innerHTML = "";
 
-  const incompleteSection = document.createElement('div');
-  incompleteSection.style.cssText = 'margin-bottom: 20px;';
+  const incompleteSection = document.createElement("div");
+  incompleteSection.style.cssText = "margin-bottom: 20px;";
   incompleteSection.innerHTML =
     '<h3 style="color: #d29922; font-size: 16px; margin-bottom: 10px;">Incomplete Supercategories</h3>';
 
-  const incompleteList = document.createElement('div');
-  incompleteList.style.cssText = 'background: #1a1f2e; padding: 15px; border-radius: 4px;';
+  const incompleteList = document.createElement("div");
+  incompleteList.style.cssText =
+    "background: #1a1f2e; padding: 15px; border-radius: 4px;";
 
   incompleteData.forEach((item) => {
-    const itemDiv = document.createElement('div');
-    itemDiv.style.cssText = 'margin-bottom: 10px; font-size: 12px;';
+    const itemDiv = document.createElement("div");
+    itemDiv.style.cssText = "margin-bottom: 10px; font-size: 12px;";
     itemDiv.innerHTML = `
                         <div style="font-weight: bold; color: #48d1cc;">${item.supercategory}</div>
-                        <div style="color: #f85149;">Missing: ${item.missing.join(', ')}</div>
+                        <div style="color: #f85149;">Missing: ${item.missing.join(", ")}</div>
                     `;
     incompleteList.appendChild(itemDiv);
   });
@@ -969,16 +1047,17 @@ function showCombinedWarning(incompleteData, nestedMismatches) {
   incompleteSection.appendChild(incompleteList);
   contentDiv.appendChild(incompleteSection);
 
-  const nestedSection = document.createElement('div');
+  const nestedSection = document.createElement("div");
   nestedSection.innerHTML =
     '<h3 style="color: #f85149; font-size: 16px; margin-bottom: 10px;">Nested Mask Mismatches</h3>';
 
-  const nestedList = document.createElement('div');
-  nestedList.style.cssText = 'background: #1a1f2e; padding: 15px; border-radius: 4px;';
+  const nestedList = document.createElement("div");
+  nestedList.style.cssText =
+    "background: #1a1f2e; padding: 15px; border-radius: 4px;";
 
   nestedMismatches.forEach((mismatch) => {
-    const itemDiv = document.createElement('div');
-    itemDiv.style.cssText = 'margin-bottom: 10px; font-size: 12px;';
+    const itemDiv = document.createElement("div");
+    itemDiv.style.cssText = "margin-bottom: 10px; font-size: 12px;";
     itemDiv.innerHTML = `
                         <div><strong>${mismatch.inner.category}</strong> (${mismatch.inner.supercategory}) inside <strong>${mismatch.outer.category}</strong> (${mismatch.outer.supercategory})</div>
                     `;
@@ -988,7 +1067,7 @@ function showCombinedWarning(incompleteData, nestedMismatches) {
   nestedSection.appendChild(nestedList);
   contentDiv.appendChild(nestedSection);
 
-  document.getElementById('combinedWarningModal').classList.add('show');
+  document.getElementById("combinedWarningModal").classList.add("show");
 }
 
 function cancelNavigation() {
@@ -1016,32 +1095,32 @@ function toggleAnnotationsVisibility() {
 }
 
 function updateToggleButton() {
-  const btn = document.getElementById('toggle-annotations-btn');
-  const text = document.getElementById('toggle-annotations-text');
+  const btn = document.getElementById("toggle-annotations-btn");
+  const text = document.getElementById("toggle-annotations-text");
   if (annotationsVisible) {
-    text.textContent = 'Hide Annotations';
-    btn.style.backgroundColor = '';
+    text.textContent = "Hide Annotations";
+    btn.style.backgroundColor = "";
   } else {
-    text.textContent = 'Show Annotations';
-    btn.style.backgroundColor = 'rgba(72, 209, 204, 0.15)';
+    text.textContent = "Show Annotations";
+    btn.style.backgroundColor = "rgba(72, 209, 204, 0.15)";
   }
 }
 
 function updateUrlParams() {
   const url = new URL(window.location);
   if (!annotationsVisible) {
-    url.searchParams.set('hideAnnotations', 'true');
+    url.searchParams.set("hideAnnotations", "true");
   } else {
-    url.searchParams.delete('hideAnnotations');
+    url.searchParams.delete("hideAnnotations");
   }
-  window.history.replaceState({}, '', url);
+  window.history.replaceState({}, "", url);
 }
 
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Shift' && !selectionMode && !boxStart && !selectionBoxStart) {
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Shift" && !selectionMode && !boxStart && !selectionBoxStart) {
     selectionMode = true;
     if (canvas) {
-      canvas.style.cursor = 'default';
+      canvas.style.cursor = "default";
     }
   }
 
@@ -1052,48 +1131,48 @@ document.addEventListener('keydown', (e) => {
     nestedMismatchModal.isVisible() ||
     combinedWarningModal.isVisible()
   ) {
-    if (e.key === 'Escape') {
+    if (e.key === "Escape") {
       cancelNavigation();
-    } else if (e.key === 'Enter') {
+    } else if (e.key === "Enter") {
       confirmNavigation();
     }
   } else if (categoryModal.isVisible()) {
     return;
   } else {
-    if (e.key === 'ArrowLeft') previousImage();
-    if (e.key === 'ArrowRight') nextImage();
-    if (e.key === 'Escape') {
+    if (e.key === "ArrowLeft") previousImage();
+    if (e.key === "ArrowRight") nextImage();
+    if (e.key === "Escape") {
       resetPrompts();
       selectedAnnotationIds.clear();
       updateAnnotationEditor();
     }
-    if (e.key === 'h' && (e.ctrlKey || e.metaKey)) {
+    if (e.key === "h" && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       toggleAnnotationsVisibility();
     }
-    if (e.key === 'Enter') {
-      const saveBtn = document.getElementById('save-btn');
+    if (e.key === "Enter") {
+      const saveBtn = document.getElementById("save-btn");
       if (!saveBtn.disabled && currentSegmentation && selectedCategoryId) {
         e.preventDefault();
         saveAnnotation();
       }
     }
-    if (e.key === 't' || e.key === 'T') {
+    if (e.key === "t" || e.key === "T") {
       // Note: Box label toggling disabled - SAM3 Tracker doesn't support box labels
       if (currentBoxes.length > 0) {
-        console.warn('⚠️  Box label toggling not supported in SAM3 Tracker');
-        console.warn('ℹ️  All boxes are treated as positive prompts');
+        console.warn("⚠️  Box label toggling not supported in SAM3 Tracker");
+        console.warn("ℹ️  All boxes are treated as positive prompts");
       }
     }
   }
 });
 
-document.addEventListener('keyup', (e) => {
-  if (e.key === 'Shift' && selectionMode) {
+document.addEventListener("keyup", (e) => {
+  if (e.key === "Shift" && selectionMode) {
     selectionMode = false;
     hoveredAnnotationId = null;
     if (canvas) {
-      canvas.style.cursor = 'crosshair';
+      canvas.style.cursor = "crosshair";
       redrawCanvas();
     }
   }
@@ -1101,19 +1180,22 @@ document.addEventListener('keyup', (e) => {
 
 function showDeleteConfirmation() {
   const img = imageMap[currentIndex];
-  document.getElementById('delete-image-id').textContent = img.id;
-  document.getElementById('delete-file-name').textContent = img.file_name;
-  document.getElementById('deleteModal').classList.add('show');
+  document.getElementById("delete-image-id").textContent = img.id;
+  document.getElementById("delete-file-name").textContent = img.file_name;
+  document.getElementById("deleteModal").classList.add("show");
 }
 
 function hideDeleteConfirmation() {
-  document.getElementById('deleteModal').classList.remove('show');
+  document.getElementById("deleteModal").classList.remove("show");
 }
 
 function handleModalKeydown(e) {
-  if (e.key === 'Enter' && document.getElementById('deleteModal').classList.contains('show')) {
+  if (
+    e.key === "Enter" &&
+    document.getElementById("deleteModal").classList.contains("show")
+  ) {
     confirmDelete();
-  } else if (e.key === 'Escape') {
+  } else if (e.key === "Escape") {
     hideDeleteConfirmation();
   }
 }
@@ -1123,10 +1205,10 @@ async function confirmDelete() {
   const deletingLastImage = currentIndex === totalImages - 1;
 
   try {
-    const response = await fetch('/api/delete-image', {
-      method: 'POST',
+    const response = await fetch("/api/delete-image", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         image_id: img.id,
@@ -1138,7 +1220,7 @@ async function confirmDelete() {
       hideDeleteConfirmation();
       markS3Dirty(); // Mark S3 dataset as having unsaved changes
 
-      const response = await fetch('/api/dataset');
+      const response = await fetch("/api/dataset");
       const data = await response.json();
       images = data.images;
       imageMap = data.image_map;
@@ -1148,8 +1230,8 @@ async function confirmDelete() {
       updateCacheInfo();
 
       if (totalImages === 0) {
-        document.getElementById('image').src = '';
-        document.getElementById('counter').textContent = 'No images';
+        document.getElementById("image").src = "";
+        document.getElementById("counter").textContent = "No images";
       } else {
         if (deletingLastImage) {
           currentIndex = Math.max(0, totalImages - 1);
@@ -1161,10 +1243,10 @@ async function confirmDelete() {
       }
     } else {
       const error = await response.json();
-      alert('Error deleting image: ' + error.detail);
+      alert("Error deleting image: " + error.detail);
     }
   } catch (error) {
-    alert('Error deleting image: ' + error.message);
+    alert("Error deleting image: " + error.message);
   }
 }
 
@@ -1172,16 +1254,16 @@ function isClickOnExcludedElement(e) {
   const target = e.target;
 
   const excludedSelectors = [
-    '.controls',
-    '.annotation-list',
-    '.annotation-editor',
-    '.category-badges',
-    '.modal',
-    '.keyboard-hints',
-    'button',
-    'input',
-    'select',
-    'textarea',
+    ".controls",
+    ".annotation-list",
+    ".annotation-editor",
+    ".category-badges",
+    ".modal",
+    ".keyboard-hints",
+    "button",
+    "input",
+    "select",
+    "textarea",
   ];
 
   for (const selector of excludedSelectors) {
@@ -1194,28 +1276,28 @@ function isClickOnExcludedElement(e) {
 }
 
 function isPointInFrame(x, y) {
-  const img = document.getElementById('image');
+  const img = document.getElementById("image");
   if (!img) return false;
   return isPointInBounds(x, y, img.naturalWidth, img.naturalHeight);
 }
 
 function isBoxIntersectingFrame(box) {
-  const img = document.getElementById('image');
+  const img = document.getElementById("image");
   if (!img || !box) return false;
   return hasBoxCornerInBounds(box, img.naturalWidth, img.naturalHeight);
 }
 
 function setupCanvas() {
-  canvas = document.getElementById('canvas');
-  ctx = canvas.getContext('2d');
-  const img = document.getElementById('image');
+  canvas = document.getElementById("canvas");
+  ctx = canvas.getContext("2d");
+  const img = document.getElementById("image");
   canvas.width = img.width;
   canvas.height = img.height;
-  canvas.style.width = img.width + 'px';
-  canvas.style.height = img.height + 'px';
+  canvas.style.width = img.width + "px";
+  canvas.style.height = img.height + "px";
 
-  const wrapper = document.getElementById('image-wrapper');
-  wrapper.style.cursor = 'crosshair';
+  const wrapper = document.getElementById("image-wrapper");
+  wrapper.style.cursor = "crosshair";
   wrapper.oncontextmenu = (e) => {
     e.preventDefault();
     return false;
@@ -1224,17 +1306,17 @@ function setupCanvas() {
   wrapper.onmousemove = handleMouseMove;
   wrapper.onmouseup = handleBoxEnd;
 
-  document.addEventListener('mousedown', handleDocumentMouseDown);
-  document.addEventListener('mousemove', handleDocumentMouseMove);
-  document.addEventListener('mouseup', handleDocumentMouseUp);
+  document.addEventListener("mousedown", handleDocumentMouseDown);
+  document.addEventListener("mousemove", handleDocumentMouseMove);
+  document.addEventListener("mouseup", handleDocumentMouseUp);
 }
 
 function handleImageClick(e) {
   e.preventDefault();
 
-  const canvas = document.getElementById('canvas');
+  const canvas = document.getElementById("canvas");
   const rect = canvas.getBoundingClientRect();
-  const img = document.getElementById('image');
+  const img = document.getElementById("image");
   const scaleX = img.naturalWidth / img.width;
   const scaleY = img.naturalHeight / img.height;
 
@@ -1247,9 +1329,13 @@ function handleImageClick(e) {
 
   // Check if multiple boxes exist
   if (currentBoxes.length > 1) {
-    console.warn('⚠️  Cannot add points when multiple boxes exist');
-    console.warn('ℹ️  Points + multiple boxes requires specifying which box each point applies to');
-    console.warn('💡 Delete boxes until only 1 remains, or use boxes only (no points)');
+    console.warn("⚠️  Cannot add points when multiple boxes exist");
+    console.warn(
+      "ℹ️  Points + multiple boxes requires specifying which box each point applies to",
+    );
+    console.warn(
+      "💡 Delete boxes until only 1 remains, or use boxes only (no points)",
+    );
     return;
   }
 
@@ -1271,12 +1357,12 @@ function drawPoint(x, y, label = 1, isHovered = false) {
   ctx.beginPath();
   ctx.arc(x, y, radius, 0, 2 * Math.PI);
   ctx.fill();
-  ctx.strokeStyle = isHovered ? CONFIG.colors.hover : '#ffffff';
+  ctx.strokeStyle = isHovered ? CONFIG.colors.hover : "#ffffff";
   ctx.lineWidth = isHovered ? 2 : 1;
   ctx.stroke();
 
   if (isHovered) {
-    ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
+    ctx.fillStyle = "rgba(255, 255, 0, 0.3)";
     ctx.beginPath();
     ctx.arc(x, y, 12, 0, 2 * Math.PI);
     ctx.fill();
@@ -1288,7 +1374,7 @@ function detectBoxInteractionLocal(mouseX, mouseY, box = null) {
   const boxToCheck = box || currentBox;
   if (!boxToCheck) return null;
 
-  const img = document.getElementById('image');
+  const img = document.getElementById("image");
   const scaleX = img.naturalWidth / img.width;
   const scaleY = img.naturalHeight / img.height;
 
@@ -1297,7 +1383,7 @@ function detectBoxInteractionLocal(mouseX, mouseY, box = null) {
 
 function checkPromptHover(e) {
   const rect = canvas.getBoundingClientRect();
-  const img = document.getElementById('image');
+  const img = document.getElementById("image");
   const scaleX = img.naturalWidth / img.width;
   const scaleY = img.naturalHeight / img.height;
 
@@ -1310,13 +1396,15 @@ function checkPromptHover(e) {
     const [x, y] = clickPoints[i];
     const screenX = x / scaleX;
     const screenY = y / scaleY;
-    const distance = Math.sqrt(Math.pow(mouseX - screenX, 2) + Math.pow(mouseY - screenY, 2));
+    const distance = Math.sqrt(
+      Math.pow(mouseX - screenX, 2) + Math.pow(mouseY - screenY, 2),
+    );
 
     if (distance <= CONFIG.canvas.hoverHitArea) {
-      if (hoveredPromptIndex !== i || hoveredPromptType !== 'point') {
+      if (hoveredPromptIndex !== i || hoveredPromptType !== "point") {
         hoveredPromptIndex = i;
-        hoveredPromptType = 'point';
-        canvas.style.cursor = 'pointer';
+        hoveredPromptType = "point";
+        canvas.style.cursor = "pointer";
         redrawCanvas();
       }
       foundHover = true;
@@ -1343,10 +1431,10 @@ function checkPromptHover(e) {
         mouseY >= deleteY &&
         mouseY <= deleteY + deleteButtonSize
       ) {
-        if (hoveredPromptType !== 'box-delete' || hoveredPromptIndex !== i) {
-          hoveredPromptType = 'box-delete';
+        if (hoveredPromptType !== "box-delete" || hoveredPromptIndex !== i) {
+          hoveredPromptType = "box-delete";
           hoveredPromptIndex = i;
-          canvas.style.cursor = 'pointer';
+          canvas.style.cursor = "pointer";
           redrawCanvas();
         }
         foundHover = true;
@@ -1363,10 +1451,10 @@ function checkPromptHover(e) {
           const cursor = getCursorForBoxInteraction(boxInteraction);
           if (
             canvas.style.cursor !== cursor ||
-            hoveredPromptType !== 'box-interaction' ||
+            hoveredPromptType !== "box-interaction" ||
             hoveredPromptIndex !== i
           ) {
-            hoveredPromptType = 'box-interaction';
+            hoveredPromptType = "box-interaction";
             hoveredPromptIndex = i;
             canvas.style.cursor = cursor;
           }
@@ -1390,10 +1478,10 @@ function checkPromptHover(e) {
       mouseY >= deleteY &&
       mouseY <= deleteY + deleteButtonSize
     ) {
-      if (hoveredPromptType !== 'box-delete') {
-        hoveredPromptType = 'box-delete';
+      if (hoveredPromptType !== "box-delete") {
+        hoveredPromptType = "box-delete";
         hoveredPromptIndex = null;
-        canvas.style.cursor = 'pointer';
+        canvas.style.cursor = "pointer";
         redrawCanvas();
       }
       foundHover = true;
@@ -1401,8 +1489,11 @@ function checkPromptHover(e) {
       const boxInteraction = detectBoxInteractionLocal(mouseX, mouseY);
       if (boxInteraction) {
         const cursor = getCursorForBoxInteraction(boxInteraction);
-        if (canvas.style.cursor !== cursor || hoveredPromptType !== 'box-interaction') {
-          hoveredPromptType = 'box-interaction';
+        if (
+          canvas.style.cursor !== cursor ||
+          hoveredPromptType !== "box-interaction"
+        ) {
+          hoveredPromptType = "box-interaction";
           hoveredPromptIndex = null;
           canvas.style.cursor = cursor;
         }
@@ -1411,16 +1502,19 @@ function checkPromptHover(e) {
     }
   }
 
-  if (!foundHover && (hoveredPromptIndex !== null || hoveredPromptType !== null)) {
+  if (
+    !foundHover &&
+    (hoveredPromptIndex !== null || hoveredPromptType !== null)
+  ) {
     hoveredPromptIndex = null;
     hoveredPromptType = null;
-    canvas.style.cursor = 'crosshair';
+    canvas.style.cursor = "crosshair";
     redrawCanvas();
   }
 }
 
 function checkPromptClick(mouseX, mouseY) {
-  const img = document.getElementById('image');
+  const img = document.getElementById("image");
   const scaleX = img.naturalWidth / img.width;
   const scaleY = img.naturalHeight / img.height;
 
@@ -1428,7 +1522,9 @@ function checkPromptClick(mouseX, mouseY) {
     const [x, y] = clickPoints[i];
     const screenX = x / scaleX;
     const screenY = y / scaleY;
-    const distance = Math.sqrt(Math.pow(mouseX - screenX, 2) + Math.pow(mouseY - screenY, 2));
+    const distance = Math.sqrt(
+      Math.pow(mouseX - screenX, 2) + Math.pow(mouseY - screenY, 2),
+    );
 
     if (distance <= CONFIG.canvas.hoverHitArea) {
       removePoint(i);
@@ -1493,7 +1589,7 @@ function removePoint(index) {
   clickLabels.splice(index, 1);
   hoveredPromptIndex = null;
   hoveredPromptType = null;
-  canvas.style.cursor = 'crosshair';
+  canvas.style.cursor = "crosshair";
 
   if (clickPoints.length === 0 && !currentBox) {
     currentSegmentation = null;
@@ -1507,7 +1603,7 @@ function removePoint(index) {
 function removeBox() {
   currentBox = null;
   hoveredPromptType = null;
-  canvas.style.cursor = 'crosshair';
+  canvas.style.cursor = "crosshair";
 
   if (clickPoints.length === 0) {
     currentSegmentation = null;
@@ -1532,7 +1628,7 @@ function handleBoxStart(e) {
   e.preventDefault();
 
   const rect = canvas.getBoundingClientRect();
-  const img = document.getElementById('image');
+  const img = document.getElementById("image");
   const scaleX = img.naturalWidth / img.width;
   const scaleY = img.naturalHeight / img.height;
 
@@ -1555,11 +1651,23 @@ function handleBoxStart(e) {
 
   // Check if clicking on an existing box in currentBoxes (SAM3 multi-box support)
   if (currentBoxes.length > 0) {
-    const boxIndex = findBoxIndexAtPoint(currentBoxes, mouseX, mouseY, scaleX, scaleY);
+    const boxIndex = findBoxIndexAtPoint(
+      currentBoxes,
+      mouseX,
+      mouseY,
+      scaleX,
+      scaleY,
+    );
     if (boxIndex !== -1) {
       // Clicked on an existing box - prepare to edit it
       const clickedBox = currentBoxes[boxIndex];
-      const boxInteraction = detectBoxInteraction(mouseX, mouseY, clickedBox, scaleX, scaleY);
+      const boxInteraction = detectBoxInteraction(
+        mouseX,
+        mouseY,
+        clickedBox,
+        scaleX,
+        scaleY,
+      );
 
       if (boxInteraction) {
         editingBoxIndex = boxIndex; // Track which box we're editing
@@ -1598,7 +1706,7 @@ function handleDocumentMouseDown(e) {
     return;
   }
 
-  const imageWrapper = document.getElementById('image-wrapper');
+  const imageWrapper = document.getElementById("image-wrapper");
   if (imageWrapper && !imageWrapper.contains(e.target)) {
     handleBoxStart(e);
   }
@@ -1624,14 +1732,19 @@ function handleSelectionDrag(e) {
   e.preventDefault();
 
   const rect = canvas.getBoundingClientRect();
-  const img = document.getElementById('image');
+  const img = document.getElementById("image");
   const scaleX = img.naturalWidth / img.width;
   const scaleY = img.naturalHeight / img.height;
 
   const x = (e.clientX - rect.left) * scaleX;
   const y = (e.clientY - rect.top) * scaleY;
 
-  selectionBoxDrag = calculateDragBox(selectionBoxStart.x, selectionBoxStart.y, x, y);
+  selectionBoxDrag = calculateDragBox(
+    selectionBoxStart.x,
+    selectionBoxStart.y,
+    x,
+    y,
+  );
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawExistingAnnotations();
@@ -1643,7 +1756,7 @@ function handleBoxDrag(e) {
   e.preventDefault();
 
   const rect = canvas.getBoundingClientRect();
-  const img = document.getElementById('image');
+  const img = document.getElementById("image");
   const scaleX = img.naturalWidth / img.width;
   const scaleY = img.naturalHeight / img.height;
 
@@ -1677,7 +1790,8 @@ function handleBoxDrag(e) {
     const scaleX = img.naturalWidth / img.width;
     const scaleY = img.naturalHeight / img.height;
     // Use red for right-click (negative), green for left-click (positive)
-    ctx.strokeStyle = boxStartButton === 2 ? CONFIG.colors.negative : CONFIG.colors.positive;
+    ctx.strokeStyle =
+      boxStartButton === 2 ? CONFIG.colors.negative : CONFIG.colors.positive;
     ctx.lineWidth = 2;
     const x1 = dragBox.x1 / scaleX;
     const y1 = dragBox.y1 / scaleY;
@@ -1692,7 +1806,7 @@ function handleBoxEnd(e) {
 
   if (selectionBoxStart) {
     const rect = canvas.getBoundingClientRect();
-    const img = document.getElementById('image');
+    const img = document.getElementById("image");
     const scaleX = img.naturalWidth / img.width;
     const scaleY = img.naturalHeight / img.height;
 
@@ -1705,7 +1819,12 @@ function handleBoxEnd(e) {
     if (width < 5 && height < 5) {
       handleAnnotationClick(x, y, true);
     } else {
-      const box = calculateDragBox(selectionBoxStart.x, selectionBoxStart.y, x, y);
+      const box = calculateDragBox(
+        selectionBoxStart.x,
+        selectionBoxStart.y,
+        x,
+        y,
+      );
       handleAnnotationBoxSelect(box, true);
     }
 
@@ -1717,7 +1836,7 @@ function handleBoxEnd(e) {
   if (!boxStart) return;
 
   const rect = canvas.getBoundingClientRect();
-  const img = document.getElementById('image');
+  const img = document.getElementById("image");
   const scaleX = img.naturalWidth / img.width;
   const scaleY = img.naturalHeight / img.height;
 
@@ -1784,13 +1903,13 @@ function handleBoxEnd(e) {
       // Determine label based on mouse button: right-click = negative (0), left-click = positive (1)
       const label = boxStartButton === 2 ? 0 : 1;
       console.log(
-        `🖱️  Box drawn with button ${boxStartButton} → label ${label} (${label === 1 ? 'positive' : 'negative'})`
+        `🖱️  Box drawn with button ${boxStartButton} → label ${label} (${label === 1 ? "positive" : "negative"})`,
       );
 
       // SAM3 PCS supports negative boxes, but SAM3 Tracker and SAM2 don't
-      if (label === 0 && currentModelType !== 'sam3-pcs') {
-        console.warn('⚠️  Negative boxes only supported in SAM3 PCS mode');
-        console.warn('ℹ️  Switch to SAM3 PCS Image mode to use negative boxes');
+      if (label === 0 && currentModelType !== "sam3-pcs") {
+        console.warn("⚠️  Negative boxes only supported in SAM3 PCS mode");
+        console.warn("ℹ️  Switch to SAM3 PCS Image mode to use negative boxes");
         // Add as positive box for non-PCS modes
         addBox(box, 1);
       } else {
@@ -1807,11 +1926,11 @@ function handleBoxEnd(e) {
 
   if (currentBoxes.length > 0 || clickPoints.length > 0) {
     console.log(
-      `🎯 Triggering segmentation with ${currentBoxes.length} boxes and ${clickPoints.length} points`
+      `🎯 Triggering segmentation with ${currentBoxes.length} boxes and ${clickPoints.length} points`,
     );
     runSegmentation();
   } else {
-    console.log('⚠️  No boxes or points to segment');
+    console.log("⚠️  No boxes or points to segment");
   }
 }
 
@@ -1829,23 +1948,28 @@ async function runSegmentation() {
   }
 
   // Send text prompt for SAM3 PCS
-  if (currentModelType === 'sam3-pcs' && currentTextPrompt) {
+  if (currentModelType === "sam3-pcs" && currentTextPrompt) {
     requestBody.text = currentTextPrompt;
     console.log(`💬 Sending text prompt to SAM3 PCS: "${currentTextPrompt}"`);
   }
 
   // Send boxes based on model type
   if (currentBoxes.length > 0) {
-    if (currentModelType === 'sam3' || currentModelType === 'sam3-pcs') {
+    if (currentModelType === "sam3" || currentModelType === "sam3-pcs") {
       // SAM3 and SAM3 PCS support multiple boxes
-      requestBody.boxes = currentBoxes.map((box) => [box.x1, box.y1, box.x2, box.y2]);
+      requestBody.boxes = currentBoxes.map((box) => [
+        box.x1,
+        box.y1,
+        box.x2,
+        box.y2,
+      ]);
 
       // Include box labels for SAM3 PCS (supports negative boxes)
-      if (currentModelType === 'sam3-pcs') {
+      if (currentModelType === "sam3-pcs") {
         // Ensure labels array matches boxes array length
         if (currentBoxLabels.length !== currentBoxes.length) {
           console.warn(
-            `⚠️  Box labels array length (${currentBoxLabels.length}) doesn't match boxes array length (${currentBoxes.length}). Resetting labels to all positive.`
+            `⚠️  Box labels array length (${currentBoxLabels.length}) doesn't match boxes array length (${currentBoxes.length}). Resetting labels to all positive.`,
           );
           currentBoxLabels = currentBoxes.map(() => 1);
         }
@@ -1853,11 +1977,16 @@ async function runSegmentation() {
         const positiveCount = currentBoxLabels.filter((l) => l === 1).length;
         const negativeCount = currentBoxLabels.filter((l) => l === 0).length;
         console.log(
-          `📤 Sending ${currentBoxes.length} boxes to SAM3 PCS: ${positiveCount} positive, ${negativeCount} negative`
+          `📤 Sending ${currentBoxes.length} boxes to SAM3 PCS: ${positiveCount} positive, ${negativeCount} negative`,
         );
       } else {
-        console.log(`📤 Sending ${currentBoxes.length} boxes to SAM3:`, requestBody.boxes);
-        console.log(`ℹ️  All boxes treated as positive (SAM3 Tracker limitation)`);
+        console.log(
+          `📤 Sending ${currentBoxes.length} boxes to SAM3:`,
+          requestBody.boxes,
+        );
+        console.log(
+          `ℹ️  All boxes treated as positive (SAM3 Tracker limitation)`,
+        );
       }
     } else {
       // SAM2 only supports single box - use the first/last box
@@ -1866,20 +1995,30 @@ async function runSegmentation() {
       console.log(`📤 Sending single box to SAM2:`, requestBody.box);
       if (currentBoxes.length > 1) {
         console.warn(
-          `⚠️  SAM2 only supports single box, using most recent (box ${currentBoxes.length})`
+          `⚠️  SAM2 only supports single box, using most recent (box ${currentBoxes.length})`,
         );
       }
     }
   } else if (currentBox) {
     // Fallback: legacy single box
-    requestBody.box = [currentBox.x1, currentBox.y1, currentBox.x2, currentBox.y2];
-    console.log(`📤 Sending single box to ${currentModelType.toUpperCase()}:`, requestBody.box);
+    requestBody.box = [
+      currentBox.x1,
+      currentBox.y1,
+      currentBox.x2,
+      currentBox.y2,
+    ];
+    console.log(
+      `📤 Sending single box to ${currentModelType.toUpperCase()}:`,
+      requestBody.box,
+    );
   }
 
   // Validate SAM3 PCS has either text or boxes
-  if (currentModelType === 'sam3-pcs') {
+  if (currentModelType === "sam3-pcs") {
     if (!currentTextPrompt && currentBoxes.length === 0 && !currentBox) {
-      alert('SAM3 PCS requires either a text prompt or box prompts. Please provide at least one.');
+      alert(
+        "SAM3 PCS requires either a text prompt or box prompts. Please provide at least one.",
+      );
       return;
     }
   }
@@ -1887,9 +2026,9 @@ async function runSegmentation() {
   try {
     const endpoint = getSegmentEndpoint(currentModelType);
     const response = await fetch(endpoint, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(requestBody),
     });
@@ -1898,21 +2037,24 @@ async function runSegmentation() {
       const result = await response.json();
       currentSegmentation = result;
       drawSegmentation(result.segmentation);
-      console.log('Segmentation:', result);
+      console.log("Segmentation:", result);
 
       // Initialize mask category IDs and render dropdowns
-      maskCategoryIds = initializeMaskCategories(result.segmentation.length, selectedCategoryId);
+      maskCategoryIds = initializeMaskCategories(
+        result.segmentation.length,
+        selectedCategoryId,
+      );
       renderMaskCategoryDropdowns();
       updateMergeButtonState();
     }
   } catch (error) {
-    console.error('Segmentation error:', error);
+    console.error("Segmentation error:", error);
   }
 }
 
 async function saveAnnotation() {
   if (!currentSegmentation) {
-    alert('Please create a segmentation first');
+    alert("Please create a segmentation first");
     return;
   }
 
@@ -1920,25 +2062,26 @@ async function saveAnnotation() {
   if (!imgData) return;
 
   // Check if this is a merged mask (single category for multiple polygons)
-  const isMergedMask = maskCategoryIds.length === 1 && currentSegmentation.segmentation.length > 1;
+  const isMergedMask =
+    maskCategoryIds.length === 1 && currentSegmentation.segmentation.length > 1;
 
   if (isMergedMask) {
     // Validate single category is selected
     if (!maskCategoryIds[0]) {
-      alert('Please select a category for the merged mask');
+      alert("Please select a category for the merged mask");
       return;
     }
 
     // Save as single annotation with all polygons
     console.log(
-      `💾 Saving merged mask (${currentSegmentation.segmentation.length} polygons) as 1 annotation`
+      `💾 Saving merged mask (${currentSegmentation.segmentation.length} polygons) as 1 annotation`,
     );
 
     try {
-      const response = await fetch('/api/save-annotation', {
-        method: 'POST',
+      const response = await fetch("/api/save-annotation", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           image_id: imgData.id,
@@ -1951,7 +2094,7 @@ async function saveAnnotation() {
 
       if (response.ok) {
         const result = await response.json();
-        console.log('✅ Merged mask saved:', result);
+        console.log("✅ Merged mask saved:", result);
         markS3Dirty(); // Mark S3 dataset as having unsaved changes
 
         // Clear current segmentation and prompts
@@ -1968,24 +2111,29 @@ async function saveAnnotation() {
         drawExistingAnnotations();
       }
     } catch (error) {
-      console.error('Save error:', error);
-      alert('Failed to save annotation');
+      console.error("Save error:", error);
+      alert("Failed to save annotation");
     }
   } else {
     // Multi-mask save using BATCH endpoint
     // First validate categories
     const validationError = validateMaskCategoriesForSaving(
       currentSegmentation.segmentation,
-      maskCategoryIds
+      maskCategoryIds,
     );
     if (validationError) {
       alert(validationError.message);
       return;
     }
 
-    const masksToSave = prepareMasksForSaving(currentSegmentation.segmentation, maskCategoryIds);
+    const masksToSave = prepareMasksForSaving(
+      currentSegmentation.segmentation,
+      maskCategoryIds,
+    );
 
-    console.log(`💾 Saving ${masksToSave.length} annotations using batch endpoint`);
+    console.log(
+      `💾 Saving ${masksToSave.length} annotations using batch endpoint`,
+    );
 
     try {
       // Use batch endpoint for multiple masks (much faster!)
@@ -1997,10 +2145,10 @@ async function saveAnnotation() {
         area: maskData.area,
       }));
 
-      const response = await fetch('/api/save-annotations-batch', {
-        method: 'POST',
+      const response = await fetch("/api/save-annotations-batch", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           annotations: annotations,
@@ -2028,8 +2176,8 @@ async function saveAnnotation() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawExistingAnnotations();
     } catch (error) {
-      console.error('Save error:', error);
-      alert('Failed to save annotations');
+      console.error("Save error:", error);
+      alert("Failed to save annotations");
     }
   }
 }
@@ -2041,7 +2189,7 @@ async function saveAnnotation() {
 function drawSegmentationMasks(segmentation) {
   if (!segmentation || segmentation.length === 0) return;
 
-  const img = document.getElementById('image');
+  const img = document.getElementById("image");
   const scaleX = img.width / img.naturalWidth;
   const scaleY = img.height / img.naturalHeight;
 
@@ -2059,14 +2207,14 @@ function drawSegmentationMasks(segmentation) {
     if (isMergedMask) {
       // Merged mask - all polygons use the same color (first mask color)
       const fillColor = getMaskColor(0);
-      const strokeColor = fillColor.replace(/[\d.]+\)$/, '0.8)'); // More opaque stroke
+      const strokeColor = fillColor.replace(/[\d.]+\)$/, "0.8)"); // More opaque stroke
       ctx.fillStyle = fillColor;
       ctx.strokeStyle = strokeColor;
       ctx.lineWidth = isFocused ? 4 : 2; // Thicker line when focused
     } else if (multiMask) {
       // Multiple separate masks - each gets different color
       const fillColor = getMaskColor(index);
-      const strokeColor = fillColor.replace(/[\d.]+\)$/, '0.8)'); // More opaque stroke
+      const strokeColor = fillColor.replace(/[\d.]+\)$/, "0.8)"); // More opaque stroke
       ctx.fillStyle = fillColor;
       ctx.strokeStyle = strokeColor;
       ctx.lineWidth = isFocused ? 4 : 2; // Thicker line when focused
@@ -2074,7 +2222,7 @@ function drawSegmentationMasks(segmentation) {
       // Single mask - use default red
       ctx.strokeStyle = CONFIG.colors.negative;
       ctx.lineWidth = isFocused ? 4 : 2; // Thicker line when focused
-      ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+      ctx.fillStyle = "rgba(255, 0, 0, 0.2)";
     }
 
     ctx.beginPath();
@@ -2093,7 +2241,7 @@ function drawSegmentationMasks(segmentation) {
 
     // Draw extra highlight glow for focused mask
     if (isFocused) {
-      ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)'; // Yellow glow
+      ctx.strokeStyle = "rgba(255, 255, 0, 0.5)"; // Yellow glow
       ctx.lineWidth = 8;
       ctx.stroke();
     }
@@ -2101,7 +2249,9 @@ function drawSegmentationMasks(segmentation) {
 }
 
 function drawSegmentation(segmentation) {
-  console.log(`🎨 Drawing segmentation with ${segmentation?.length || 0} contours`);
+  console.log(
+    `🎨 Drawing segmentation with ${segmentation?.length || 0} contours`,
+  );
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   drawExistingAnnotations();
@@ -2111,9 +2261,13 @@ function drawSegmentation(segmentation) {
   const multiMask = shouldDrawMultipleMasks(segmentation) && !isMergedMask;
 
   if (isMergedMask) {
-    console.log(`🎨 Drawing merged mask: ${segmentation.length} polygons with single color`);
+    console.log(
+      `🎨 Drawing merged mask: ${segmentation.length} polygons with single color`,
+    );
   } else if (multiMask) {
-    console.log(`🎨 Drawing ${segmentation.length} separate masks with different colors`);
+    console.log(
+      `🎨 Drawing ${segmentation.length} separate masks with different colors`,
+    );
   }
 
   drawSegmentationMasks(segmentation);
@@ -2123,7 +2277,7 @@ function drawSegmentation(segmentation) {
 function drawSelectionBox() {
   if (!selectionBoxDrag) return;
 
-  const img = document.getElementById('image');
+  const img = document.getElementById("image");
   const scaleX = img.naturalWidth / img.width;
   const scaleY = img.naturalHeight / img.height;
 
@@ -2133,18 +2287,18 @@ function drawSelectionBox() {
   const y2 = selectionBoxDrag.y2 / scaleY;
 
   ctx.setLineDash([5, 5]);
-  ctx.strokeStyle = CONFIG.colors.accent || '#48d1cc';
+  ctx.strokeStyle = CONFIG.colors.accent || "#48d1cc";
   ctx.lineWidth = 2;
   ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
 
-  ctx.fillStyle = 'rgba(72, 209, 204, 0.1)';
+  ctx.fillStyle = "rgba(72, 209, 204, 0.1)";
   ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
 
   ctx.setLineDash([]);
 }
 
 function drawAllPrompts() {
-  const img = document.getElementById('image');
+  const img = document.getElementById("image");
   const scaleX = img.naturalWidth / img.width;
   const scaleY = img.naturalHeight / img.height;
 
@@ -2153,7 +2307,8 @@ function drawAllPrompts() {
       const [x, y] = clickPoints[i];
       const screenX = x / scaleX;
       const screenY = y / scaleY;
-      const isHovered = hoveredPromptType === 'point' && hoveredPromptIndex === i;
+      const isHovered =
+        hoveredPromptType === "point" && hoveredPromptIndex === i;
       drawPoint(screenX, screenY, clickLabels[i], isHovered);
     }
   }
@@ -2161,7 +2316,8 @@ function drawAllPrompts() {
   // Draw all boxes (new multi-box support)
   if (currentBoxes.length > 0) {
     currentBoxes.forEach((box, index) => {
-      const isHovered = hoveredPromptType === 'box-delete' && hoveredPromptIndex === index;
+      const isHovered =
+        hoveredPromptType === "box-delete" && hoveredPromptIndex === index;
       const isPositive = currentBoxLabels[index] === 1;
 
       // Different colors for positive/negative boxes
@@ -2184,27 +2340,30 @@ function drawAllPrompts() {
       const deleteY = y1 - deleteButtonSize + 5;
 
       // Draw button background
-      ctx.fillStyle = isHovered ? CONFIG.colors.negative : '#cc0000';
+      ctx.fillStyle = isHovered ? CONFIG.colors.negative : "#cc0000";
       ctx.fillRect(deleteX, deleteY, deleteButtonSize, deleteButtonSize);
 
       // Draw white border
-      ctx.strokeStyle = '#ffffff';
+      ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 1;
       ctx.strokeRect(deleteX, deleteY, deleteButtonSize, deleteButtonSize);
 
       // Draw X
-      ctx.strokeStyle = '#ffffff';
+      ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(deleteX + 5, deleteY + 5);
-      ctx.lineTo(deleteX + deleteButtonSize - 5, deleteY + deleteButtonSize - 5);
+      ctx.lineTo(
+        deleteX + deleteButtonSize - 5,
+        deleteY + deleteButtonSize - 5,
+      );
       ctx.moveTo(deleteX + deleteButtonSize - 5, deleteY + 5);
       ctx.lineTo(deleteX + 5, deleteY + deleteButtonSize - 5);
       ctx.stroke();
     });
   } else if (currentBox) {
     // Fallback: draw single box for backward compatibility
-    const isHovered = hoveredPromptType === 'box-delete';
+    const isHovered = hoveredPromptType === "box-delete";
     ctx.strokeStyle = isHovered ? CONFIG.colors.hover : CONFIG.colors.positive;
     ctx.lineWidth = isHovered ? 3 : 2;
     const x1 = currentBox.x1 / scaleX;
@@ -2218,14 +2377,14 @@ function drawAllPrompts() {
     const deleteX = x2 - 5;
     const deleteY = y1 - deleteButtonSize + 5;
 
-    ctx.fillStyle = isHovered ? CONFIG.colors.negative : '#cc0000';
+    ctx.fillStyle = isHovered ? CONFIG.colors.negative : "#cc0000";
     ctx.fillRect(deleteX, deleteY, deleteButtonSize, deleteButtonSize);
 
-    ctx.strokeStyle = '#ffffff';
+    ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 1;
     ctx.strokeRect(deleteX, deleteY, deleteButtonSize, deleteButtonSize);
 
-    ctx.strokeStyle = '#ffffff';
+    ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(deleteX + 5, deleteY + 5);
@@ -2251,21 +2410,25 @@ function addBox(box, label = 1) {
   // Also update currentBox for backward compatibility
   currentBox = { ...box };
   console.log(`✅ Added box ${currentBoxes.length}: label=${label}`, box);
-  console.log(`📦 Total boxes: ${currentBoxes.length}, labels: ${currentBoxLabels.length}`);
+  console.log(
+    `📦 Total boxes: ${currentBoxes.length}, labels: ${currentBoxLabels.length}`,
+  );
 
   // Validate arrays are in sync
   if (currentBoxes.length !== currentBoxLabels.length) {
     console.error(
-      `❌ ARRAY MISMATCH: ${currentBoxes.length} boxes but ${currentBoxLabels.length} labels!`
+      `❌ ARRAY MISMATCH: ${currentBoxes.length} boxes but ${currentBoxLabels.length} labels!`,
     );
   }
 
   // Warning: SAM3 Tracker doesn't support box labels
-  if (currentModelType === 'sam3') {
+  if (currentModelType === "sam3") {
     console.warn(
-      '⚠️  SAM3 Tracker (PVS) does not support box labels - all boxes treated as POSITIVE'
+      "⚠️  SAM3 Tracker (PVS) does not support box labels - all boxes treated as POSITIVE",
     );
-    console.warn('⚠️  For negative boxes, use SAM3 Concept Search (PCS) - coming soon!');
+    console.warn(
+      "⚠️  For negative boxes, use SAM3 Concept Search (PCS) - coming soon!",
+    );
   }
 }
 
@@ -2277,17 +2440,20 @@ function removeBoxByIndex(index) {
     currentBoxes.splice(index, 1);
     currentBoxLabels.splice(index, 1);
     console.log(`Removed box ${index + 1}`);
-    console.log(`📦 Remaining boxes: ${currentBoxes.length}, labels: ${currentBoxLabels.length}`);
+    console.log(
+      `📦 Remaining boxes: ${currentBoxes.length}, labels: ${currentBoxLabels.length}`,
+    );
 
     // Validate arrays are in sync
     if (currentBoxes.length !== currentBoxLabels.length) {
       console.error(
-        `❌ ARRAY MISMATCH after removal: ${currentBoxes.length} boxes but ${currentBoxLabels.length} labels!`
+        `❌ ARRAY MISMATCH after removal: ${currentBoxes.length} boxes but ${currentBoxLabels.length} labels!`,
       );
     }
 
     // Update currentBox for backward compatibility
-    currentBox = currentBoxes.length > 0 ? currentBoxes[currentBoxes.length - 1] : null;
+    currentBox =
+      currentBoxes.length > 0 ? currentBoxes[currentBoxes.length - 1] : null;
   }
 }
 
@@ -2301,7 +2467,7 @@ function toggleBoxLabel(index) {
   if (index >= 0 && index < currentBoxLabels.length) {
     currentBoxLabels[index] = currentBoxLabels[index] === 1 ? 0 : 1;
     console.log(
-      `Toggled box ${index + 1} to ${currentBoxLabels[index] === 1 ? 'positive' : 'negative'}`
+      `Toggled box ${index + 1} to ${currentBoxLabels[index] === 1 ? "positive" : "negative"}`,
     );
   }
 }
@@ -2313,7 +2479,7 @@ function resetPrompts() {
   currentBox = null;
   currentBoxes = [];
   currentBoxLabels = [];
-  currentTextPrompt = '';
+  currentTextPrompt = "";
   dragBox = null;
   currentSegmentation = null;
   clearMaskCategoryDropdowns();
@@ -2326,13 +2492,13 @@ function resetPrompts() {
   hoveredAnnotationId = null;
 
   // Clear text prompt input field
-  const textPromptInput = document.getElementById('text-prompt');
+  const textPromptInput = document.getElementById("text-prompt");
   if (textPromptInput) {
-    textPromptInput.value = '';
+    textPromptInput.value = "";
   }
 
   if (canvas) {
-    canvas.style.cursor = selectionMode ? 'default' : 'crosshair';
+    canvas.style.cursor = selectionMode ? "default" : "crosshair";
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawExistingAnnotations();
   }
@@ -2343,14 +2509,14 @@ function resetPrompts() {
 
 function mergeMasks() {
   if (!currentSegmentation || !currentSegmentation.segmentation) {
-    alert('No segmentation to merge');
+    alert("No segmentation to merge");
     return;
   }
 
   const maskCount = currentSegmentation.segmentation.length;
 
   if (maskCount <= 1) {
-    alert('Only one mask exists - nothing to merge');
+    alert("Only one mask exists - nothing to merge");
     return;
   }
 
@@ -2360,7 +2526,7 @@ function mergeMasks() {
   const merged = mergeMaskPolygons(currentSegmentation.segmentation);
 
   if (!merged) {
-    alert('Failed to merge masks - no valid polygons found');
+    alert("Failed to merge masks - no valid polygons found");
     return;
   }
 
@@ -2372,7 +2538,8 @@ function mergeMasks() {
   };
 
   // Update mask category IDs - use first non-null category or null
-  const firstCategory = maskCategoryIds.find((id) => id !== null && id !== undefined) || null;
+  const firstCategory =
+    maskCategoryIds.find((id) => id !== null && id !== undefined) || null;
   maskCategoryIds = [firstCategory];
 
   // Redraw and update UI
@@ -2382,13 +2549,13 @@ function mergeMasks() {
   updateMergeButtonState();
 
   console.log(`✅ Merged ${maskCount} masks into 1 mask`);
-  console.log(`   Category: ${firstCategory || 'none'}`);
+  console.log(`   Category: ${firstCategory || "none"}`);
   console.log(`   Polygons: ${merged.mergedPolygons.length}`);
   console.log(`   Total area: ${merged.area.toFixed(2)}`);
 }
 
 function updateMergeButtonState() {
-  const mergeBtn = document.getElementById('btn-merge-masks');
+  const mergeBtn = document.getElementById("btn-merge-masks");
   if (!mergeBtn) return;
 
   const hasMasks = currentSegmentation && currentSegmentation.segmentation;
@@ -2398,30 +2565,30 @@ function updateMergeButtonState() {
   mergeBtn.disabled = !canMerge;
 
   if (!canMerge) {
-    mergeBtn.style.opacity = '0.5';
-    mergeBtn.style.cursor = 'not-allowed';
+    mergeBtn.style.opacity = "0.5";
+    mergeBtn.style.cursor = "not-allowed";
   } else {
-    mergeBtn.style.opacity = '1';
-    mergeBtn.style.cursor = 'pointer';
+    mergeBtn.style.opacity = "1";
+    mergeBtn.style.cursor = "pointer";
   }
 }
 
 function showCategoryManager() {
   renderCategoryList();
-  document.getElementById('categoryModal').classList.add('show');
+  document.getElementById("categoryModal").classList.add("show");
 }
 
 function hideCategoryManager() {
-  document.getElementById('categoryModal').classList.remove('show');
+  document.getElementById("categoryModal").classList.remove("show");
 }
 
 function renderCategoryList() {
-  const listDiv = document.getElementById('category-list');
-  listDiv.innerHTML = '';
+  const listDiv = document.getElementById("category-list");
+  listDiv.innerHTML = "";
 
   const sortedCategories = [...categories].sort((a, b) => {
-    const superA = a.supercategory || 'none';
-    const superB = b.supercategory || 'none';
+    const superA = a.supercategory || "none";
+    const superB = b.supercategory || "none";
     if (superA !== superB) {
       return superA.localeCompare(superB);
     }
@@ -2432,28 +2599,28 @@ function renderCategoryList() {
     const rgb = getCategoryColorLocal(cat);
     const hexColor = rgbToHex(rgb);
 
-    const catDiv = document.createElement('div');
+    const catDiv = document.createElement("div");
     catDiv.style.cssText = `background: #333; padding: 10px; margin-bottom: 10px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid ${hexColor};`;
 
-    const infoDiv = document.createElement('div');
+    const infoDiv = document.createElement("div");
     infoDiv.innerHTML = `
                         <div><span style="display: inline-block; width: 12px; height: 12px; background-color: ${hexColor}; border: 1px solid #fff; border-radius: 2px; margin-right: 8px; vertical-align: middle;"></span><strong>${cat.name}</strong></div>
                         <div style="font-size: 12px; color: #aaa; margin-left: 20px;">Supercategory: ${cat.supercategory}</div>
                     `;
 
-    const actionsDiv = document.createElement('div');
-    actionsDiv.style.cssText = 'display: flex; gap: 5px;';
+    const actionsDiv = document.createElement("div");
+    actionsDiv.style.cssText = "display: flex; gap: 5px;";
 
-    const editBtn = document.createElement('button');
-    editBtn.textContent = 'Edit';
+    const editBtn = document.createElement("button");
+    editBtn.textContent = "Edit";
     editBtn.onclick = () => editCategory(cat);
-    editBtn.style.padding = '5px 10px';
+    editBtn.style.padding = "5px 10px";
 
-    const deleteBtn = document.createElement('button');
-    deleteBtn.textContent = 'Delete';
-    deleteBtn.className = 'delete';
+    const deleteBtn = document.createElement("button");
+    deleteBtn.textContent = "Delete";
+    deleteBtn.className = "delete";
     deleteBtn.onclick = () => deleteCategory(cat.id);
-    deleteBtn.style.padding = '5px 10px';
+    deleteBtn.style.padding = "5px 10px";
 
     actionsDiv.appendChild(editBtn);
     actionsDiv.appendChild(deleteBtn);
@@ -2465,14 +2632,14 @@ function renderCategoryList() {
 }
 
 function renderMaskCategoryDropdowns() {
-  const overlay = document.getElementById('mask-category-overlay');
+  const overlay = document.getElementById("mask-category-overlay");
   if (!overlay) {
-    console.warn('Mask category overlay not found');
+    console.warn("Mask category overlay not found");
     return;
   }
 
   // Clear existing dropdowns
-  overlay.innerHTML = '';
+  overlay.innerHTML = "";
 
   // No segmentation = no dropdowns
   if (
@@ -2480,13 +2647,13 @@ function renderMaskCategoryDropdowns() {
     !currentSegmentation.segmentation ||
     currentSegmentation.segmentation.length === 0
   ) {
-    console.log('No segmentation to render dropdowns for');
+    console.log("No segmentation to render dropdowns for");
     return;
   }
 
-  const img = document.getElementById('image');
+  const img = document.getElementById("image");
   if (!img) {
-    console.warn('Image element not found');
+    console.warn("Image element not found");
     return;
   }
 
@@ -2494,13 +2661,16 @@ function renderMaskCategoryDropdowns() {
   const scaleY = img.height / img.naturalHeight;
 
   // Check if this is a merged mask (multiple polygons but single category)
-  const isMergedMask = maskCategoryIds.length === 1 && currentSegmentation.segmentation.length > 1;
-  const numDropdowns = isMergedMask ? 1 : currentSegmentation.segmentation.length;
+  const isMergedMask =
+    maskCategoryIds.length === 1 && currentSegmentation.segmentation.length > 1;
+  const numDropdowns = isMergedMask
+    ? 1
+    : currentSegmentation.segmentation.length;
 
   console.log(`📍 Rendering ${numDropdowns} mask category dropdown(s)`);
-  console.log('Categories available:', categories.length);
-  console.log('maskCategoryIds:', maskCategoryIds);
-  console.log('isMergedMask:', isMergedMask);
+  console.log("Categories available:", categories.length);
+  console.log("maskCategoryIds:", maskCategoryIds);
+  console.log("isMergedMask:", isMergedMask);
 
   // Find top points for each mask (or just first polygon if merged)
   const polygonsToProcess = isMergedMask
@@ -2508,14 +2678,18 @@ function renderMaskCategoryDropdowns() {
     : currentSegmentation.segmentation;
 
   const positions = polygonsToProcess.map((polygon) => {
-    const topPoint = findTopPointOfMask(polygon, img.naturalWidth, img.naturalHeight);
+    const topPoint = findTopPointOfMask(
+      polygon,
+      img.naturalWidth,
+      img.naturalHeight,
+    );
     if (!topPoint) {
-      console.warn('Mask has no points within frame bounds, skipping dropdown');
+      console.warn("Mask has no points within frame bounds, skipping dropdown");
       return null;
     }
     const screenPos = naturalToScreen(topPoint.x, topPoint.y, scaleX, scaleY);
     console.log(
-      `Mask top point: natural=(${topPoint.x}, ${topPoint.y}), screen=(${screenPos.x}, ${screenPos.y})`
+      `Mask top point: natural=(${topPoint.x}, ${topPoint.y}), screen=(${screenPos.x}, ${screenPos.y})`,
     );
     return screenPos;
   });
@@ -2524,7 +2698,7 @@ function renderMaskCategoryDropdowns() {
   const offsetPositions = offsetOverlappingDropdowns(
     positions,
     CONFIG.maskCategoryDropdown.overlapThreshold,
-    CONFIG.maskCategoryDropdown.overlapOffset
+    CONFIG.maskCategoryDropdown.overlapOffset,
   );
 
   // Create dropdown(s)
@@ -2535,30 +2709,30 @@ function renderMaskCategoryDropdowns() {
       return;
     }
 
-    const dropdown = document.createElement('select');
-    dropdown.className = 'mask-category-dropdown';
+    const dropdown = document.createElement("select");
+    dropdown.className = "mask-category-dropdown";
     dropdown.dataset.maskIndex = index;
 
     // Style the dropdown
-    dropdown.style.position = 'absolute';
+    dropdown.style.position = "absolute";
     dropdown.style.left = `${offsetPositions[index].x}px`;
     dropdown.style.top = `${offsetPositions[index].y + CONFIG.maskCategoryDropdown.offsetY}px`;
     dropdown.style.minWidth = `${CONFIG.maskCategoryDropdown.minWidth}px`;
     dropdown.style.fontSize = `${CONFIG.maskCategoryDropdown.fontSize}px`;
     dropdown.style.padding = CONFIG.maskCategoryDropdown.padding;
-    dropdown.style.zIndex = '1000';
-    dropdown.style.pointerEvents = 'auto'; // Allow clicks on dropdown
+    dropdown.style.zIndex = "1000";
+    dropdown.style.pointerEvents = "auto"; // Allow clicks on dropdown
 
     // Add placeholder option
-    const placeholderOption = document.createElement('option');
-    placeholderOption.value = '';
-    placeholderOption.textContent = 'Select category...';
+    const placeholderOption = document.createElement("option");
+    placeholderOption.value = "";
+    placeholderOption.textContent = "Select category...";
     dropdown.appendChild(placeholderOption);
 
     // Group categories by supercategory
     const grouped = {};
     categories.forEach((cat) => {
-      const superKey = cat.supercategory || 'none';
+      const superKey = cat.supercategory || "none";
       if (!grouped[superKey]) grouped[superKey] = [];
       grouped[superKey].push(cat);
     });
@@ -2567,16 +2741,18 @@ function renderMaskCategoryDropdowns() {
     Object.keys(grouped)
       .sort()
       .forEach((superKey) => {
-        const optgroup = document.createElement('optgroup');
+        const optgroup = document.createElement("optgroup");
         optgroup.label = superKey;
 
         grouped[superKey]
           .sort((a, b) => a.name.localeCompare(b.name))
           .forEach((cat) => {
-            const option = document.createElement('option');
+            const option = document.createElement("option");
             option.value = cat.id;
             // Show "Supercategory - Category" format
-            const displayName = cat.supercategory ? `${cat.supercategory} - ${cat.name}` : cat.name;
+            const displayName = cat.supercategory
+              ? `${cat.supercategory} - ${cat.name}`
+              : cat.name;
             option.textContent = displayName;
             optgroup.appendChild(option);
           });
@@ -2591,35 +2767,37 @@ function renderMaskCategoryDropdowns() {
     }
 
     // Add event listeners (always update index 0 for merged masks)
-    dropdown.addEventListener('change', (e) =>
-      handleMaskCategoryChange(categoryIndex, e.target.value)
+    dropdown.addEventListener("change", (e) =>
+      handleMaskCategoryChange(categoryIndex, e.target.value),
     );
-    dropdown.addEventListener('focus', () => {
+    dropdown.addEventListener("focus", () => {
       focusedMaskIndex = index;
       drawSegmentation(currentSegmentation.segmentation);
     });
-    dropdown.addEventListener('blur', () => {
+    dropdown.addEventListener("blur", () => {
       focusedMaskIndex = null;
       drawSegmentation(currentSegmentation.segmentation);
     });
 
     // Prevent clicks on dropdown from reaching canvas (creating points)
-    dropdown.addEventListener('mousedown', (e) => {
+    dropdown.addEventListener("mousedown", (e) => {
       e.stopPropagation();
       // Don't preventDefault - let the dropdown open naturally
     });
-    dropdown.addEventListener('click', (e) => {
+    dropdown.addEventListener("click", (e) => {
       e.stopPropagation();
     });
 
     console.log(
-      `Created dropdown ${index} at position (${offsetPositions[index].x}, ${offsetPositions[index].y})`
+      `Created dropdown ${index} at position (${offsetPositions[index].x}, ${offsetPositions[index].y})`,
     );
     overlay.appendChild(dropdown);
   });
 
-  console.log(`✅ Rendered ${currentSegmentation.segmentation.length} dropdowns`);
-  console.log('Overlay children count:', overlay.children.length);
+  console.log(
+    `✅ Rendered ${currentSegmentation.segmentation.length} dropdowns`,
+  );
+  console.log("Overlay children count:", overlay.children.length);
 }
 
 function handleMaskCategoryChange(maskIndex, categoryId) {
@@ -2628,57 +2806,59 @@ function handleMaskCategoryChange(maskIndex, categoryId) {
 }
 
 function clearMaskCategoryDropdowns() {
-  const overlay = document.getElementById('mask-category-overlay');
+  const overlay = document.getElementById("mask-category-overlay");
   if (overlay) {
-    overlay.innerHTML = '';
+    overlay.innerHTML = "";
   }
   maskCategoryIds = [];
   focusedMaskIndex = null;
 }
 
 async function addCategory() {
-  const name = document.getElementById('new-category-name').value.trim();
-  const supercategory = document.getElementById('new-category-super').value.trim();
+  const name = document.getElementById("new-category-name").value.trim();
+  const supercategory = document
+    .getElementById("new-category-super")
+    .value.trim();
 
   if (!name) {
-    alert('Please enter a category name');
+    alert("Please enter a category name");
     return;
   }
 
   try {
-    const response = await fetch('/api/add-category', {
-      method: 'POST',
+    const response = await fetch("/api/add-category", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         name: name,
-        supercategory: supercategory || 'none',
+        supercategory: supercategory || "none",
       }),
     });
 
     if (response.ok) {
-      document.getElementById('new-category-name').value = '';
-      document.getElementById('new-category-super').value = '';
+      document.getElementById("new-category-name").value = "";
+      document.getElementById("new-category-super").value = "";
       categoryColors = {};
       markS3Dirty(); // Mark S3 dataset as having unsaved changes
       await loadDataset(true);
       renderCategoryList();
       populateCategoryBadges();
     } else {
-      alert('Error adding category');
+      alert("Error adding category");
     }
   } catch (error) {
-    console.error('Add category error:', error);
-    alert('Error adding category');
+    console.error("Add category error:", error);
+    alert("Error adding category");
   }
 }
 
 function editCategory(cat) {
-  const newName = prompt('Edit category name:', cat.name);
+  const newName = prompt("Edit category name:", cat.name);
   if (newName === null) return;
 
-  const newSuper = prompt('Edit supercategory:', cat.supercategory);
+  const newSuper = prompt("Edit supercategory:", cat.supercategory);
   if (newSuper === null) return;
 
   updateCategory(cat.id, newName.trim(), newSuper.trim());
@@ -2686,20 +2866,20 @@ function editCategory(cat) {
 
 async function updateCategory(id, name, supercategory) {
   if (!name) {
-    alert('Category name cannot be empty');
+    alert("Category name cannot be empty");
     return;
   }
 
   try {
-    const response = await fetch('/api/update-category', {
-      method: 'POST',
+    const response = await fetch("/api/update-category", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         id: id,
         name: name,
-        supercategory: supercategory || 'none',
+        supercategory: supercategory || "none",
       }),
     });
 
@@ -2710,26 +2890,28 @@ async function updateCategory(id, name, supercategory) {
       renderCategoryList();
       populateCategoryBadges();
     } else {
-      alert('Error updating category');
+      alert("Error updating category");
     }
   } catch (error) {
-    console.error('Update category error:', error);
-    alert('Error updating category');
+    console.error("Update category error:", error);
+    alert("Error updating category");
   }
 }
 
 async function deleteCategory(id) {
   if (
-    !confirm('Are you sure you want to delete this category? This will fail if annotations exist.')
+    !confirm(
+      "Are you sure you want to delete this category? This will fail if annotations exist.",
+    )
   ) {
     return;
   }
 
   try {
-    const response = await fetch('/api/delete-category', {
-      method: 'POST',
+    const response = await fetch("/api/delete-category", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ id: id }),
     });
@@ -2742,31 +2924,31 @@ async function deleteCategory(id) {
       populateCategoryBadges();
     } else {
       const error = await response.json();
-      alert('Error: ' + error.detail);
+      alert("Error: " + error.detail);
     }
   } catch (error) {
-    console.error('Delete category error:', error);
-    alert('Error deleting category');
+    console.error("Delete category error:", error);
+    alert("Error deleting category");
   }
 }
 
 function showModelLoading(modelSize) {
-  const overlay = document.getElementById('model-loading-overlay');
-  const bar = document.getElementById('model-loading-bar');
-  const text = document.getElementById('model-loading-text');
+  const overlay = document.getElementById("model-loading-overlay");
+  const bar = document.getElementById("model-loading-bar");
+  const text = document.getElementById("model-loading-text");
 
-  overlay.style.display = 'flex';
+  overlay.style.display = "flex";
   text.textContent = `Loading ${modelSize.toUpperCase()} model...`;
 
-  bar.style.width = '0%';
+  bar.style.width = "0%";
   let progress = 0;
   const interval = setInterval(() => {
     progress += 2;
     if (progress >= 90) {
       clearInterval(interval);
-      bar.style.width = '90%';
+      bar.style.width = "90%";
     } else {
-      bar.style.width = progress + '%';
+      bar.style.width = progress + "%";
     }
   }, 100);
 
@@ -2774,15 +2956,15 @@ function showModelLoading(modelSize) {
 }
 
 function hideModelLoading(interval) {
-  const overlay = document.getElementById('model-loading-overlay');
-  const bar = document.getElementById('model-loading-bar');
+  const overlay = document.getElementById("model-loading-overlay");
+  const bar = document.getElementById("model-loading-bar");
 
   if (interval) clearInterval(interval);
-  bar.style.width = '100%';
+  bar.style.width = "100%";
 
   setTimeout(() => {
-    overlay.style.display = 'none';
-    bar.style.width = '0%';
+    overlay.style.display = "none";
+    bar.style.width = "0%";
   }, 300);
 }
 
@@ -2796,19 +2978,19 @@ async function handleModelSizeChange(e) {
   try {
     const endpoint = getSetModelSizeEndpoint(currentModelType);
     const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ model_size: newSize }),
     });
 
     if (response.ok) {
       console.log(`Model changed to ${newSize}`);
     } else {
-      alert('Error changing model size');
+      alert("Error changing model size");
     }
   } catch (error) {
-    console.error('Model change error:', error);
-    alert('Error changing model size');
+    console.error("Model change error:", error);
+    alert("Error changing model size");
   } finally {
     hideModelLoading(interval);
   }
@@ -2828,21 +3010,21 @@ async function loadModelInfo() {
     }
 
     const data = await response.json();
-    console.log('Model info data:', data);
+    console.log("Model info data:", data);
 
-    const select = document.getElementById('model-size-select');
+    const select = document.getElementById("model-size-select");
     if (!select) {
-      console.error('model-size-select element not found!');
+      console.error("model-size-select element not found!");
       return;
     }
 
-    select.innerHTML = '';
+    select.innerHTML = "";
 
     // Remove any existing event listener
-    select.removeEventListener('change', handleModelSizeChange);
+    select.removeEventListener("change", handleModelSizeChange);
 
     for (const size of data.available_sizes) {
-      const option = document.createElement('option');
+      const option = document.createElement("option");
       option.value = size;
       option.textContent = formatModelDisplayName(currentModelType, size);
 
@@ -2854,13 +3036,13 @@ async function loadModelInfo() {
     }
 
     console.log(
-      `Model size select updated with ${data.available_sizes.length} options for ${currentModelType}`
+      `Model size select updated with ${data.available_sizes.length} options for ${currentModelType}`,
     );
 
     // Add event listener for model size changes
-    select.addEventListener('change', handleModelSizeChange);
+    select.addEventListener("change", handleModelSizeChange);
   } catch (error) {
-    console.error('Model info error:', error);
+    console.error("Model info error:", error);
     alert(`Failed to load model info: ${error.message}`);
   } finally {
     hideModelLoading(loadingInterval);
@@ -2872,10 +3054,10 @@ async function initializeModeSystem() {
   modeManager = new ModeManager(modeRegistry);
 
   // Determine initial mode based on currentModelType
-  const initialModeId = currentModelType === 'sam3' ? 'sam3-pvs-image' : 'sam2';
+  const initialModeId = currentModelType === "sam3" ? "sam3-pvs-image" : "sam2";
 
   // Update mode selector to reflect initial mode
-  const modeSelect = document.getElementById('mode-select');
+  const modeSelect = document.getElementById("mode-select");
   if (modeSelect) {
     modeSelect.value = initialModeId;
   }
@@ -2888,7 +3070,7 @@ async function initializeModeSystem() {
 
 async function switchToMode(modeId, isInitialLoad = false) {
   if (!modeManager) {
-    console.warn('Mode manager not initialized yet');
+    console.warn("Mode manager not initialized yet");
     return;
   }
 
@@ -2903,7 +3085,7 @@ async function switchToMode(modeId, isInitialLoad = false) {
     }
 
     // Update currentModelType based on mode
-    const newModelType = modeInfo.modelType || 'sam2';
+    const newModelType = modeInfo.modelType || "sam2";
     if (currentModelType !== newModelType || isInitialLoad) {
       currentModelType = newModelType;
       await loadModelInfo();
@@ -2923,7 +3105,7 @@ async function switchToMode(modeId, isInitialLoad = false) {
 
     console.log(`✅ Switched to mode: ${modeId} (${modeInfo.displayName})`);
   } catch (error) {
-    console.error('Error switching mode:', error);
+    console.error("Error switching mode:", error);
     alert(`Failed to switch mode: ${error.message}`);
   }
 }
@@ -2941,28 +3123,30 @@ function updateUIForCurrentMode() {
   const helpText = mode.getHelpText();
 
   // Find the hint span and update it
-  const hintElement = document.querySelector('.controls span[style*="color: #aaa"]');
+  const hintElement = document.querySelector(
+    '.controls span[style*="color: #aaa"]',
+  );
   if (hintElement) {
     hintElement.textContent = helpText;
   }
 
   // Show/hide text prompt container based on mode capabilities
-  const textPromptContainer = document.getElementById('text-prompt-container');
+  const textPromptContainer = document.getElementById("text-prompt-container");
   if (textPromptContainer) {
     if (capabilities.supportsTextPrompts) {
-      textPromptContainer.style.display = 'inline-flex';
-      console.log('✅ Text prompt field shown');
+      textPromptContainer.style.display = "inline-flex";
+      console.log("✅ Text prompt field shown");
     } else {
-      textPromptContainer.style.display = 'none';
-      console.log('❌ Text prompt field hidden');
+      textPromptContainer.style.display = "none";
+      console.log("❌ Text prompt field hidden");
     }
   }
 }
 
-const indexInput = document.getElementById('index-input');
+const indexInput = document.getElementById("index-input");
 if (indexInput) {
-  indexInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
+  indexInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
       const value = parseInt(indexInput.value);
       if (!isNaN(value) && value >= 1 && value <= totalImages) {
         navigateToImage(value - 1);
@@ -2974,59 +3158,95 @@ if (indexInput) {
 }
 
 function setupEventListeners() {
-  document.getElementById('btn-previous')?.addEventListener('click', previousImage);
-  document.getElementById('btn-next')?.addEventListener('click', nextImage);
-
-  document.getElementById('btn-reset-prompts')?.addEventListener('click', resetPrompts);
-  document.getElementById('btn-merge-masks')?.addEventListener('click', mergeMasks);
   document
-    .getElementById('toggle-annotations-btn')
-    ?.addEventListener('click', toggleAnnotationsVisibility);
-
-  document.getElementById('btn-manage-categories')?.addEventListener('click', showCategoryManager);
-  document.getElementById('save-btn')?.addEventListener('click', saveAnnotation);
-  document.getElementById('btn-delete-image')?.addEventListener('click', showDeleteConfirmation);
-
-  document.getElementById('btn-delete-cancel')?.addEventListener('click', hideDeleteConfirmation);
-  document.getElementById('btn-delete-confirm')?.addEventListener('click', confirmDelete);
-
-  document.getElementById('btn-incomplete-cancel')?.addEventListener('click', cancelNavigation);
-  document.getElementById('btn-incomplete-continue')?.addEventListener('click', confirmNavigation);
-  document.getElementById('btn-nested-cancel')?.addEventListener('click', cancelNavigation);
-  document.getElementById('btn-nested-continue')?.addEventListener('click', confirmNavigation);
-  document.getElementById('btn-combined-cancel')?.addEventListener('click', cancelNavigation);
-  document.getElementById('btn-combined-continue')?.addEventListener('click', confirmNavigation);
-
-  document.getElementById('btn-add-category')?.addEventListener('click', addCategory);
-  document.getElementById('btn-close-categories')?.addEventListener('click', hideCategoryManager);
+    .getElementById("btn-previous")
+    ?.addEventListener("click", previousImage);
+  document.getElementById("btn-next")?.addEventListener("click", nextImage);
 
   document
-    .getElementById('btn-apply-category')
-    ?.addEventListener('click', changeSelectedAnnotationsCategory);
+    .getElementById("btn-reset-prompts")
+    ?.addEventListener("click", resetPrompts);
   document
-    .getElementById('btn-delete-annotations')
-    ?.addEventListener('click', deleteSelectedAnnotations);
+    .getElementById("btn-merge-masks")
+    ?.addEventListener("click", mergeMasks);
+  document
+    .getElementById("toggle-annotations-btn")
+    ?.addEventListener("click", toggleAnnotationsVisibility);
+
+  document
+    .getElementById("btn-manage-categories")
+    ?.addEventListener("click", showCategoryManager);
+  document
+    .getElementById("save-btn")
+    ?.addEventListener("click", saveAnnotation);
+  document
+    .getElementById("btn-delete-image")
+    ?.addEventListener("click", showDeleteConfirmation);
+
+  document
+    .getElementById("btn-delete-cancel")
+    ?.addEventListener("click", hideDeleteConfirmation);
+  document
+    .getElementById("btn-delete-confirm")
+    ?.addEventListener("click", confirmDelete);
+
+  document
+    .getElementById("btn-incomplete-cancel")
+    ?.addEventListener("click", cancelNavigation);
+  document
+    .getElementById("btn-incomplete-continue")
+    ?.addEventListener("click", confirmNavigation);
+  document
+    .getElementById("btn-nested-cancel")
+    ?.addEventListener("click", cancelNavigation);
+  document
+    .getElementById("btn-nested-continue")
+    ?.addEventListener("click", confirmNavigation);
+  document
+    .getElementById("btn-combined-cancel")
+    ?.addEventListener("click", cancelNavigation);
+  document
+    .getElementById("btn-combined-continue")
+    ?.addEventListener("click", confirmNavigation);
+
+  document
+    .getElementById("btn-add-category")
+    ?.addEventListener("click", addCategory);
+  document
+    .getElementById("btn-close-categories")
+    ?.addEventListener("click", hideCategoryManager);
+
+  document
+    .getElementById("btn-apply-category")
+    ?.addEventListener("click", changeSelectedAnnotationsCategory);
+  document
+    .getElementById("btn-delete-annotations")
+    ?.addEventListener("click", deleteSelectedAnnotations);
 
   // S3 Save button
-  document.getElementById('save-to-s3-btn')?.addEventListener('click', saveToS3);
+  document
+    .getElementById("save-to-s3-btn")
+    ?.addEventListener("click", saveToS3);
 
-  const keyboardHintsToggle = document.getElementById('keyboard-hints-toggle');
-  const keyboardHintsContent = document.getElementById('keyboard-hints-content');
-  keyboardHintsToggle?.addEventListener('click', () => {
-    keyboardHintsContent?.classList.toggle('visible');
+  const keyboardHintsToggle = document.getElementById("keyboard-hints-toggle");
+  const keyboardHintsContent = document.getElementById(
+    "keyboard-hints-content",
+  );
+  keyboardHintsToggle?.addEventListener("click", () => {
+    keyboardHintsContent?.classList.toggle("visible");
   });
 
-  document.addEventListener('click', (e) => {
-    const hints = document.getElementById('keyboard-hints');
+  document.addEventListener("click", (e) => {
+    const hints = document.getElementById("keyboard-hints");
     if (hints && !hints.contains(e.target)) {
-      keyboardHintsContent?.classList.remove('visible');
+      keyboardHintsContent?.classList.remove("visible");
     }
   });
 
   // Legacy model-type-select support (deprecated)
-  const modelTypeSelect = document.getElementById('model-type-select');
+  const modelTypeSelect = document.getElementById("model-type-select");
   if (modelTypeSelect) {
-    modelTypeSelect.addEventListener('change', async (e) => {
+    modelTypeSelect.addEventListener("change", async (e) => {
       currentModelType = e.target.value;
       console.log(`Model type changed to ${currentModelType}`);
       await loadModelInfo();
@@ -3035,25 +3255,25 @@ function setupEventListeners() {
   }
 
   // New mode-select support
-  const modeSelect = document.getElementById('mode-select');
+  const modeSelect = document.getElementById("mode-select");
   if (modeSelect) {
-    modeSelect.addEventListener('change', async (e) => {
+    modeSelect.addEventListener("change", async (e) => {
       const newModeId = e.target.value;
       await switchToMode(newModeId);
     });
   }
 
   // Text prompt input handler
-  const textPromptInput = document.getElementById('text-prompt');
+  const textPromptInput = document.getElementById("text-prompt");
   if (textPromptInput) {
-    textPromptInput.addEventListener('input', (e) => {
+    textPromptInput.addEventListener("input", (e) => {
       currentTextPrompt = e.target.value.trim();
       console.log(`Text prompt updated: "${currentTextPrompt}"`);
     });
 
     // Clear prompt on Enter key
-    textPromptInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
+    textPromptInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
         e.preventDefault();
         if (currentTextPrompt) {
           runSegmentation();
@@ -3063,32 +3283,32 @@ function setupEventListeners() {
   }
 
   // Window resize handler - reposition mask category dropdowns
-  window.addEventListener('resize', () => {
+  window.addEventListener("resize", () => {
     if (currentSegmentation && currentSegmentation.segmentation.length > 0) {
       renderMaskCategoryDropdowns();
     }
   });
 }
 
-incompleteModal = new ModalManager('incompleteSupercategoryModal');
-nestedMismatchModal = new ModalManager('nestedMaskMismatchModal');
-combinedWarningModal = new ModalManager('combinedWarningModal');
-deleteModal = new ModalManager('deleteModal');
-categoryModal = new ModalManager('categoryModal');
+incompleteModal = new ModalManager("incompleteSupercategoryModal");
+nestedMismatchModal = new ModalManager("nestedMaskMismatchModal");
+combinedWarningModal = new ModalManager("combinedWarningModal");
+deleteModal = new ModalManager("deleteModal");
+categoryModal = new ModalManager("categoryModal");
 
 function setupMobileDebugConsole() {
-  const debugConsole = document.getElementById('mobile-debug-console');
-  const toggleBtn = document.getElementById('toggle-debug-console');
+  const debugConsole = document.getElementById("mobile-debug-console");
+  const toggleBtn = document.getElementById("toggle-debug-console");
 
   if (!debugConsole || !toggleBtn) return;
 
-  toggleBtn.addEventListener('click', () => {
-    if (debugConsole.style.display === 'none') {
-      debugConsole.style.display = 'block';
-      toggleBtn.textContent = 'Hide';
+  toggleBtn.addEventListener("click", () => {
+    if (debugConsole.style.display === "none") {
+      debugConsole.style.display = "block";
+      toggleBtn.textContent = "Hide";
     } else {
-      debugConsole.style.display = 'none';
-      toggleBtn.textContent = 'Debug';
+      debugConsole.style.display = "none";
+      toggleBtn.textContent = "Debug";
     }
   });
 
@@ -3098,11 +3318,13 @@ function setupMobileDebugConsole() {
   console.log = function (...args) {
     originalConsoleLog.apply(console, args);
     const msg = args
-      .map((arg) => (typeof arg === 'object' ? JSON.stringify(arg) : String(arg)))
-      .join(' ');
-    const entry = document.createElement('div');
-    entry.textContent = new Date().toLocaleTimeString() + ': ' + msg;
-    entry.style.color = '#48d1cc';
+      .map((arg) =>
+        typeof arg === "object" ? JSON.stringify(arg) : String(arg),
+      )
+      .join(" ");
+    const entry = document.createElement("div");
+    entry.textContent = new Date().toLocaleTimeString() + ": " + msg;
+    entry.style.color = "#48d1cc";
     debugConsole.insertBefore(entry, debugConsole.firstChild);
     if (debugConsole.children.length > 50) {
       debugConsole.removeChild(debugConsole.lastChild);
@@ -3112,18 +3334,20 @@ function setupMobileDebugConsole() {
   console.error = function (...args) {
     originalConsoleError.apply(console, args);
     const msg = args
-      .map((arg) => (typeof arg === 'object' ? JSON.stringify(arg) : String(arg)))
-      .join(' ');
-    const entry = document.createElement('div');
-    entry.textContent = new Date().toLocaleTimeString() + ': ERROR: ' + msg;
-    entry.style.color = '#ff5555';
+      .map((arg) =>
+        typeof arg === "object" ? JSON.stringify(arg) : String(arg),
+      )
+      .join(" ");
+    const entry = document.createElement("div");
+    entry.textContent = new Date().toLocaleTimeString() + ": ERROR: " + msg;
+    entry.style.color = "#ff5555";
     debugConsole.insertBefore(entry, debugConsole.firstChild);
     if (debugConsole.children.length > 50) {
       debugConsole.removeChild(debugConsole.lastChild);
     }
   };
 
-  console.log('Mobile debug console initialized');
+  console.log("Mobile debug console initialized");
 }
 
 setupMobileDebugConsole();

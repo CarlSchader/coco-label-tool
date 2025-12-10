@@ -38,45 +38,45 @@
 
     <script>
       let index = 0;
-      const log = document.getElementById('log');
-      const status = document.getElementById('status');
+      const log = document.getElementById("log");
+      const status = document.getElementById("status");
 
       function addLog(msg) {
-        const entry = document.createElement('div');
-        entry.textContent = new Date().toLocaleTimeString() + ': ' + msg;
+        const entry = document.createElement("div");
+        entry.textContent = new Date().toLocaleTimeString() + ": " + msg;
         log.insertBefore(entry, log.firstChild);
       }
 
-      document.getElementById('prev').addEventListener('click', (e) => {
-        addLog('Previous clicked (click event)');
+      document.getElementById("prev").addEventListener("click", (e) => {
+        addLog("Previous clicked (click event)");
         index--;
-        status.textContent = 'Index: ' + index;
+        status.textContent = "Index: " + index;
       });
 
-      document.getElementById('next').addEventListener('click', (e) => {
-        addLog('Next clicked (click event)');
+      document.getElementById("next").addEventListener("click", (e) => {
+        addLog("Next clicked (click event)");
         index++;
-        status.textContent = 'Index: ' + index;
+        status.textContent = "Index: " + index;
       });
 
       // Touch event logging
-      document.getElementById('prev').addEventListener('touchstart', (e) => {
-        addLog('Previous touchstart');
+      document.getElementById("prev").addEventListener("touchstart", (e) => {
+        addLog("Previous touchstart");
       });
 
-      document.getElementById('next').addEventListener('touchstart', (e) => {
-        addLog('Next touchstart');
+      document.getElementById("next").addEventListener("touchstart", (e) => {
+        addLog("Next touchstart");
       });
 
-      document.getElementById('prev').addEventListener('touchend', (e) => {
-        addLog('Previous touchend');
+      document.getElementById("prev").addEventListener("touchend", (e) => {
+        addLog("Previous touchend");
       });
 
-      document.getElementById('next').addEventListener('touchend', (e) => {
-        addLog('Next touchend');
+      document.getElementById("next").addEventListener("touchend", (e) => {
+        addLog("Next touchend");
       });
 
-      addLog('Test page loaded - tap buttons to test');
+      addLog("Test page loaded - tap buttons to test");
     </script>
   </body>
 </html>

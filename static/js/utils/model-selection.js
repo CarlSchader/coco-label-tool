@@ -8,14 +8,14 @@
  * @returns {string} API endpoint path
  */
 export function getSegmentEndpoint(modelType) {
-  const normalized = (modelType || '').toLowerCase();
-  if (normalized === 'sam3') {
-    return '/api/segment-sam3';
+  const normalized = (modelType || "").toLowerCase();
+  if (normalized === "sam3") {
+    return "/api/segment-sam3";
   }
-  if (normalized === 'sam3-pcs') {
-    return '/api/segment-sam3-pcs';
+  if (normalized === "sam3-pcs") {
+    return "/api/segment-sam3-pcs";
   }
-  return '/api/segment';
+  return "/api/segment";
 }
 
 /**
@@ -24,14 +24,14 @@ export function getSegmentEndpoint(modelType) {
  * @returns {string} API endpoint path
  */
 export function getModelInfoEndpoint(modelType) {
-  const normalized = (modelType || '').toLowerCase();
-  if (normalized === 'sam3') {
-    return '/api/model-info-sam3';
+  const normalized = (modelType || "").toLowerCase();
+  if (normalized === "sam3") {
+    return "/api/model-info-sam3";
   }
-  if (normalized === 'sam3-pcs') {
-    return '/api/model-info-sam3-pcs';
+  if (normalized === "sam3-pcs") {
+    return "/api/model-info-sam3-pcs";
   }
-  return '/api/model-info';
+  return "/api/model-info";
 }
 
 /**
@@ -40,14 +40,14 @@ export function getModelInfoEndpoint(modelType) {
  * @returns {string} API endpoint path
  */
 export function getSetModelSizeEndpoint(modelType) {
-  const normalized = (modelType || '').toLowerCase();
-  if (normalized === 'sam3') {
-    return '/api/set-model-size-sam3';
+  const normalized = (modelType || "").toLowerCase();
+  if (normalized === "sam3") {
+    return "/api/set-model-size-sam3";
   }
-  if (normalized === 'sam3-pcs') {
-    return '/api/set-model-size-sam3-pcs';
+  if (normalized === "sam3-pcs") {
+    return "/api/set-model-size-sam3-pcs";
   }
-  return '/api/set-model-size';
+  return "/api/set-model-size";
 }
 
 /**
@@ -57,13 +57,13 @@ export function getSetModelSizeEndpoint(modelType) {
  * @returns {string} Formatted display name (e.g., 'SAM2 TINY')
  */
 export function formatModelDisplayName(modelType, size) {
-  const normalized = (modelType || '').toLowerCase();
-  let displayType = 'SAM2';
-  if (normalized === 'sam3') {
-    displayType = 'SAM3';
-  } else if (normalized === 'sam3-pcs') {
-    displayType = 'SAM3 PCS';
+  const normalized = (modelType || "").toLowerCase();
+  let displayType = "SAM2";
+  if (normalized === "sam3") {
+    displayType = "SAM3";
+  } else if (normalized === "sam3-pcs") {
+    displayType = "SAM3 PCS";
   }
-  const displaySize = (size || '').toUpperCase();
+  const displaySize = (size || "").toUpperCase();
   return `${displayType} ${displaySize}`;
 }

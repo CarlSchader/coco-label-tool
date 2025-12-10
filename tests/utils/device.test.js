@@ -3,9 +3,9 @@ import {
   isSmallScreen,
   isMobileDevice,
   getTouchConfig,
-} from '../../static/js/utils/device.js';
+} from "../../static/js/utils/device.js";
 
-describe('isTouchDevice', () => {
+describe("isTouchDevice", () => {
   let originalWindow;
   let originalNavigator;
 
@@ -26,28 +26,28 @@ describe('isTouchDevice', () => {
     global.navigator = originalNavigator;
   });
 
-  test('returns true when ontouchstart exists', () => {
+  test("returns true when ontouchstart exists", () => {
     global.window.ontouchstart = null;
     expect(isTouchDevice()).toBe(true);
   });
 
-  test('returns true when maxTouchPoints > 0', () => {
+  test("returns true when maxTouchPoints > 0", () => {
     global.navigator.maxTouchPoints = 1;
     expect(isTouchDevice()).toBe(true);
   });
 
-  test('returns false when neither condition is met', () => {
+  test("returns false when neither condition is met", () => {
     expect(isTouchDevice()).toBe(false);
   });
 
-  test('returns true when both conditions are met', () => {
+  test("returns true when both conditions are met", () => {
     global.window.ontouchstart = null;
     global.navigator.maxTouchPoints = 5;
     expect(isTouchDevice()).toBe(true);
   });
 });
 
-describe('isSmallScreen', () => {
+describe("isSmallScreen", () => {
   let originalWindow;
 
   beforeEach(() => {
@@ -59,9 +59,9 @@ describe('isSmallScreen', () => {
     global.window = originalWindow;
   });
 
-  test('returns true when width <= 768px', () => {
+  test("returns true when width <= 768px", () => {
     global.window.matchMedia = (query) => ({
-      matches: query === '(max-width: 768px)',
+      matches: query === "(max-width: 768px)",
       media: query,
       addEventListener: () => {},
       removeEventListener: () => {},
@@ -70,10 +70,10 @@ describe('isSmallScreen', () => {
     expect(isSmallScreen()).toBe(true);
   });
 
-  test('returns false when width > 768px', () => {
+  test("returns false when width > 768px", () => {
     global.window.matchMedia = () => ({
       matches: false,
-      media: '',
+      media: "",
       addEventListener: () => {},
       removeEventListener: () => {},
     });
@@ -82,7 +82,7 @@ describe('isSmallScreen', () => {
   });
 });
 
-describe('isMobileDevice', () => {
+describe("isMobileDevice", () => {
   let originalWindow;
   let originalNavigator;
 
@@ -103,41 +103,41 @@ describe('isMobileDevice', () => {
     global.navigator = originalNavigator;
   });
 
-  test('returns true when touch device AND small screen', () => {
+  test("returns true when touch device AND small screen", () => {
     global.window.ontouchstart = null;
     global.window.matchMedia = (query) => ({
-      matches: query === '(max-width: 768px)',
+      matches: query === "(max-width: 768px)",
       media: query,
     });
 
     expect(isMobileDevice()).toBe(true);
   });
 
-  test('returns false when touch device but NOT small screen', () => {
+  test("returns false when touch device but NOT small screen", () => {
     global.window.ontouchstart = null;
     global.window.matchMedia = () => ({
       matches: false,
-      media: '',
+      media: "",
     });
 
     expect(isMobileDevice()).toBe(false);
   });
 
-  test('returns false when small screen but NOT touch device', () => {
+  test("returns false when small screen but NOT touch device", () => {
     global.window.matchMedia = (query) => ({
-      matches: query === '(max-width: 768px)',
+      matches: query === "(max-width: 768px)",
       media: query,
     });
 
     expect(isMobileDevice()).toBe(false);
   });
 
-  test('returns false when neither touch device nor small screen', () => {
+  test("returns false when neither touch device nor small screen", () => {
     expect(isMobileDevice()).toBe(false);
   });
 });
 
-describe('getTouchConfig', () => {
+describe("getTouchConfig", () => {
   let originalWindow;
   let originalNavigator;
 
@@ -158,7 +158,7 @@ describe('getTouchConfig', () => {
     global.navigator = originalNavigator;
   });
 
-  test('returns touch-friendly values on touch device', () => {
+  test("returns touch-friendly values on touch device", () => {
     global.window.ontouchstart = null;
     const config = getTouchConfig();
 
@@ -170,7 +170,7 @@ describe('getTouchConfig', () => {
     expect(config.deleteButtonSize).toBe(32);
   });
 
-  test('returns desktop values on non-touch device', () => {
+  test("returns desktop values on non-touch device", () => {
     const config = getTouchConfig();
 
     expect(config.pointRadius).toBe(5);
@@ -181,32 +181,42 @@ describe('getTouchConfig', () => {
     expect(config.deleteButtonSize).toBe(20);
   });
 
-  test('all touch values are larger than desktop values', () => {
+  test("all touch values are larger than desktop values", () => {
     const desktopConfig = getTouchConfig();
 
     global.window.ontouchstart = null;
     const touchConfig = getTouchConfig();
 
     expect(touchConfig.pointRadius).toBeGreaterThan(desktopConfig.pointRadius);
-    expect(touchConfig.pointHoverRadius).toBeGreaterThan(desktopConfig.pointHoverRadius);
-    expect(touchConfig.hoverHitArea).toBeGreaterThan(desktopConfig.hoverHitArea);
-    expect(touchConfig.edgeThreshold).toBeGreaterThan(desktopConfig.edgeThreshold);
-    expect(touchConfig.cornerThreshold).toBeGreaterThan(desktopConfig.cornerThreshold);
-    expect(touchConfig.deleteButtonSize).toBeGreaterThan(desktopConfig.deleteButtonSize);
+    expect(touchConfig.pointHoverRadius).toBeGreaterThan(
+      desktopConfig.pointHoverRadius,
+    );
+    expect(touchConfig.hoverHitArea).toBeGreaterThan(
+      desktopConfig.hoverHitArea,
+    );
+    expect(touchConfig.edgeThreshold).toBeGreaterThan(
+      desktopConfig.edgeThreshold,
+    );
+    expect(touchConfig.cornerThreshold).toBeGreaterThan(
+      desktopConfig.cornerThreshold,
+    );
+    expect(touchConfig.deleteButtonSize).toBeGreaterThan(
+      desktopConfig.deleteButtonSize,
+    );
   });
 
-  test('returns object with all required properties', () => {
+  test("returns object with all required properties", () => {
     const config = getTouchConfig();
 
-    expect(config).toHaveProperty('pointRadius');
-    expect(config).toHaveProperty('pointHoverRadius');
-    expect(config).toHaveProperty('hoverHitArea');
-    expect(config).toHaveProperty('edgeThreshold');
-    expect(config).toHaveProperty('cornerThreshold');
-    expect(config).toHaveProperty('deleteButtonSize');
+    expect(config).toHaveProperty("pointRadius");
+    expect(config).toHaveProperty("pointHoverRadius");
+    expect(config).toHaveProperty("hoverHitArea");
+    expect(config).toHaveProperty("edgeThreshold");
+    expect(config).toHaveProperty("cornerThreshold");
+    expect(config).toHaveProperty("deleteButtonSize");
   });
 
-  test('all values are positive numbers', () => {
+  test("all values are positive numbers", () => {
     const config = getTouchConfig();
 
     expect(config.pointRadius).toBeGreaterThan(0);

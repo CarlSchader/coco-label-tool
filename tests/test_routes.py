@@ -39,7 +39,15 @@ def client():
                                 "cv2": MagicMock(),
                             },
                         ):
-                            from app.routes import app
+                            from app.routes import app, cache
+
+                            # Manually populate cache for tests (startup event isn't triggered by TestClient)
+                            cache.update(
+                                MOCK_DATASET["images"],
+                                {1: MOCK_DATASET["images"][0]},
+                                {1: MOCK_DATASET["annotations"]},
+                                {0},
+                            )
 
                             yield TestClient(app)
 
@@ -274,3 +282,79 @@ class TestSetModelSizeEndpoint:
             assert response.status_code == 200
             assert response.json()["success"] is True
             mock_service.reload_model.assert_called_once()
+
+
+class TestCacheHeaders:
+    """Test Cache-Control headers prevent browser caching."""
+
+    def test_dataset_endpoint_no_cache(self, client):
+        """Test /api/dataset has no-cache headers."""
+        response = client.get("/api/dataset")
+        assert response.status_code == 200
+        assert "Cache-Control" in response.headers
+        cache_control = response.headers["Cache-Control"]
+        assert "no-store" in cache_control
+        assert "no-cache" in cache_control
+        assert "must-revalidate" in cache_control
+
+    def test_categories_endpoint_no_cache(self, client):
+        """Test /api/categories has no-cache headers."""
+        with patch("app.dataset.get_categories") as mock_get:
+            mock_get.return_value = [{"id": 1, "name": "dog"}]
+
+            response = client.get("/api/categories")
+            assert response.status_code == 200
+            assert "Cache-Control" in response.headers
+            cache_control = response.headers["Cache-Control"]
+            assert "no-store" in cache_control
+            assert "no-cache" in cache_control
+            assert "must-revalidate" in cache_control
+
+    def test_annotations_endpoint_no_cache(self, client):
+        """Test /api/annotations/{image_id} has no-cache headers."""
+        with patch("app.dataset.get_annotations_by_image") as mock_get:
+            mock_get.return_value = [{"id": 1, "image_id": 1, "category_id": 1}]
+
+            response = client.get("/api/annotations/1")
+            assert response.status_code == 200
+            assert "Cache-Control" in response.headers
+            cache_control = response.headers["Cache-Control"]
+            assert "no-store" in cache_control
+            assert "no-cache" in cache_control
+            assert "must-revalidate" in cache_control
+
+    def test_s3_image_endpoint_no_cache(self, client):
+        """Test /api/image/{image_id} returns no-cache headers for S3 images."""
+        # Create a minimal valid JPEG image
+        from PIL import Image
+        import io as io_module
+
+        img = Image.new("RGB", (100, 100), color="red")
+        img_buffer = io_module.BytesIO()
+        img.save(img_buffer, format="JPEG")
+        img_bytes = img_buffer.getvalue()
+
+        # Mock S3 response with valid JPEG data
+        mock_s3_response = MagicMock()
+        mock_body = MagicMock()
+        mock_body.read = MagicMock(return_value=img_bytes)
+        mock_s3_response.return_value = {
+            "Body": mock_body,
+            "ContentType": "image/jpeg",
+            "ContentLength": len(img_bytes),
+        }
+
+        with patch("app.routes.detect_uri_type", return_value="s3"):
+            with patch("app.routes.get_s3_client") as mock_get_client:
+                mock_client = MagicMock()
+                mock_client.get_object = mock_s3_response
+                mock_get_client.return_value = mock_client
+
+                with patch("app.routes.parse_s3_uri", return_value=("bucket", "key")):
+                    response = client.get("/api/image/1")
+                    assert response.status_code == 200
+                    assert "Cache-Control" in response.headers
+                    cache_control = response.headers["Cache-Control"]
+                    assert "no-store" in cache_control
+                    assert "no-cache" in cache_control
+                    assert "must-revalidate" in cache_control

@@ -1,7 +1,10 @@
-import { calculateDragBox, clampBoxToCanvas } from '../../static/js/utils/box.js';
+import {
+  calculateDragBox,
+  clampBoxToCanvas,
+} from "../../static/js/utils/box.js";
 
-describe('calculateDragBox', () => {
-  test('allows box to extend beyond canvas bounds', () => {
+describe("calculateDragBox", () => {
+  test("allows box to extend beyond canvas bounds", () => {
     const startX = 100;
     const startY = 100;
     const currentX = -50; // Outside canvas
@@ -15,7 +18,7 @@ describe('calculateDragBox', () => {
     expect(result.y2).toBe(100);
   });
 
-  test('allows box to extend beyond right and bottom', () => {
+  test("allows box to extend beyond right and bottom", () => {
     const startX = 100;
     const startY = 100;
     const currentX = 2000; // Way outside
@@ -29,7 +32,7 @@ describe('calculateDragBox', () => {
     expect(result.y2).toBe(2000);
   });
 
-  test('handles negative start coordinates', () => {
+  test("handles negative start coordinates", () => {
     const startX = -50;
     const startY = -50;
     const currentX = 100;
@@ -43,7 +46,7 @@ describe('calculateDragBox', () => {
     expect(result.y2).toBe(100);
   });
 
-  test('normalizes coordinates when dragging backwards', () => {
+  test("normalizes coordinates when dragging backwards", () => {
     const startX = 200;
     const startY = 200;
     const currentX = 50;
@@ -58,18 +61,18 @@ describe('calculateDragBox', () => {
   });
 });
 
-describe('clampBoxToCanvas', () => {
+describe("clampBoxToCanvas", () => {
   const canvasWidth = 800;
   const canvasHeight = 600;
 
-  test('returns box unchanged when fully inside canvas', () => {
+  test("returns box unchanged when fully inside canvas", () => {
     const box = { x1: 100, y1: 100, x2: 300, y2: 200 };
     const result = clampBoxToCanvas(box, canvasWidth, canvasHeight);
 
     expect(result).toEqual(box);
   });
 
-  test('clamps box extending beyond left edge', () => {
+  test("clamps box extending beyond left edge", () => {
     const box = { x1: -50, y1: 100, x2: 200, y2: 200 };
     const result = clampBoxToCanvas(box, canvasWidth, canvasHeight);
 
@@ -79,7 +82,7 @@ describe('clampBoxToCanvas', () => {
     expect(result.y2).toBe(200);
   });
 
-  test('clamps box extending beyond right edge', () => {
+  test("clamps box extending beyond right edge", () => {
     const box = { x1: 100, y1: 100, x2: 1000, y2: 200 };
     const result = clampBoxToCanvas(box, canvasWidth, canvasHeight);
 
@@ -89,7 +92,7 @@ describe('clampBoxToCanvas', () => {
     expect(result.y2).toBe(200);
   });
 
-  test('clamps box extending beyond top edge', () => {
+  test("clamps box extending beyond top edge", () => {
     const box = { x1: 100, y1: -50, x2: 200, y2: 200 };
     const result = clampBoxToCanvas(box, canvasWidth, canvasHeight);
 
@@ -99,7 +102,7 @@ describe('clampBoxToCanvas', () => {
     expect(result.y2).toBe(200);
   });
 
-  test('clamps box extending beyond bottom edge', () => {
+  test("clamps box extending beyond bottom edge", () => {
     const box = { x1: 100, y1: 100, x2: 200, y2: 800 };
     const result = clampBoxToCanvas(box, canvasWidth, canvasHeight);
 
@@ -109,7 +112,7 @@ describe('clampBoxToCanvas', () => {
     expect(result.y2).toBe(600);
   });
 
-  test('clamps box extending beyond all edges', () => {
+  test("clamps box extending beyond all edges", () => {
     const box = { x1: -100, y1: -100, x2: 1000, y2: 800 };
     const result = clampBoxToCanvas(box, canvasWidth, canvasHeight);
 
@@ -119,12 +122,12 @@ describe('clampBoxToCanvas', () => {
     expect(result.y2).toBe(600);
   });
 
-  test('handles null box', () => {
+  test("handles null box", () => {
     const result = clampBoxToCanvas(null, canvasWidth, canvasHeight);
     expect(result).toBeNull();
   });
 
-  test('handles undefined box', () => {
+  test("handles undefined box", () => {
     const result = clampBoxToCanvas(undefined, canvasWidth, canvasHeight);
     expect(result).toBeNull();
   });

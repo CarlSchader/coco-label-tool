@@ -3,11 +3,14 @@
  * When dragging/resizing a box, it should REPLACE the original, not add a duplicate
  */
 
-import { updateBoxInArray, findBoxIndexAtPoint } from '../static/js/utils/box-manipulation.js';
+import {
+  updateBoxInArray,
+  findBoxIndexAtPoint,
+} from "../static/js/utils/box-manipulation.js";
 
-describe('Box drag behavior', () => {
-  describe('updateBoxInArray', () => {
-    test('replaces box at given index', () => {
+describe("Box drag behavior", () => {
+  describe("updateBoxInArray", () => {
+    test("replaces box at given index", () => {
       const boxes = [
         { x1: 10, y1: 10, x2: 50, y2: 50 },
         { x1: 100, y1: 100, x2: 200, y2: 200 },
@@ -21,7 +24,7 @@ describe('Box drag behavior', () => {
       expect(result[1]).toEqual(boxes[1]); // Unchanged
     });
 
-    test('returns new array (immutable)', () => {
+    test("returns new array (immutable)", () => {
       const boxes = [{ x1: 10, y1: 10, x2: 50, y2: 50 }];
       const newBox = { x1: 20, y1: 20, x2: 60, y2: 60 };
 
@@ -31,29 +34,29 @@ describe('Box drag behavior', () => {
       expect(boxes[0]).toEqual({ x1: 10, y1: 10, x2: 50, y2: 50 }); // Original unchanged
     });
 
-    test('handles out of bounds index', () => {
+    test("handles out of bounds index", () => {
       const boxes = [{ x1: 10, y1: 10, x2: 50, y2: 50 }];
       const newBox = { x1: 20, y1: 20, x2: 60, y2: 60 };
 
       expect(() => updateBoxInArray(boxes, 5, newBox)).toThrow();
     });
 
-    test('handles negative index', () => {
+    test("handles negative index", () => {
       const boxes = [{ x1: 10, y1: 10, x2: 50, y2: 50 }];
       const newBox = { x1: 20, y1: 20, x2: 60, y2: 60 };
 
       expect(() => updateBoxInArray(boxes, -1, newBox)).toThrow();
     });
 
-    test('handles empty array', () => {
+    test("handles empty array", () => {
       const newBox = { x1: 20, y1: 20, x2: 60, y2: 60 };
 
       expect(() => updateBoxInArray([], 0, newBox)).toThrow();
     });
   });
 
-  describe('findBoxIndexAtPoint', () => {
-    test('finds box containing point', () => {
+  describe("findBoxIndexAtPoint", () => {
+    test("finds box containing point", () => {
       const boxes = [
         { x1: 10, y1: 10, x2: 50, y2: 50 },
         { x1: 100, y1: 100, x2: 200, y2: 200 },
@@ -64,7 +67,7 @@ describe('Box drag behavior', () => {
       expect(index).toBe(0);
     });
 
-    test('finds second box', () => {
+    test("finds second box", () => {
       const boxes = [
         { x1: 10, y1: 10, x2: 50, y2: 50 },
         { x1: 100, y1: 100, x2: 200, y2: 200 },
@@ -75,7 +78,7 @@ describe('Box drag behavior', () => {
       expect(index).toBe(1);
     });
 
-    test('returns -1 when point outside all boxes', () => {
+    test("returns -1 when point outside all boxes", () => {
       const boxes = [
         { x1: 10, y1: 10, x2: 50, y2: 50 },
         { x1: 100, y1: 100, x2: 200, y2: 200 },
@@ -85,7 +88,7 @@ describe('Box drag behavior', () => {
       expect(index).toBe(-1);
     });
 
-    test('returns last matching box when overlapping', () => {
+    test("returns last matching box when overlapping", () => {
       const boxes = [
         { x1: 10, y1: 10, x2: 100, y2: 100 },
         { x1: 20, y1: 20, x2: 80, y2: 80 }, // Inside first box
@@ -96,12 +99,12 @@ describe('Box drag behavior', () => {
       expect(index).toBe(1); // Returns last one (drawn on top)
     });
 
-    test('handles empty array', () => {
+    test("handles empty array", () => {
       const index = findBoxIndexAtPoint([], 50, 50, 1, 1);
       expect(index).toBe(-1);
     });
 
-    test('applies scale factors', () => {
+    test("applies scale factors", () => {
       const boxes = [
         { x1: 100, y1: 100, x2: 200, y2: 200 }, // Natural coords
       ];

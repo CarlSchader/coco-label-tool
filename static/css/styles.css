@@ -34,8 +34,8 @@
   --spacing-lg: 16px;
   --spacing-xl: 24px;
   --font-family:
-    ui-monospace, 'SF Mono', 'Cascadia Code', 'Source Code Pro', Monaco, Consolas,
-    'Liberation Mono', 'Courier New', monospace;
+    ui-monospace, "SF Mono", "Cascadia Code", "Source Code Pro", Monaco,
+    Consolas, "Liberation Mono", "Courier New", monospace;
   --font-size-base: 14px;
   --font-size-sm: 12px;
   --font-size-xs: 11px;
@@ -131,7 +131,7 @@ select:focus {
   border-color: var(--text-primary);
   box-shadow: 0 0 0 2px rgba(72, 209, 204, 0.1);
 }
-input[type='text'] {
+input[type="text"] {
   padding: var(--spacing-sm) var(--spacing-md);
   font-size: var(--font-size-base);
   font-family: var(--font-family);
@@ -141,7 +141,7 @@ input[type='text'] {
   border-radius: var(--radius-sm);
   transition: all 0.15s ease;
 }
-input[type='text']:focus {
+input[type="text"]:focus {
   outline: none;
   border-color: var(--text-primary);
   box-shadow: 0 0 0 2px rgba(72, 209, 204, 0.1);

@@ -10,7 +10,7 @@ export class BaseMode {
 
   // Lifecycle methods
   async init() {
-    throw new Error('BaseMode.init() must be implemented by subclass');
+    throw new Error("BaseMode.init() must be implemented by subclass");
   }
 
   async activate() {
@@ -27,15 +27,17 @@ export class BaseMode {
 
   // UI methods
   getControls() {
-    throw new Error('BaseMode.getControls() must be implemented by subclass');
+    throw new Error("BaseMode.getControls() must be implemented by subclass");
   }
 
   getCanvasConfig() {
-    throw new Error('BaseMode.getCanvasConfig() must be implemented by subclass');
+    throw new Error(
+      "BaseMode.getCanvasConfig() must be implemented by subclass",
+    );
   }
 
   getHelpText() {
-    throw new Error('BaseMode.getHelpText() must be implemented by subclass');
+    throw new Error("BaseMode.getHelpText() must be implemented by subclass");
   }
 
   // Event handlers (optional - modes can choose not to implement)
@@ -61,44 +63,60 @@ export class BaseMode {
 
   // Operations (must implement in subclass)
   async runSegmentation() {
-    throw new Error('BaseMode.runSegmentation() must be implemented by subclass');
+    throw new Error(
+      "BaseMode.runSegmentation() must be implemented by subclass",
+    );
   }
 
   async saveAnnotation() {
-    throw new Error('BaseMode.saveAnnotation() must be implemented by subclass');
+    throw new Error(
+      "BaseMode.saveAnnotation() must be implemented by subclass",
+    );
   }
 
   clearPrompts() {
-    throw new Error('BaseMode.clearPrompts() must be implemented by subclass');
+    throw new Error("BaseMode.clearPrompts() must be implemented by subclass");
   }
 
   // API endpoints
   getSegmentationEndpoint() {
-    throw new Error('BaseMode.getSegmentationEndpoint() must be implemented by subclass');
+    throw new Error(
+      "BaseMode.getSegmentationEndpoint() must be implemented by subclass",
+    );
   }
 
   getModelInfoEndpoint() {
-    throw new Error('BaseMode.getModelInfoEndpoint() must be implemented by subclass');
+    throw new Error(
+      "BaseMode.getModelInfoEndpoint() must be implemented by subclass",
+    );
   }
 
   // Capabilities
   supportsPoints() {
-    throw new Error('BaseMode.supportsPoints() must be implemented by subclass');
+    throw new Error(
+      "BaseMode.supportsPoints() must be implemented by subclass",
+    );
   }
 
   supportsBoxes() {
-    throw new Error('BaseMode.supportsBoxes() must be implemented by subclass');
+    throw new Error("BaseMode.supportsBoxes() must be implemented by subclass");
   }
 
   supportsMultipleBoxes() {
-    throw new Error('BaseMode.supportsMultipleBoxes() must be implemented by subclass');
+    throw new Error(
+      "BaseMode.supportsMultipleBoxes() must be implemented by subclass",
+    );
   }
 
   supportsTextPrompts() {
-    throw new Error('BaseMode.supportsTextPrompts() must be implemented by subclass');
+    throw new Error(
+      "BaseMode.supportsTextPrompts() must be implemented by subclass",
+    );
   }
 
   supportsNegativePrompts() {
-    throw new Error('BaseMode.supportsNegativePrompts() must be implemented by subclass');
+    throw new Error(
+      "BaseMode.supportsNegativePrompts() must be implemented by subclass",
+    );
   }
 }

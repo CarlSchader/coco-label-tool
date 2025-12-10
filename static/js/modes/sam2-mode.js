@@ -1,4 +1,4 @@
-import { BaseMode } from './base-mode.js';
+import { BaseMode } from "./base-mode.js";
 
 /**
  * SAM2 Mode - Original SAM2 model with point and box prompts
@@ -24,32 +24,38 @@ export class SAM2Mode extends BaseMode {
       enablePointClick: true,
       enableBoxDraw: true,
       enableMultipleBoxes: false,
-      cursor: 'crosshair',
+      cursor: "crosshair",
     };
   }
 
   getHelpText() {
-    return 'SAM2 Mode: Click to add positive points, right-click for negative points. Draw boxes by dragging. Both prompts work together.';
+    return "SAM2 Mode: Click to add positive points, right-click for negative points. Draw boxes by dragging. Both prompts work together.";
   }
 
   async runSegmentation() {
-    throw new Error('runSegmentation() should be called from app.js (not yet extracted)');
+    throw new Error(
+      "runSegmentation() should be called from app.js (not yet extracted)",
+    );
   }
 
   async saveAnnotation() {
-    throw new Error('saveAnnotation() should be called from app.js (not yet extracted)');
+    throw new Error(
+      "saveAnnotation() should be called from app.js (not yet extracted)",
+    );
   }
 
   clearPrompts() {
-    throw new Error('clearPrompts() should be called from app.js (not yet extracted)');
+    throw new Error(
+      "clearPrompts() should be called from app.js (not yet extracted)",
+    );
   }
 
   getSegmentationEndpoint() {
-    return '/api/segment';
+    return "/api/segment";
   }
 
   getModelInfoEndpoint() {
-    return '/api/model-info';
+    return "/api/model-info";
   }
 
   supportsPoints() {

@@ -12,11 +12,13 @@
  */
 export function updateBoxInArray(boxes, index, newBox) {
   if (!boxes || boxes.length === 0) {
-    throw new Error('Cannot update box in empty array');
+    throw new Error("Cannot update box in empty array");
   }
 
   if (index < 0 || index >= boxes.length) {
-    throw new Error(`Index ${index} out of bounds for array of length ${boxes.length}`);
+    throw new Error(
+      `Index ${index} out of bounds for array of length ${boxes.length}`,
+    );
   }
 
   // Create new array with updated box (immutable)

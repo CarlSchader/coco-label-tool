@@ -1,27 +1,34 @@
-import { ApiError, apiCall, apiGet, apiPost, showApiError, safeApiCall } from '../static/js/api.js';
+import {
+  ApiError,
+  apiCall,
+  apiGet,
+  apiPost,
+  showApiError,
+  safeApiCall,
+} from "../static/js/api.js";
 
-describe('ApiError', () => {
-  test('creates error with message, status, and url', () => {
-    const error = new ApiError('Test error', 404, '/api/test');
+describe("ApiError", () => {
+  test("creates error with message, status, and url", () => {
+    const error = new ApiError("Test error", 404, "/api/test");
 
-    expect(error.message).toBe('Test error');
+    expect(error.message).toBe("Test error");
     expect(error.status).toBe(404);
-    expect(error.url).toBe('/api/test');
-    expect(error.name).toBe('ApiError');
+    expect(error.url).toBe("/api/test");
+    expect(error.name).toBe("ApiError");
   });
 
-  test('is instanceof Error', () => {
-    const error = new ApiError('Test error', 500, '/api/test');
+  test("is instanceof Error", () => {
+    const error = new ApiError("Test error", 500, "/api/test");
     expect(error instanceof Error).toBe(true);
   });
 
-  test('has correct prototype chain', () => {
-    const error = new ApiError('Test error', 500, '/api/test');
+  test("has correct prototype chain", () => {
+    const error = new ApiError("Test error", 500, "/api/test");
     expect(error instanceof ApiError).toBe(true);
   });
 });
 
-describe('apiCall', () => {
+describe("apiCall", () => {
   let originalFetch;
   let originalConsoleError;
 
@@ -36,8 +43,8 @@ describe('apiCall', () => {
     console.error = originalConsoleError;
   });
 
-  test('returns JSON data on successful response', async () => {
-    const mockData = { success: true, data: 'test' };
+  test("returns JSON data on successful response", async () => {
+    const mockData = { success: true, data: "test" };
     let fetchCalled = false;
     let fetchUrl = null;
     let fetchOptions = null;
@@ -52,15 +59,15 @@ describe('apiCall', () => {
       });
     };
 
-    const result = await apiCall('/api/test');
+    const result = await apiCall("/api/test");
 
     expect(result).toEqual(mockData);
     expect(fetchCalled).toBe(true);
-    expect(fetchUrl).toBe('/api/test');
-    expect(fetchOptions.headers['Content-Type']).toBe('application/json');
+    expect(fetchUrl).toBe("/api/test");
+    expect(fetchOptions.headers["Content-Type"]).toBe("application/json");
   });
 
-  test('merges custom options with defaults', async () => {
+  test("merges custom options with defaults", async () => {
     const mockData = { success: true };
     let fetchOptions = null;
 
@@ -72,107 +79,107 @@ describe('apiCall', () => {
       });
     };
 
-    await apiCall('/api/test', {
-      method: 'POST',
-      body: JSON.stringify({ foo: 'bar' }),
+    await apiCall("/api/test", {
+      method: "POST",
+      body: JSON.stringify({ foo: "bar" }),
     });
 
-    expect(fetchOptions.method).toBe('POST');
-    expect(fetchOptions.body).toBe(JSON.stringify({ foo: 'bar' }));
-    expect(fetchOptions.headers['Content-Type']).toBe('application/json');
+    expect(fetchOptions.method).toBe("POST");
+    expect(fetchOptions.body).toBe(JSON.stringify({ foo: "bar" }));
+    expect(fetchOptions.headers["Content-Type"]).toBe("application/json");
   });
 
-  test('throws ApiError on HTTP error with JSON detail', async () => {
+  test("throws ApiError on HTTP error with JSON detail", async () => {
     global.fetch = () =>
       Promise.resolve({
         ok: false,
         status: 400,
-        json: async () => ({ detail: 'Bad request' }),
+        json: async () => ({ detail: "Bad request" }),
       });
 
-    await expect(apiCall('/api/test')).rejects.toThrow(ApiError);
-    await expect(apiCall('/api/test')).rejects.toThrow('Bad request');
+    await expect(apiCall("/api/test")).rejects.toThrow(ApiError);
+    await expect(apiCall("/api/test")).rejects.toThrow("Bad request");
   });
 
-  test('throws ApiError on HTTP error with message field', async () => {
+  test("throws ApiError on HTTP error with message field", async () => {
     global.fetch = () =>
       Promise.resolve({
         ok: false,
         status: 500,
-        json: async () => ({ message: 'Internal server error' }),
+        json: async () => ({ message: "Internal server error" }),
       });
 
-    await expect(apiCall('/api/test')).rejects.toThrow(ApiError);
-    await expect(apiCall('/api/test')).rejects.toThrow('Internal server error');
+    await expect(apiCall("/api/test")).rejects.toThrow(ApiError);
+    await expect(apiCall("/api/test")).rejects.toThrow("Internal server error");
   });
 
-  test('throws ApiError with statusText when JSON parsing fails', async () => {
+  test("throws ApiError with statusText when JSON parsing fails", async () => {
     global.fetch = () =>
       Promise.resolve({
         ok: false,
         status: 404,
-        statusText: 'Not Found',
+        statusText: "Not Found",
         json: async () => {
-          throw new Error('Invalid JSON');
+          throw new Error("Invalid JSON");
         },
       });
 
-    await expect(apiCall('/api/test')).rejects.toThrow('Not Found');
+    await expect(apiCall("/api/test")).rejects.toThrow("Not Found");
   });
 
-  test('throws ApiError with default message when no error info available', async () => {
+  test("throws ApiError with default message when no error info available", async () => {
     global.fetch = () =>
       Promise.resolve({
         ok: false,
         status: 500,
-        statusText: '',
+        statusText: "",
         json: async () => ({}),
       });
 
-    await expect(apiCall('/api/test')).rejects.toThrow('Unknown error');
+    await expect(apiCall("/api/test")).rejects.toThrow("Unknown error");
   });
 
-  test('throws ApiError on network error', async () => {
-    global.fetch = () => Promise.reject(new Error('Network failure'));
+  test("throws ApiError on network error", async () => {
+    global.fetch = () => Promise.reject(new Error("Network failure"));
 
-    await expect(apiCall('/api/test')).rejects.toThrow(ApiError);
+    await expect(apiCall("/api/test")).rejects.toThrow(ApiError);
 
     try {
-      await apiCall('/api/test');
+      await apiCall("/api/test");
     } catch (error) {
       expect(error.status).toBe(0);
-      expect(error.url).toBe('/api/test');
+      expect(error.url).toBe("/api/test");
     }
   });
 
-  test('logs errors to console', async () => {
+  test("logs errors to console", async () => {
     let errorLogged = false;
-    let errorMessage = '';
+    let errorMessage = "";
 
     console.error = (...args) => {
       errorLogged = true;
-      errorMessage = args.join(' ');
+      errorMessage = args.join(" ");
     };
 
     global.fetch = () =>
       Promise.resolve({
         ok: false,
         status: 404,
-        json: async () => ({ detail: 'Not found' }),
+        json: async () => ({ detail: "Not found" }),
       });
 
     try {
-      await apiCall('/api/test');
+      await apiCall("/api/test");
     } catch {
       // Expected to throw
     }
 
     expect(errorLogged).toBe(true);
-    expect(errorMessage).toContain('API Error');
+    expect(errorMessage).toContain("API Error");
   });
 });
 
-describe('apiGet', () => {
+describe("apiGet", () => {
   let originalFetch;
 
   beforeEach(() => {
@@ -183,8 +190,8 @@ describe('apiGet', () => {
     global.fetch = originalFetch;
   });
 
-  test('calls apiCall with GET method', async () => {
-    const mockData = { data: 'test' };
+  test("calls apiCall with GET method", async () => {
+    const mockData = { data: "test" };
     let fetchOptions = null;
 
     global.fetch = (url, options) => {
@@ -195,15 +202,15 @@ describe('apiGet', () => {
       });
     };
 
-    const result = await apiGet('/api/data');
+    const result = await apiGet("/api/data");
 
     expect(result).toEqual(mockData);
-    expect(fetchOptions.method).toBe('GET');
-    expect(fetchOptions.headers['Content-Type']).toBe('application/json');
+    expect(fetchOptions.method).toBe("GET");
+    expect(fetchOptions.headers["Content-Type"]).toBe("application/json");
   });
 });
 
-describe('apiPost', () => {
+describe("apiPost", () => {
   let originalFetch;
 
   beforeEach(() => {
@@ -214,9 +221,9 @@ describe('apiPost', () => {
     global.fetch = originalFetch;
   });
 
-  test('calls apiCall with POST method and JSON body', async () => {
+  test("calls apiCall with POST method and JSON body", async () => {
     const mockData = { success: true };
-    const postData = { foo: 'bar', num: 42 };
+    const postData = { foo: "bar", num: 42 };
     let fetchOptions = null;
 
     global.fetch = (url, options) => {
@@ -227,15 +234,15 @@ describe('apiPost', () => {
       });
     };
 
-    const result = await apiPost('/api/create', postData);
+    const result = await apiPost("/api/create", postData);
 
     expect(result).toEqual(mockData);
-    expect(fetchOptions.method).toBe('POST');
+    expect(fetchOptions.method).toBe("POST");
     expect(fetchOptions.body).toBe(JSON.stringify(postData));
-    expect(fetchOptions.headers['Content-Type']).toBe('application/json');
+    expect(fetchOptions.headers["Content-Type"]).toBe("application/json");
   });
 
-  test('handles empty data object', async () => {
+  test("handles empty data object", async () => {
     const mockData = { success: true };
     let fetchOptions = null;
 
@@ -247,14 +254,14 @@ describe('apiPost', () => {
       });
     };
 
-    await apiPost('/api/create', {});
+    await apiPost("/api/create", {});
 
-    expect(fetchOptions.method).toBe('POST');
+    expect(fetchOptions.method).toBe("POST");
     expect(fetchOptions.body).toBe(JSON.stringify({}));
   });
 });
 
-describe('showApiError', () => {
+describe("showApiError", () => {
   let originalAlert;
 
   beforeEach(() => {
@@ -265,44 +272,44 @@ describe('showApiError', () => {
     global.alert = originalAlert;
   });
 
-  test('shows alert with error message', () => {
-    let alertMessage = '';
+  test("shows alert with error message", () => {
+    let alertMessage = "";
     global.alert = (msg) => {
       alertMessage = msg;
     };
 
-    const error = new ApiError('Test error', 404, '/api/test');
+    const error = new ApiError("Test error", 404, "/api/test");
     showApiError(error);
 
-    expect(alertMessage).toBe('Error: Test error');
+    expect(alertMessage).toBe("Error: Test error");
   });
 
-  test('shows custom message when provided', () => {
-    let alertMessage = '';
+  test("shows custom message when provided", () => {
+    let alertMessage = "";
     global.alert = (msg) => {
       alertMessage = msg;
     };
 
-    const error = new ApiError('Test error', 404, '/api/test');
-    showApiError(error, 'Custom error message');
+    const error = new ApiError("Test error", 404, "/api/test");
+    showApiError(error, "Custom error message");
 
-    expect(alertMessage).toBe('Custom error message');
+    expect(alertMessage).toBe("Custom error message");
   });
 
-  test('handles generic Error objects', () => {
-    let alertMessage = '';
+  test("handles generic Error objects", () => {
+    let alertMessage = "";
     global.alert = (msg) => {
       alertMessage = msg;
     };
 
-    const error = new Error('Generic error');
+    const error = new Error("Generic error");
     showApiError(error);
 
-    expect(alertMessage).toBe('Error: Generic error');
+    expect(alertMessage).toBe("Error: Generic error");
   });
 });
 
-describe('safeApiCall', () => {
+describe("safeApiCall", () => {
   let originalAlert;
 
   beforeEach(() => {
@@ -313,7 +320,7 @@ describe('safeApiCall', () => {
     global.alert = originalAlert;
   });
 
-  test('returns result on successful API call', async () => {
+  test("returns result on successful API call", async () => {
     const mockData = { success: true };
     let alertCalled = false;
     let functionCalled = false;
@@ -333,9 +340,9 @@ describe('safeApiCall', () => {
     expect(alertCalled).toBe(false);
   });
 
-  test('shows error and rethrows on failure', async () => {
-    const error = new ApiError('Test error', 500, '/api/test');
-    let alertMessage = '';
+  test("shows error and rethrows on failure", async () => {
+    const error = new ApiError("Test error", 500, "/api/test");
+    let alertMessage = "";
 
     global.alert = (msg) => {
       alertMessage = msg;
@@ -345,12 +352,12 @@ describe('safeApiCall', () => {
     };
 
     await expect(safeApiCall(apiFunction)).rejects.toThrow(error);
-    expect(alertMessage).toBe('Error: Test error');
+    expect(alertMessage).toBe("Error: Test error");
   });
 
-  test('uses custom error message when provided', async () => {
-    const error = new ApiError('Test error', 500, '/api/test');
-    let alertMessage = '';
+  test("uses custom error message when provided", async () => {
+    const error = new ApiError("Test error", 500, "/api/test");
+    let alertMessage = "";
 
     global.alert = (msg) => {
       alertMessage = msg;
@@ -359,12 +366,14 @@ describe('safeApiCall', () => {
       throw error;
     };
 
-    await expect(safeApiCall(apiFunction, 'Custom message')).rejects.toThrow(error);
-    expect(alertMessage).toBe('Custom message');
+    await expect(safeApiCall(apiFunction, "Custom message")).rejects.toThrow(
+      error,
+    );
+    expect(alertMessage).toBe("Custom message");
   });
 
-  test('passes through API function without arguments', async () => {
-    const mockData = { data: 'test' };
+  test("passes through API function without arguments", async () => {
+    const mockData = { data: "test" };
     let functionCalled = false;
 
     global.alert = () => {};

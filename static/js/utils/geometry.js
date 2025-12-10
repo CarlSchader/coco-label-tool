@@ -1,8 +1,9 @@
-import { CONFIG } from '../config.js';
+import { CONFIG } from "../config.js";
 
 export function isPolygonInsidePolygon(innerSegmentation, outerSegmentation) {
   if (!innerSegmentation || !outerSegmentation) return false;
-  if (innerSegmentation.length === 0 || outerSegmentation.length === 0) return false;
+  if (innerSegmentation.length === 0 || outerSegmentation.length === 0)
+    return false;
 
   const innerPolygon = innerSegmentation[0];
   const outerPolygon = outerSegmentation[0];
@@ -34,7 +35,8 @@ export function isPointInPolygon(x, y, polygon) {
     const xj = polygon[j];
     const yj = polygon[j + 1];
 
-    const intersect = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+    const intersect =
+      yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
     if (intersect) inside = !inside;
 
     j = i;

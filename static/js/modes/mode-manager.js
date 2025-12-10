@@ -5,7 +5,7 @@
 export class ModeManager {
   constructor(registry) {
     if (!registry) {
-      throw new Error('ModeRegistry instance is required');
+      throw new Error("ModeRegistry instance is required");
     }
 
     this.registry = registry;
@@ -20,7 +20,10 @@ export class ModeManager {
     }
 
     // Check if already on this mode with same config
-    if (this.currentModeId === modeId && this._configsEqual(this.currentConfig, config)) {
+    if (
+      this.currentModeId === modeId &&
+      this._configsEqual(this.currentConfig, config)
+    ) {
       return;
     }
 
@@ -56,9 +59,9 @@ export class ModeManager {
       return;
     }
 
-    if (typeof this.currentMode[eventHandlerName] !== 'function') {
+    if (typeof this.currentMode[eventHandlerName] !== "function") {
       throw new Error(
-        `Mode "${this.currentModeId}" does not implement handler "${eventHandlerName}"`
+        `Mode "${this.currentModeId}" does not implement handler "${eventHandlerName}"`,
       );
     }
 

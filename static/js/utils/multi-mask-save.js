@@ -76,14 +76,14 @@ export function validateMaskCategoriesForSaving(segmentation, maskCategoryIds) {
 
   // No categories provided
   if (maskCategoryIds.length === 0) {
-    return { message: 'Please select a category for each mask' };
+    return { message: "Please select a category for each mask" };
   }
 
   // Merged mask (single category for all masks)
   if (maskCategoryIds.length === 1 && numMasks > 1) {
     const categoryId = maskCategoryIds[0];
     if (!categoryId) {
-      return { message: 'Please select a category for the merged mask' };
+      return { message: "Please select a category for the merged mask" };
     }
     return null; // Valid
   }

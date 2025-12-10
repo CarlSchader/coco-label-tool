@@ -1,9 +1,9 @@
-import { CONFIG } from './config.js';
+import { CONFIG } from "./config.js";
 
 export class ApiError extends Error {
   constructor(message, status, url) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
     this.status = status;
     this.url = url;
   }
@@ -19,7 +19,7 @@ export async function apiCall(url, options = {}) {
     const response = await fetch(url, defaultOptions);
 
     if (!response.ok) {
-      let errorMessage = 'Unknown error';
+      let errorMessage = "Unknown error";
       try {
         const error = await response.json();
         errorMessage = error.detail || error.message || errorMessage;
@@ -36,20 +36,20 @@ export async function apiCall(url, options = {}) {
       throw error;
     } else {
       console.error(`Network Error [${url}]:`, error);
-      throw new ApiError(error.message || 'Network error', 0, url);
+      throw new ApiError(error.message || "Network error", 0, url);
     }
   }
 }
 
 export async function apiGet(url) {
   return apiCall(url, {
-    method: 'GET',
+    method: "GET",
   });
 }
 
 export async function apiPost(url, data) {
   return apiCall(url, {
-    method: 'POST',
+    method: "POST",
     body: JSON.stringify(data),
   });
 }

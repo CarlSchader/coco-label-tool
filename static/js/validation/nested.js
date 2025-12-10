@@ -1,6 +1,10 @@
-import { isPolygonInsidePolygon } from '../utils/geometry.js';
+import { isPolygonInsidePolygon } from "../utils/geometry.js";
 
-export function checkNestedMaskSupercategoryMismatch(currentImage, annotations, categories) {
+export function checkNestedMaskSupercategoryMismatch(
+  currentImage,
+  annotations,
+  categories,
+) {
   if (!currentImage) return null;
 
   const currentAnnotations = annotations[currentImage.id] || [];
@@ -29,7 +33,7 @@ export function checkNestedMaskSupercategoryMismatch(currentImage, annotations, 
         const alreadyExists = mismatches.some(
           (m) =>
             (m.inner.id === annA.id && m.outer.id === annB.id) ||
-            (m.inner.id === annB.id && m.outer.id === annA.id)
+            (m.inner.id === annB.id && m.outer.id === annA.id),
         );
 
         if (!alreadyExists) {

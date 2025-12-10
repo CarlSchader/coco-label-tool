@@ -988,11 +988,11 @@ See `AGENTS.md` for comprehensive guidelines. Key points:
 4. **Call from frontend** using `apiPost()` from `api.js`:
 
    ```javascript
-   import { apiPost, showApiError } from './api.js';
+   import { apiPost, showApiError } from "./api.js";
 
    async function myFeature() {
      try {
-       const data = await apiPost('/api/my-endpoint', { param: 'value' });
+       const data = await apiPost("/api/my-endpoint", { param: "value" });
        // Handle success
      } catch (error) {
        showApiError(error);
@@ -1155,9 +1155,9 @@ print(f"Took {time.time() - start:.2f}s")
 **Frontend**:
 
 ```javascript
-console.time('operation');
+console.time("operation");
 // ... code ...
-console.timeEnd('operation');
+console.timeEnd("operation");
 ```
 
 **SAM2 Inference**: Typical times on M1 Mac CPU:

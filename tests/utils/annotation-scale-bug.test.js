@@ -8,10 +8,10 @@
 import {
   findAnnotationsInBox,
   getAnnotationBoundingBox,
-} from '../../static/js/utils/annotations.js';
+} from "../../static/js/utils/annotations.js";
 
-describe('Coordinate System Bug', () => {
-  test('reproduces the bug: scaleX/scaleY cause wrong bounding boxes', () => {
+describe("Coordinate System Bug", () => {
+  test("reproduces the bug: scaleX/scaleY cause wrong bounding boxes", () => {
     // Annotation in natural coordinates (e.g., 1000x1000 image)
     const annotation = {
       id: 1,
@@ -37,7 +37,7 @@ describe('Coordinate System Bug', () => {
     });
   });
 
-  test('demonstrates correct behavior when scale = 1', () => {
+  test("demonstrates correct behavior when scale = 1", () => {
     // Annotation in natural coordinates
     const annotation = {
       id: 1,
@@ -56,7 +56,7 @@ describe('Coordinate System Bug', () => {
     });
   });
 
-  test('selection box in natural coords should use scale=1', () => {
+  test("selection box in natural coords should use scale=1", () => {
     const annotations = [
       {
         id: 1,
@@ -79,7 +79,7 @@ describe('Coordinate System Bug', () => {
     expect(correctResult).not.toContain(2);
   });
 
-  test('demonstrates the exact bug reported by user', () => {
+  test("demonstrates the exact bug reported by user", () => {
     // Image is 2000x2000 natural, displayed at 500x500 (scale = 4)
     const scaleX = 4;
     const scaleY = 4;
@@ -88,7 +88,10 @@ describe('Coordinate System Bug', () => {
     const annotations = [
       { id: 1, segmentation: [[100, 100, 300, 100, 300, 300, 100, 300]] }, // Top-left
       { id: 2, segmentation: [[400, 400, 600, 400, 600, 600, 400, 600]] }, // Center
-      { id: 3, segmentation: [[1000, 1000, 1200, 1000, 1200, 1200, 1000, 1200]] }, // Far away
+      {
+        id: 3,
+        segmentation: [[1000, 1000, 1200, 1000, 1200, 1200, 1000, 1200]],
+      }, // Far away
     ];
 
     // User drags selection box in natural coords from (0,0) to (700,700)
@@ -99,7 +102,12 @@ describe('Coordinate System Bug', () => {
     // Ann 1 bbox: (25, 25, 75, 75) - overlaps ✓
     // Ann 2 bbox: (100, 100, 150, 150) - overlaps ✓
     // Ann 3 bbox: (250, 250, 300, 300) - overlaps ✓ (WRONG! Should not overlap)
-    const buggyResult = findAnnotationsInBox(selectionBox, annotations, scaleX, scaleY);
+    const buggyResult = findAnnotationsInBox(
+      selectionBox,
+      annotations,
+      scaleX,
+      scaleY,
+    );
     expect(buggyResult).toHaveLength(3); // BUG: Selects all 3
 
     // With FIX (using scale=1):

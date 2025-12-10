@@ -8,12 +8,12 @@ export class ModeRegistry {
   }
 
   register(modeId, ModeClass, metadata = {}) {
-    if (!modeId || typeof modeId !== 'string') {
-      throw new Error('modeId must be a non-empty string');
+    if (!modeId || typeof modeId !== "string") {
+      throw new Error("modeId must be a non-empty string");
     }
 
-    if (typeof ModeClass !== 'function') {
-      throw new Error('ModeClass must be a constructor function');
+    if (typeof ModeClass !== "function") {
+      throw new Error("ModeClass must be a constructor function");
     }
 
     if (this.modes.has(modeId)) {

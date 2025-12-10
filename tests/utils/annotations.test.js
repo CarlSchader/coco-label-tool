@@ -3,9 +3,9 @@ import {
   findAnnotationsInBox,
   getAnnotationBoundingBox,
   boxesOverlap,
-} from '../../static/js/utils/annotations.js';
+} from "../../static/js/utils/annotations.js";
 
-describe('findAnnotationAtPoint', () => {
+describe("findAnnotationAtPoint", () => {
   const mockAnnotations = [
     {
       id: 1,
@@ -21,37 +21,37 @@ describe('findAnnotationAtPoint', () => {
     },
   ];
 
-  test('returns annotation ID when point is inside mask', () => {
+  test("returns annotation ID when point is inside mask", () => {
     const result = findAnnotationAtPoint(50, 50, mockAnnotations, 1, 1);
     expect(result).toBe(3);
   });
 
-  test('returns topmost annotation when multiple overlap', () => {
+  test("returns topmost annotation when multiple overlap", () => {
     const result = findAnnotationAtPoint(75, 75, mockAnnotations, 1, 1);
     expect(result).toBe(3);
   });
 
-  test('returns null when point is outside all masks', () => {
+  test("returns null when point is outside all masks", () => {
     const result = findAnnotationAtPoint(500, 500, mockAnnotations, 1, 1);
     expect(result).toBeNull();
   });
 
-  test('returns null for empty annotations array', () => {
+  test("returns null for empty annotations array", () => {
     const result = findAnnotationAtPoint(50, 50, [], 1, 1);
     expect(result).toBeNull();
   });
 
-  test('returns null for null annotations', () => {
+  test("returns null for null annotations", () => {
     const result = findAnnotationAtPoint(50, 50, null, 1, 1);
     expect(result).toBeNull();
   });
 
-  test('returns null for undefined annotations', () => {
+  test("returns null for undefined annotations", () => {
     const result = findAnnotationAtPoint(50, 50, undefined, 1, 1);
     expect(result).toBeNull();
   });
 
-  test('handles scaled coordinates correctly', () => {
+  test("handles scaled coordinates correctly", () => {
     const scaledAnnotations = [
       {
         id: 1,
@@ -62,7 +62,7 @@ describe('findAnnotationAtPoint', () => {
     expect(result).toBe(1);
   });
 
-  test('handles annotation with multiple polygons', () => {
+  test("handles annotation with multiple polygons", () => {
     const multiPolygonAnnotation = [
       {
         id: 1,
@@ -76,14 +76,20 @@ describe('findAnnotationAtPoint', () => {
     const result1 = findAnnotationAtPoint(25, 25, multiPolygonAnnotation, 1, 1);
     expect(result1).toBe(1);
 
-    const result2 = findAnnotationAtPoint(125, 125, multiPolygonAnnotation, 1, 1);
+    const result2 = findAnnotationAtPoint(
+      125,
+      125,
+      multiPolygonAnnotation,
+      1,
+      1,
+    );
     expect(result2).toBe(1);
 
     const result3 = findAnnotationAtPoint(75, 75, multiPolygonAnnotation, 1, 1);
     expect(result3).toBeNull();
   });
 
-  test('returns first matching annotation when checking from top', () => {
+  test("returns first matching annotation when checking from top", () => {
     const overlappingAnnotations = [
       {
         id: 1,
@@ -100,8 +106,8 @@ describe('findAnnotationAtPoint', () => {
   });
 });
 
-describe('getAnnotationBoundingBox', () => {
-  test('calculates correct bounding box for simple square', () => {
+describe("getAnnotationBoundingBox", () => {
+  test("calculates correct bounding box for simple square", () => {
     const annotation = {
       segmentation: [[0, 0, 100, 0, 100, 100, 0, 100]],
     };
@@ -109,7 +115,7 @@ describe('getAnnotationBoundingBox', () => {
     expect(result).toEqual({ x1: 0, y1: 0, x2: 100, y2: 100 });
   });
 
-  test('calculates correct bounding box for irregular polygon', () => {
+  test("calculates correct bounding box for irregular polygon", () => {
     const annotation = {
       segmentation: [[10, 20, 50, 10, 80, 40, 60, 70, 15, 60]],
     };
@@ -117,7 +123,7 @@ describe('getAnnotationBoundingBox', () => {
     expect(result).toEqual({ x1: 10, y1: 10, x2: 80, y2: 70 });
   });
 
-  test('handles multiple polygons in segmentation', () => {
+  test("handles multiple polygons in segmentation", () => {
     const annotation = {
       segmentation: [
         [0, 0, 50, 0, 50, 50, 0, 50],
@@ -128,7 +134,7 @@ describe('getAnnotationBoundingBox', () => {
     expect(result).toEqual({ x1: 0, y1: 0, x2: 150, y2: 150 });
   });
 
-  test('applies scaling correctly', () => {
+  test("applies scaling correctly", () => {
     const annotation = {
       segmentation: [[0, 0, 200, 0, 200, 200, 0, 200]],
     };
@@ -136,7 +142,7 @@ describe('getAnnotationBoundingBox', () => {
     expect(result).toEqual({ x1: 0, y1: 0, x2: 100, y2: 100 });
   });
 
-  test('handles non-uniform scaling', () => {
+  test("handles non-uniform scaling", () => {
     const annotation = {
       segmentation: [[0, 0, 200, 0, 200, 100, 0, 100]],
     };
@@ -144,68 +150,68 @@ describe('getAnnotationBoundingBox', () => {
     expect(result).toEqual({ x1: 0, y1: 0, x2: 100, y2: 100 });
   });
 
-  test('handles null annotation', () => {
+  test("handles null annotation", () => {
     const result = getAnnotationBoundingBox(null, 1, 1);
     expect(result).toBeNull();
   });
 
-  test('handles annotation with empty segmentation', () => {
+  test("handles annotation with empty segmentation", () => {
     const annotation = { segmentation: [] };
     const result = getAnnotationBoundingBox(annotation, 1, 1);
     expect(result).toBeNull();
   });
 });
 
-describe('boxesOverlap', () => {
-  test('returns true when boxes overlap', () => {
+describe("boxesOverlap", () => {
+  test("returns true when boxes overlap", () => {
     const box1 = { x1: 0, y1: 0, x2: 100, y2: 100 };
     const box2 = { x1: 50, y1: 50, x2: 150, y2: 150 };
     expect(boxesOverlap(box1, box2)).toBe(true);
   });
 
-  test('returns false when boxes are disjoint', () => {
+  test("returns false when boxes are disjoint", () => {
     const box1 = { x1: 0, y1: 0, x2: 100, y2: 100 };
     const box2 = { x1: 200, y1: 200, x2: 300, y2: 300 };
     expect(boxesOverlap(box1, box2)).toBe(false);
   });
 
-  test('returns true when one box contains another', () => {
+  test("returns true when one box contains another", () => {
     const box1 = { x1: 0, y1: 0, x2: 200, y2: 200 };
     const box2 = { x1: 50, y1: 50, x2: 150, y2: 150 };
     expect(boxesOverlap(box1, box2)).toBe(true);
   });
 
-  test('returns true when box2 contains box1', () => {
+  test("returns true when box2 contains box1", () => {
     const box1 = { x1: 50, y1: 50, x2: 150, y2: 150 };
     const box2 = { x1: 0, y1: 0, x2: 200, y2: 200 };
     expect(boxesOverlap(box1, box2)).toBe(true);
   });
 
-  test('returns true when boxes touch at edge', () => {
+  test("returns true when boxes touch at edge", () => {
     const box1 = { x1: 0, y1: 0, x2: 100, y2: 100 };
     const box2 = { x1: 100, y1: 0, x2: 200, y2: 100 };
     expect(boxesOverlap(box1, box2)).toBe(true);
   });
 
-  test('returns true when boxes touch at corner', () => {
+  test("returns true when boxes touch at corner", () => {
     const box1 = { x1: 0, y1: 0, x2: 100, y2: 100 };
     const box2 = { x1: 100, y1: 100, x2: 200, y2: 200 };
     expect(boxesOverlap(box1, box2)).toBe(true);
   });
 
-  test('returns false when boxes are horizontally separated', () => {
+  test("returns false when boxes are horizontally separated", () => {
     const box1 = { x1: 0, y1: 0, x2: 100, y2: 100 };
     const box2 = { x1: 150, y1: 0, x2: 250, y2: 100 };
     expect(boxesOverlap(box1, box2)).toBe(false);
   });
 
-  test('returns false when boxes are vertically separated', () => {
+  test("returns false when boxes are vertically separated", () => {
     const box1 = { x1: 0, y1: 0, x2: 100, y2: 100 };
     const box2 = { x1: 0, y1: 150, x2: 100, y2: 250 };
     expect(boxesOverlap(box1, box2)).toBe(false);
   });
 
-  test('handles null boxes', () => {
+  test("handles null boxes", () => {
     const box1 = { x1: 0, y1: 0, x2: 100, y2: 100 };
     expect(boxesOverlap(null, box1)).toBe(false);
     expect(boxesOverlap(box1, null)).toBe(false);
@@ -213,7 +219,7 @@ describe('boxesOverlap', () => {
   });
 });
 
-describe('findAnnotationsInBox', () => {
+describe("findAnnotationsInBox", () => {
   const mockAnnotations = [
     {
       id: 1,
@@ -229,13 +235,13 @@ describe('findAnnotationsInBox', () => {
     },
   ];
 
-  test('returns annotation fully inside box', () => {
+  test("returns annotation fully inside box", () => {
     const box = { x1: 0, y1: 0, x2: 120, y2: 120 };
     const result = findAnnotationsInBox(box, mockAnnotations, 1, 1);
     expect(result).toContain(1);
   });
 
-  test('returns all annotations overlapping box', () => {
+  test("returns all annotations overlapping box", () => {
     const box = { x1: 0, y1: 0, x2: 199, y2: 199 };
     const result = findAnnotationsInBox(box, mockAnnotations, 1, 1);
     expect(result).toContain(1);
@@ -243,19 +249,19 @@ describe('findAnnotationsInBox', () => {
     expect(result.length).toBe(2);
   });
 
-  test('returns empty array when no annotations overlap', () => {
+  test("returns empty array when no annotations overlap", () => {
     const box = { x1: 400, y1: 400, x2: 500, y2: 500 };
     const result = findAnnotationsInBox(box, mockAnnotations, 1, 1);
     expect(result).toEqual([]);
   });
 
-  test('returns annotation partially overlapping box', () => {
+  test("returns annotation partially overlapping box", () => {
     const box = { x1: 75, y1: 75, x2: 125, y2: 125 };
     const result = findAnnotationsInBox(box, mockAnnotations, 1, 1);
     expect(result).toContain(3);
   });
 
-  test('handles scaled coordinates correctly', () => {
+  test("handles scaled coordinates correctly", () => {
     const scaledAnnotations = [
       {
         id: 1,
@@ -267,7 +273,7 @@ describe('findAnnotationsInBox', () => {
     expect(result).toContain(1);
   });
 
-  test('returns multiple annotations when all overlap', () => {
+  test("returns multiple annotations when all overlap", () => {
     const overlappingAnnotations = [
       {
         id: 1,
@@ -290,7 +296,7 @@ describe('findAnnotationsInBox', () => {
     expect(result).toContain(3);
   });
 
-  test('selects all overlapping annotations when box partially covers both', () => {
+  test("selects all overlapping annotations when box partially covers both", () => {
     // Two annotations that overlap each other
     const overlappingPair = [
       {
@@ -313,7 +319,7 @@ describe('findAnnotationsInBox', () => {
     expect(result).toContain(2);
   });
 
-  test('selects all annotations when box covers only overlap region', () => {
+  test("selects all annotations when box covers only overlap region", () => {
     // Three annotations that all overlap in the center
     const centerOverlap = [
       {
@@ -341,24 +347,24 @@ describe('findAnnotationsInBox', () => {
     expect(result).toContain(3);
   });
 
-  test('handles null box', () => {
+  test("handles null box", () => {
     const result = findAnnotationsInBox(null, mockAnnotations, 1, 1);
     expect(result).toEqual([]);
   });
 
-  test('handles null annotations', () => {
+  test("handles null annotations", () => {
     const box = { x1: 0, y1: 0, x2: 100, y2: 100 };
     const result = findAnnotationsInBox(box, null, 1, 1);
     expect(result).toEqual([]);
   });
 
-  test('handles empty annotations array', () => {
+  test("handles empty annotations array", () => {
     const box = { x1: 0, y1: 0, x2: 100, y2: 100 };
     const result = findAnnotationsInBox(box, [], 1, 1);
     expect(result).toEqual([]);
   });
 
-  test('handles annotation with multiple polygons', () => {
+  test("handles annotation with multiple polygons", () => {
     const multiPolygonAnnotations = [
       {
         id: 1,
@@ -373,7 +379,7 @@ describe('findAnnotationsInBox', () => {
     expect(result).toContain(1);
   });
 
-  test('returns annotations with any bounding box overlap', () => {
+  test("returns annotations with any bounding box overlap", () => {
     const box = { x1: 90, y1: 90, x2: 110, y2: 110 };
     const result = findAnnotationsInBox(box, mockAnnotations, 1, 1);
     expect(result).toContain(1);

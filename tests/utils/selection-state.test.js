@@ -5,12 +5,12 @@
  * which would have caught the "selectionBoxDrag can be null" bug.
  */
 
-import { calculateDragBox } from '../../static/js/utils/box.js';
-import { findAnnotationsInBox } from '../../static/js/utils/annotations.js';
+import { calculateDragBox } from "../../static/js/utils/box.js";
+import { findAnnotationsInBox } from "../../static/js/utils/annotations.js";
 
-describe('Selection State Coordination', () => {
-  describe('Box selection workflow', () => {
-    test('box can be calculated from start and end points (mousedown → mouseup)', () => {
+describe("Selection State Coordination", () => {
+  describe("Box selection workflow", () => {
+    test("box can be calculated from start and end points (mousedown → mouseup)", () => {
       // Simulates: user does mousedown, then mouseup without mousemove
       const startX = 100;
       const startY = 100;
@@ -28,7 +28,7 @@ describe('Selection State Coordination', () => {
       });
     });
 
-    test('box calculation works even if mousemove never fired', () => {
+    test("box calculation works even if mousemove never fired", () => {
       // This is the bug scenario: quick drag where mousemove doesn't update state
       const start = { x: 50, y: 50 };
       const end = { x: 150, y: 150 };
@@ -41,7 +41,7 @@ describe('Selection State Coordination', () => {
       expect(box.x2).toBe(150);
     });
 
-    test('findAnnotationsInBox works with box calculated at mouseup', () => {
+    test("findAnnotationsInBox works with box calculated at mouseup", () => {
       const annotations = [
         { id: 1, segmentation: [[100, 100, 200, 100, 200, 200, 100, 200]] },
         { id: 2, segmentation: [[300, 300, 400, 300, 400, 400, 300, 400]] },
@@ -56,8 +56,8 @@ describe('Selection State Coordination', () => {
     });
   });
 
-  describe('Click vs drag detection', () => {
-    test('small movement (< 5px) should be treated as click', () => {
+  describe("Click vs drag detection", () => {
+    test("small movement (< 5px) should be treated as click", () => {
       const startX = 100;
       const startY = 100;
       const endX = 102;
@@ -71,7 +71,7 @@ describe('Selection State Coordination', () => {
       // Should trigger handleAnnotationClick, not handleAnnotationBoxSelect
     });
 
-    test('large movement (>= 5px) should be treated as drag', () => {
+    test("large movement (>= 5px) should be treated as drag", () => {
       const startX = 100;
       const endX = 200;
 
@@ -81,7 +81,7 @@ describe('Selection State Coordination', () => {
       // Should trigger handleAnnotationBoxSelect
     });
 
-    test('movement exactly 5px should be treated as drag', () => {
+    test("movement exactly 5px should be treated as drag", () => {
       const startX = 100;
       const endX = 105;
 
@@ -92,8 +92,8 @@ describe('Selection State Coordination', () => {
     });
   });
 
-  describe('Selection state requirements', () => {
-    test('box selection should not depend on intermediate mousemove state', () => {
+  describe("Selection state requirements", () => {
+    test("box selection should not depend on intermediate mousemove state", () => {
       // Key insight: We should be able to perform box selection using only:
       // 1. Start point (from mousedown)
       // 2. End point (from mouseup)
@@ -107,14 +107,19 @@ describe('Selection State Coordination', () => {
       const endPoint = { x: 100, y: 100 };
 
       // Should be sufficient to calculate box
-      const box = calculateDragBox(startPoint.x, startPoint.y, endPoint.x, endPoint.y);
+      const box = calculateDragBox(
+        startPoint.x,
+        startPoint.y,
+        endPoint.x,
+        endPoint.y,
+      );
 
       expect(box).toBeDefined();
       expect(box.x1).toBeLessThanOrEqual(box.x2);
       expect(box.y1).toBeLessThanOrEqual(box.y2);
     });
 
-    test('selection box calculation is idempotent', () => {
+    test("selection box calculation is idempotent", () => {
       // Same inputs should always produce same output
       const box1 = calculateDragBox(50, 50, 150, 150);
       const box2 = calculateDragBox(50, 50, 150, 150);
@@ -122,7 +127,7 @@ describe('Selection State Coordination', () => {
       expect(box1).toEqual(box2);
     });
 
-    test('box selection handles reversed drag (right-to-left)', () => {
+    test("box selection handles reversed drag (right-to-left)", () => {
       // User drags from right to left
       const box = calculateDragBox(200, 200, 100, 100);
 
@@ -133,8 +138,8 @@ describe('Selection State Coordination', () => {
     });
   });
 
-  describe('Edge cases that could cause null boxes', () => {
-    test('box is valid even with zero movement', () => {
+  describe("Edge cases that could cause null boxes", () => {
+    test("box is valid even with zero movement", () => {
       const box = calculateDragBox(100, 100, 100, 100);
 
       expect(box).toBeDefined();
@@ -142,7 +147,7 @@ describe('Selection State Coordination', () => {
       expect(box.y1).toBe(box.y2);
     });
 
-    test('box is valid with single-pixel movement', () => {
+    test("box is valid with single-pixel movement", () => {
       const box = calculateDragBox(100, 100, 101, 101);
 
       expect(box).toBeDefined();
@@ -150,16 +155,20 @@ describe('Selection State Coordination', () => {
       expect(box.x2).toBe(101);
     });
 
-    test('findAnnotationsInBox handles null box gracefully', () => {
-      const annotations = [{ id: 1, segmentation: [[0, 0, 10, 0, 10, 10, 0, 10]] }];
+    test("findAnnotationsInBox handles null box gracefully", () => {
+      const annotations = [
+        { id: 1, segmentation: [[0, 0, 10, 0, 10, 10, 0, 10]] },
+      ];
 
       const result = findAnnotationsInBox(null, annotations, 1, 1);
 
       expect(result).toEqual([]);
     });
 
-    test('findAnnotationsInBox handles zero-size box', () => {
-      const annotations = [{ id: 1, segmentation: [[0, 0, 10, 0, 10, 10, 0, 10]] }];
+    test("findAnnotationsInBox handles zero-size box", () => {
+      const annotations = [
+        { id: 1, segmentation: [[0, 0, 10, 0, 10, 10, 0, 10]] },
+      ];
       const zeroBox = { x1: 0, y1: 0, x2: 0, y2: 0 };
 
       const result = findAnnotationsInBox(zeroBox, annotations, 1, 1);
@@ -170,8 +179,8 @@ describe('Selection State Coordination', () => {
     });
   });
 
-  describe('Overlapping annotation selection', () => {
-    test('box selection returns all overlapping annotations, not just one', () => {
+  describe("Overlapping annotation selection", () => {
+    test("box selection returns all overlapping annotations, not just one", () => {
       // Scenario: Two masks overlap each other
       // User drags selection box over the overlap region
       // Expected: BOTH annotations selected
@@ -197,7 +206,7 @@ describe('Selection State Coordination', () => {
       expect(selected).toContain(2);
     });
 
-    test('multiple overlapping annotations are all returned', () => {
+    test("multiple overlapping annotations are all returned", () => {
       // Scenario: Three annotations all overlap in same region
       const annotations = [
         {
@@ -224,7 +233,7 @@ describe('Selection State Coordination', () => {
       expect(selected).toContain(3);
     });
 
-    test('small box over overlap region selects all overlapping annotations', () => {
+    test("small box over overlap region selects all overlapping annotations", () => {
       const annotations = [
         {
           id: 1,
@@ -246,7 +255,7 @@ describe('Selection State Coordination', () => {
       expect(selected).toContain(2);
     });
 
-    test('box touching only edges of both overlapping annotations', () => {
+    test("box touching only edges of both overlapping annotations", () => {
       const annotations = [
         {
           id: 1,

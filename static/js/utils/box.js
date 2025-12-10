@@ -23,7 +23,7 @@ export function detectBoxInteraction(mouseX, mouseY, box, scaleX, scaleY) {
     Math.abs(mouseX - x1) <= cornerThreshold &&
     Math.abs(mouseY - y1) <= cornerThreshold
   ) {
-    return { type: 'corner', corner: 'nw' };
+    return { type: "corner", corner: "nw" };
   }
   if (
     nearRight &&
@@ -31,7 +31,7 @@ export function detectBoxInteraction(mouseX, mouseY, box, scaleX, scaleY) {
     Math.abs(mouseX - x2) <= cornerThreshold &&
     Math.abs(mouseY - y1) <= cornerThreshold
   ) {
-    return { type: 'corner', corner: 'ne' };
+    return { type: "corner", corner: "ne" };
   }
   if (
     nearLeft &&
@@ -39,7 +39,7 @@ export function detectBoxInteraction(mouseX, mouseY, box, scaleX, scaleY) {
     Math.abs(mouseX - x1) <= cornerThreshold &&
     Math.abs(mouseY - y2) <= cornerThreshold
   ) {
-    return { type: 'corner', corner: 'sw' };
+    return { type: "corner", corner: "sw" };
   }
   if (
     nearRight &&
@@ -47,24 +47,24 @@ export function detectBoxInteraction(mouseX, mouseY, box, scaleX, scaleY) {
     Math.abs(mouseX - x2) <= cornerThreshold &&
     Math.abs(mouseY - y2) <= cornerThreshold
   ) {
-    return { type: 'corner', corner: 'se' };
+    return { type: "corner", corner: "se" };
   }
 
   if (nearLeft && insideY) {
-    return { type: 'edge', edge: 'left' };
+    return { type: "edge", edge: "left" };
   }
   if (nearRight && insideY) {
-    return { type: 'edge', edge: 'right' };
+    return { type: "edge", edge: "right" };
   }
   if (nearTop && insideX) {
-    return { type: 'edge', edge: 'top' };
+    return { type: "edge", edge: "top" };
   }
   if (nearBottom && insideX) {
-    return { type: 'edge', edge: 'bottom' };
+    return { type: "edge", edge: "bottom" };
   }
 
   if (insideX && insideY) {
-    return { type: 'move' };
+    return { type: "move" };
   }
 
   return null;
@@ -73,7 +73,7 @@ export function detectBoxInteraction(mouseX, mouseY, box, scaleX, scaleY) {
 export function calculateBoxResize(mode, data, currentX, currentY) {
   if (!mode || !data) return null;
 
-  if (mode === 'move') {
+  if (mode === "move") {
     const dx = currentX - data.startX;
     const dy = currentY - data.startY;
 
@@ -83,34 +83,34 @@ export function calculateBoxResize(mode, data, currentX, currentY) {
       x2: data.originalBox.x2 + dx,
       y2: data.originalBox.y2 + dy,
     };
-  } else if (mode === 'corner') {
+  } else if (mode === "corner") {
     const newBox = { ...data.originalBox };
 
-    if (data.corner === 'nw') {
+    if (data.corner === "nw") {
       newBox.x1 = currentX;
       newBox.y1 = currentY;
-    } else if (data.corner === 'ne') {
+    } else if (data.corner === "ne") {
       newBox.x2 = currentX;
       newBox.y1 = currentY;
-    } else if (data.corner === 'sw') {
+    } else if (data.corner === "sw") {
       newBox.x1 = currentX;
       newBox.y2 = currentY;
-    } else if (data.corner === 'se') {
+    } else if (data.corner === "se") {
       newBox.x2 = currentX;
       newBox.y2 = currentY;
     }
 
     return normalizeBox(newBox);
-  } else if (mode === 'edge') {
+  } else if (mode === "edge") {
     const newBox = { ...data.originalBox };
 
-    if (data.edge === 'left') {
+    if (data.edge === "left") {
       newBox.x1 = currentX;
-    } else if (data.edge === 'right') {
+    } else if (data.edge === "right") {
       newBox.x2 = currentX;
-    } else if (data.edge === 'top') {
+    } else if (data.edge === "top") {
       newBox.y1 = currentY;
-    } else if (data.edge === 'bottom') {
+    } else if (data.edge === "bottom") {
       newBox.y2 = currentY;
     }
 
@@ -134,25 +134,25 @@ export function normalizeBox(box) {
 }
 
 export function getCursorForBoxInteraction(interaction) {
-  if (!interaction) return 'crosshair';
+  if (!interaction) return "crosshair";
 
-  if (interaction.type === 'move') {
-    return 'move';
-  } else if (interaction.type === 'corner') {
-    if (interaction.corner === 'nw' || interaction.corner === 'se') {
-      return 'nwse-resize';
+  if (interaction.type === "move") {
+    return "move";
+  } else if (interaction.type === "corner") {
+    if (interaction.corner === "nw" || interaction.corner === "se") {
+      return "nwse-resize";
     } else {
-      return 'nesw-resize';
+      return "nesw-resize";
     }
-  } else if (interaction.type === 'edge') {
-    if (interaction.edge === 'left' || interaction.edge === 'right') {
-      return 'ew-resize';
+  } else if (interaction.type === "edge") {
+    if (interaction.edge === "left" || interaction.edge === "right") {
+      return "ew-resize";
     } else {
-      return 'ns-resize';
+      return "ns-resize";
     }
   }
 
-  return 'crosshair';
+  return "crosshair";
 }
 
 export function calculateDragBox(startX, startY, currentX, currentY) {

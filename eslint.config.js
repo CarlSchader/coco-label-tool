@@ -1,39 +1,39 @@
-import js from '@eslint/js';
-import globals from 'globals';
-import json from '@eslint/json';
-import markdown from '@eslint/markdown';
-import css from '@eslint/css';
-import { defineConfig } from 'eslint/config';
+import js from "@eslint/js";
+import globals from "globals";
+import json from "@eslint/json";
+import markdown from "@eslint/markdown";
+import css from "@eslint/css";
+import { defineConfig } from "eslint/config";
 
 export default defineConfig([
   {
     ignores: [
-      '.venv/**',
-      'node_modules/**',
-      '*.pyc',
-      '__pycache__/**',
-      '.pytest_cache/**',
-      '.ruff_cache/**',
+      ".venv/**",
+      "node_modules/**",
+      "*.pyc",
+      "__pycache__/**",
+      ".pytest_cache/**",
+      ".ruff_cache/**",
     ],
   },
   {
-    files: ['**/*.{js,mjs,cjs}'],
+    files: ["**/*.{js,mjs,cjs}"],
     plugins: { js },
-    extends: ['js/recommended'],
+    extends: ["js/recommended"],
     languageOptions: { globals: globals.browser },
     rules: {
-      'no-unused-vars': [
-        'error',
+      "no-unused-vars": [
+        "error",
         {
           varsIgnorePattern:
-            '^(apiGet|apiPost|showApiError|hashString|isPolygonInsidePolygon|isPointInPolygon|pointModeEnabled|boxModeEnabled|getSupercategoryColorLocal)$',
-          argsIgnorePattern: '^_',
+            "^(apiGet|apiPost|showApiError|hashString|isPolygonInsidePolygon|isPointInPolygon|pointModeEnabled|boxModeEnabled|getSupercategoryColorLocal)$",
+          argsIgnorePattern: "^_",
         },
       ],
     },
   },
   {
-    files: ['tests/**/*.js'],
+    files: ["tests/**/*.js"],
     languageOptions: {
       globals: {
         ...globals.jest,
@@ -42,45 +42,45 @@ export default defineConfig([
     },
   },
   {
-    files: ['**/*.json'],
+    files: ["**/*.json"],
     plugins: { json },
-    language: 'json/json',
-    extends: ['json/recommended'],
+    language: "json/json",
+    extends: ["json/recommended"],
     rules: {
-      'json/no-empty-keys': 'off',
+      "json/no-empty-keys": "off",
     },
   },
   {
-    files: ['**/*.jsonc'],
+    files: ["**/*.jsonc"],
     plugins: { json },
-    language: 'json/jsonc',
-    extends: ['json/recommended'],
+    language: "json/jsonc",
+    extends: ["json/recommended"],
   },
   {
-    files: ['**/*.json5'],
+    files: ["**/*.json5"],
     plugins: { json },
-    language: 'json/json5',
-    extends: ['json/recommended'],
+    language: "json/json5",
+    extends: ["json/recommended"],
   },
   {
-    files: ['**/*.md'],
+    files: ["**/*.md"],
     plugins: { markdown },
-    language: 'markdown/commonmark',
-    extends: ['markdown/recommended'],
+    language: "markdown/commonmark",
+    extends: ["markdown/recommended"],
     rules: {
-      'markdown/fenced-code-language': 'off',
-      'markdown/no-missing-label-refs': 'off',
+      "markdown/fenced-code-language": "off",
+      "markdown/no-missing-label-refs": "off",
     },
   },
   {
-    files: ['**/*.css'],
+    files: ["**/*.css"],
     plugins: { css },
-    language: 'css/css',
-    extends: ['css/recommended'],
+    language: "css/css",
+    extends: ["css/recommended"],
     rules: {
-      'css/use-baseline': 'off',
+      "css/use-baseline": "off",
       // Allow !important for overriding inline styles set by JavaScript
-      'css/no-important': 'off',
+      "css/no-important": "off",
     },
   },
 ]);

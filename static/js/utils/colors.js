@@ -1,4 +1,4 @@
-import { CONFIG } from '../config.js';
+import { CONFIG } from "../config.js";
 
 export function hashString(str) {
   let hash = 0;
@@ -9,13 +9,19 @@ export function hashString(str) {
   return Math.abs(hash);
 }
 
-export function getSupercategoryColor(supercategory, categories, supercategoryColors) {
-  if (!supercategory || supercategory === 'none') {
+export function getSupercategoryColor(
+  supercategory,
+  categories,
+  supercategoryColors,
+) {
+  if (!supercategory || supercategory === "none") {
     return [180, 180, 180];
   }
   if (!supercategoryColors[supercategory]) {
     const allSupercategories = [
-      ...new Set(categories.map((c) => c.supercategory).filter((s) => s && s !== 'none')),
+      ...new Set(
+        categories.map((c) => c.supercategory).filter((s) => s && s !== "none"),
+      ),
     ];
     const sortedSupers = allSupercategories.sort();
     const index = sortedSupers.indexOf(supercategory);
@@ -23,26 +29,36 @@ export function getSupercategoryColor(supercategory, categories, supercategoryCo
       supercategoryColors[supercategory] =
         CONFIG.primaryColors[index % CONFIG.primaryColors.length];
     } else {
-      const fallbackIndex = hashString(supercategory) % CONFIG.primaryColors.length;
+      const fallbackIndex =
+        hashString(supercategory) % CONFIG.primaryColors.length;
       supercategoryColors[supercategory] = CONFIG.primaryColors[fallbackIndex];
     }
   }
   return supercategoryColors[supercategory];
 }
 
-export function getCategoryColor(category, categories, supercategoryColors, categoryColors) {
+export function getCategoryColor(
+  category,
+  categories,
+  supercategoryColors,
+  categoryColors,
+) {
   if (!category) {
     return [180, 180, 180];
   }
-  const categoryKey = category.id + '_' + category.name;
+  const categoryKey = category.id + "_" + category.name;
   if (!categoryColors[categoryKey]) {
     const baseColor = getSupercategoryColor(
       category.supercategory,
       categories,
-      supercategoryColors
+      supercategoryColors,
     );
-    const categoriesInSuper = categories.filter((c) => c.supercategory === category.supercategory);
-    const indexInSuper = categoriesInSuper.findIndex((c) => c.id === category.id);
+    const categoriesInSuper = categories.filter(
+      (c) => c.supercategory === category.supercategory,
+    );
+    const indexInSuper = categoriesInSuper.findIndex(
+      (c) => c.id === category.id,
+    );
     const numInSuper = categoriesInSuper.length;
 
     if (numInSuper === 1) {
@@ -61,5 +77,5 @@ export function getCategoryColor(category, categories, supercategoryColors, cate
 }
 
 export function rgbToHex(rgb) {
-  return '#' + rgb.map((c) => c.toString(16).padStart(2, '0')).join('');
+  return "#" + rgb.map((c) => c.toString(16).padStart(2, "0")).join("");
 }

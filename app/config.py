@@ -24,7 +24,7 @@ def _is_s3_uri(uri: Optional[str]) -> bool:
 # Dataset URI - can be S3 or local path
 DATASET_URI = os.environ.get(
     "DATASET_PATH",
-    "", 
+    "",
 )
 
 # Detect if remote
@@ -49,6 +49,11 @@ else:
 CACHE_SIZE = 64
 CACHE_HEAD = 32
 CACHE_TAIL = 32
+
+# Image serving settings
+MAX_IMAGE_DIMENSION = int(
+    os.environ.get("MAX_IMAGE_DIMENSION", "1024")
+)  # Resize images larger than this
 
 # SAM2 model settings
 SAM2_MODEL_SIZES = {

@@ -16,11 +16,16 @@
     <div id="s3-banner" class="s3-info-banner" style="display: none">
       <div class="s3-banner-header">
         <strong>S3 Dataset:</strong> <span id="s3-source-uri"></span>
-        <span id="s3-dirty-indicator" class="s3-dirty-badge" style="display: none"
+        <span
+          id="s3-dirty-indicator"
+          class="s3-dirty-badge"
+          style="display: none"
           >UNSAVED CHANGES</span
         >
       </div>
-      <small>Local edits are cached. Click "Save to S3" to upload changes.</small>
+      <small
+        >Local edits are cached. Click "Save to S3" to upload changes.</small
+      >
     </div>
 
     <div class="controls">
@@ -42,15 +47,21 @@
           text-align: center;
         "
       />
-      <button id="btn-reset-prompts" style="background-color: #ffc107">Reset Prompts</button>
-      <button id="btn-merge-masks" style="background-color: #17a2b8">Merge Masks</button>
+      <button id="btn-reset-prompts" style="background-color: #ffc107">
+        Reset Prompts
+      </button>
+      <button id="btn-merge-masks" style="background-color: #17a2b8">
+        Merge Masks
+      </button>
       <button id="toggle-annotations-btn">
         <span id="toggle-annotations-text">Hide Annotations</span>
-        <span style="opacity: 0.5; font-size: 11px; margin-left: 6px">(Ctrl/Cmd+H)</span>
+        <span style="opacity: 0.5; font-size: 11px; margin-left: 6px"
+          >(Ctrl/Cmd+H)</span
+        >
       </button>
       <span style="color: #aaa; font-size: 12px; margin-left: 10px"
-        >Drag for box (Left=positive, Right=negative), Click for points • Click prompts to
-        remove</span
+        >Drag for box (Left=positive, Right=negative), Click for points • Click
+        prompts to remove</span
       >
       <select
         id="mode-select"
@@ -90,18 +101,24 @@
       <button id="btn-manage-categories" style="background-color: #6c757d">
         Manage Categories
       </button>
-      <button id="save-btn" style="background-color: #28a745">Save Annotation</button>
+      <button id="save-btn" style="background-color: #28a745">
+        Save Annotation
+      </button>
       <button id="btn-delete-image" class="delete">Delete Image</button>
 
       <!-- Save to S3 button (hidden by default, shown only for S3 datasets) -->
-      <button id="save-to-s3-btn" class="s3-save-btn" style="display: none">Save to S3</button>
+      <button id="save-to-s3-btn" class="s3-save-btn" style="display: none">
+        Save to S3
+      </button>
       <div id="s3-save-status" style="display: none; margin-left: 10px">
         <span id="s3-save-message"></span>
         <div id="s3-progress-container" style="display: none; margin-top: 4px">
           <div class="s3-progress-bar">
             <div id="s3-progress-fill" class="s3-progress-fill"></div>
           </div>
-          <span id="s3-progress-text" class="s3-progress-text">Uploading...</span>
+          <span id="s3-progress-text" class="s3-progress-text"
+            >Uploading...</span
+          >
         </div>
       </div>
     </div>
@@ -112,7 +129,9 @@
         <p>Are you sure you want to delete this image and its annotations?</p>
         <p><strong>Image ID:</strong> <span id="delete-image-id"></span></p>
         <p><strong>File:</strong> <span id="delete-file-name"></span></p>
-        <p style="color: #ff6b6b; margin-top: 15px">This action cannot be undone.</p>
+        <p style="color: #ff6b6b; margin-top: 15px">
+          This action cannot be undone.
+        </p>
         <div class="modal-buttons">
           <button id="btn-delete-cancel">Cancel</button>
           <button id="btn-delete-confirm" class="delete">Delete</button>
@@ -123,7 +142,10 @@
     <div id="incompleteSupercategoryModal" class="modal">
       <div class="modal-content">
         <h2>Incomplete Supercategory Annotations</h2>
-        <p>The following supercategories have annotations but are missing some subcategories:</p>
+        <p>
+          The following supercategories have annotations but are missing some
+          subcategories:
+        </p>
         <div
           id="incomplete-supercategory-list"
           style="
@@ -135,7 +157,9 @@
             overflow-y: auto;
           "
         ></div>
-        <p style="color: #d29922; margin-top: 15px">Are you sure you want to navigate away?</p>
+        <p style="color: #d29922; margin-top: 15px">
+          Are you sure you want to navigate away?
+        </p>
         <div class="modal-buttons">
           <button id="btn-incomplete-cancel">Cancel</button>
           <button
@@ -152,7 +176,8 @@
       <div class="modal-content">
         <h2>Nested Mask Supercategory Mismatch</h2>
         <p>
-          The following masks are nested inside other masks but have mismatched supercategories:
+          The following masks are nested inside other masks but have mismatched
+          supercategories:
         </p>
         <div
           id="nested-mask-mismatch-list"
@@ -166,11 +191,15 @@
           "
         ></div>
         <p style="color: #f85149; margin-top: 15px">
-          This may indicate a spatial or labeling error. Are you sure you want to navigate away?
+          This may indicate a spatial or labeling error. Are you sure you want
+          to navigate away?
         </p>
         <div class="modal-buttons">
           <button id="btn-nested-cancel">Cancel</button>
-          <button id="btn-nested-continue" style="background-color: #f85149; border-color: #f85149">
+          <button
+            id="btn-nested-continue"
+            style="background-color: #f85149; border-color: #f85149"
+          >
             Continue Anyway
           </button>
         </div>
@@ -180,8 +209,13 @@
     <div id="combinedWarningModal" class="modal">
       <div class="modal-content" style="max-width: 600px">
         <h2>Multiple Issues Detected</h2>
-        <div id="combined-warning-content" style="max-height: 400px; overflow-y: auto"></div>
-        <p style="color: #f85149; margin-top: 15px">Are you sure you want to navigate away?</p>
+        <div
+          id="combined-warning-content"
+          style="max-height: 400px; overflow-y: auto"
+        ></div>
+        <p style="color: #f85149; margin-top: 15px">
+          Are you sure you want to navigate away?
+        </p>
         <div class="modal-buttons">
           <button id="btn-combined-cancel">Cancel</button>
           <button
@@ -229,7 +263,10 @@
         </div>
         <div>
           <h3 style="margin-bottom: 10px">Existing Categories</h3>
-          <div id="category-list" style="max-height: 300px; overflow-y: auto"></div>
+          <div
+            id="category-list"
+            style="max-height: 300px; overflow-y: auto"
+          ></div>
         </div>
         <div class="modal-buttons">
           <button id="btn-close-categories">Close</button>
@@ -263,7 +300,9 @@
             "
           >
             <div>
-              <h4 style="margin: 0; display: inline">Annotations on this image:</h4>
+              <h4 style="margin: 0; display: inline">
+                Annotations on this image:
+              </h4>
               <span style="font-size: 11px; color: #888; margin-left: 8px"
                 >Hold Ctrl/Cmd to select multiple</span
               >
@@ -272,7 +311,11 @@
           <div id="annotation-items"></div>
         </div>
       </div>
-      <div class="annotation-editor" id="annotation-editor" style="display: none">
+      <div
+        class="annotation-editor"
+        id="annotation-editor"
+        style="display: none"
+      >
         <h4>Edit Selected Annotations (<span id="selected-count">0</span>)</h4>
         <div class="editor-section">
           <label>Change Category</label>
@@ -282,7 +325,9 @@
           <button id="btn-apply-category">Apply</button>
         </div>
         <div class="editor-section">
-          <button id="btn-delete-annotations" class="delete">Delete Selected</button>
+          <button id="btn-delete-annotations" class="delete">
+            Delete Selected
+          </button>
         </div>
       </div>
     </div>
@@ -366,7 +411,12 @@
         >
           <div
             id="model-loading-bar"
-            style="height: 100%; background: #33ff00; width: 0%; transition: width 0.3s"
+            style="
+              height: 100%;
+              background: #33ff00;
+              width: 0%;
+              transition: width 0.3s;
+            "
           ></div>
         </div>
         <div
@@ -380,11 +430,21 @@
       <div class="keyboard-hints-toggle" id="keyboard-hints-toggle">?</div>
       <div class="keyboard-hints-content" id="keyboard-hints-content">
         <h3>Keyboard Shortcuts</h3>
-        <div class="keyboard-hint"><kbd>Shift</kbd> + Click → Select annotation</div>
-        <div class="keyboard-hint"><kbd>Shift</kbd> + Drag → Box-select annotations</div>
-        <div class="keyboard-hint"><kbd>ESC</kbd> → Clear selection & prompts</div>
-        <div class="keyboard-hint"><kbd>←</kbd> <kbd>→</kbd> → Navigate images</div>
-        <div class="keyboard-hint"><kbd>Ctrl/Cmd</kbd> + <kbd>H</kbd> → Toggle annotations</div>
+        <div class="keyboard-hint">
+          <kbd>Shift</kbd> + Click → Select annotation
+        </div>
+        <div class="keyboard-hint">
+          <kbd>Shift</kbd> + Drag → Box-select annotations
+        </div>
+        <div class="keyboard-hint">
+          <kbd>ESC</kbd> → Clear selection & prompts
+        </div>
+        <div class="keyboard-hint">
+          <kbd>←</kbd> <kbd>→</kbd> → Navigate images
+        </div>
+        <div class="keyboard-hint">
+          <kbd>Ctrl/Cmd</kbd> + <kbd>H</kbd> → Toggle annotations
+        </div>
         <div class="keyboard-hint"><kbd>Enter</kbd> → Save annotation</div>
       </div>
     </div>

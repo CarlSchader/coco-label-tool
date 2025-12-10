@@ -1,4 +1,4 @@
-import { BaseMode } from './base-mode.js';
+import { BaseMode } from "./base-mode.js";
 
 /**
  * SAM3 PCS (Promptable Concept Segmentation) Image Mode
@@ -26,7 +26,7 @@ export class SAM3PCSImageMode extends BaseMode {
       enablePointClick: false, // PCS doesn't support points yet
       enableBoxDraw: true,
       enableMultipleBoxes: true,
-      cursor: 'crosshair',
+      cursor: "crosshair",
     };
   }
 
@@ -35,23 +35,29 @@ export class SAM3PCSImageMode extends BaseMode {
   }
 
   async runSegmentation() {
-    throw new Error('runSegmentation() should be called from app.js (not yet extracted)');
+    throw new Error(
+      "runSegmentation() should be called from app.js (not yet extracted)",
+    );
   }
 
   async saveAnnotation() {
-    throw new Error('saveAnnotation() should be called from app.js (not yet extracted)');
+    throw new Error(
+      "saveAnnotation() should be called from app.js (not yet extracted)",
+    );
   }
 
   clearPrompts() {
-    throw new Error('clearPrompts() should be called from app.js (not yet extracted)');
+    throw new Error(
+      "clearPrompts() should be called from app.js (not yet extracted)",
+    );
   }
 
   getSegmentationEndpoint() {
-    return '/api/segment-sam3-pcs';
+    return "/api/segment-sam3-pcs";
   }
 
   getModelInfoEndpoint() {
-    return '/api/model-info-sam3-pcs';
+    return "/api/model-info-sam3-pcs";
   }
 
   supportsPoints() {

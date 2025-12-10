@@ -12,16 +12,16 @@ export const CONFIG = {
   },
 
   colors: {
-    positive: '#00ff00',
-    negative: '#ff0000',
-    hover: '#ffff00',
-    segmentation: 'rgba(255, 0, 0, 0.2)',
-    segmentationBorder: '#ff0000',
-    boxBorder: '#00ff00',
-    boxBorderHover: '#ffff00',
-    deleteButton: '#cc0000',
-    deleteButtonHover: '#ff0000',
-    white: '#ffffff',
+    positive: "#00ff00",
+    negative: "#ff0000",
+    hover: "#ffff00",
+    segmentation: "rgba(255, 0, 0, 0.2)",
+    segmentationBorder: "#ff0000",
+    boxBorder: "#00ff00",
+    boxBorderHover: "#ffff00",
+    deleteButton: "#cc0000",
+    deleteButtonHover: "#ff0000",
+    white: "#ffffff",
   },
 
   validation: {
@@ -37,7 +37,7 @@ export const CONFIG = {
   api: {
     timeout: 30000,
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
   },
 
@@ -116,7 +116,7 @@ export const CONFIG = {
   maskCategoryDropdown: {
     minWidth: 120, // Minimum dropdown width in pixels
     fontSize: 11, // Font size in pixels
-    padding: '4px 8px', // Padding
+    padding: "4px 8px", // Padding
     offsetY: -30, // Vertical offset from top point (negative = above)
     overlapOffset: 25, // Horizontal offset for overlapping dropdowns
     overlapThreshold: 30, // Distance threshold to consider overlap (pixels)

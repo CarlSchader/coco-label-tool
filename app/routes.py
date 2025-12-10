@@ -4,7 +4,11 @@ import traceback
 from pathlib import Path
 
 from fastapi import HTTPException
-from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    Response,
+)
 from fastapi.templating import Jinja2Templates
 
 from . import create_app, dataset
@@ -15,6 +19,7 @@ from .config import (
     CACHE_TAIL,
     DATASET_IS_S3,
     DATASET_URI,
+    MAX_IMAGE_DIMENSION,
     SAM2_MODEL_SIZES,
     SAM3_MODEL_SIZES,
     SAM3_PCS_MODEL_SIZES,
@@ -43,29 +48,53 @@ from .uri_utils import detect_uri_type, download_s3_image, get_s3_client, parse_
 app = create_app()
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
 
-# Initialize cache
+# Initialize cache (populated on startup)
 cache = ImageCache()
-metadata = dataset.load_full_metadata()
-total_images = metadata["total_images"]
+total_images = 0
 
-if total_images > CACHE_SIZE:
-    head_images, head_map, head_annot, head_indices = dataset.load_images_range(
-        0, CACHE_HEAD
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize cache on application startup."""
+    global total_images
+
+    # Clear any existing cache (important for reload scenarios)
+    cache.clear()
+
+    # Load dataset metadata and populate cache
+    metadata = dataset.load_full_metadata()
+    total_images = metadata["total_images"]
+
+    if total_images > CACHE_SIZE:
+        head_images, head_map, head_annot, head_indices = dataset.load_images_range(
+            0, CACHE_HEAD
+        )
+        tail_images, tail_map, tail_annot, tail_indices = dataset.load_images_range(
+            total_images - CACHE_TAIL, total_images
+        )
+        cache.update(
+            head_images + tail_images,
+            {**head_map, **tail_map},
+            {**head_annot, **tail_annot},
+            set(range(CACHE_HEAD))
+            | set(range(total_images - CACHE_TAIL, total_images)),
+        )
+    else:
+        images, image_map, annot_by_image, indices = dataset.load_images_range(
+            0, total_images
+        )
+        cache.update(images, image_map, annot_by_image, indices)
+
+    print(
+        f"✅ Cache initialized with {len(cache.images)} images from {total_images} total"
     )
-    tail_images, tail_map, tail_annot, tail_indices = dataset.load_images_range(
-        total_images - CACHE_TAIL, total_images
-    )
-    cache.update(
-        head_images + tail_images,
-        {**head_map, **tail_map},
-        {**head_annot, **tail_annot},
-        set(range(CACHE_HEAD)) | set(range(total_images - CACHE_TAIL, total_images)),
-    )
-else:
-    images, image_map, annot_by_image, indices = dataset.load_images_range(
-        0, total_images
-    )
-    cache.update(images, image_map, annot_by_image, indices)
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean up cache on application shutdown."""
+    cache.clear()
+    print("✅ Cache cleared on shutdown")
 
 
 @app.middleware("http")
@@ -86,7 +115,12 @@ async def root():
 
 @app.get("/api/image/{image_id}")
 async def get_image(image_id: int):
-    """Serve image file by ID (handles local paths and S3 URIs)."""
+    """Serve image file by ID with automatic resizing if needed.
+
+    Images larger than MAX_IMAGE_DIMENSION on any side are resized
+    in-memory to fit within MAX_IMAGE_DIMENSION while preserving aspect ratio.
+    Original files are NOT modified.
+    """
     image_data = cache.get_image_by_id(image_id)
     if not image_data:
         raise HTTPException(status_code=404, detail="Image not found")
@@ -102,14 +136,32 @@ async def get_image(image_id: int):
         image_path = Path(image_uri)
         if not image_path.exists():
             raise HTTPException(status_code=404, detail="Image file not found")
-        return FileResponse(image_path)
+
+        # Resize image if needed
+        try:
+            from .image_resize import resize_image_if_needed
+
+            image_bytes, content_type = resize_image_if_needed(
+                image_path, MAX_IMAGE_DIMENSION
+            )
+            return Response(
+                content=image_bytes,
+                media_type=content_type,
+                headers={
+                    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"
+                },
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, detail=f"Error processing image: {str(e)}"
+            )
 
 
 async def serve_s3_image(s3_uri: str):
-    """Stream image from S3 using TRUE streaming (not full download to memory).
+    """Serve image from S3 with automatic resizing if needed.
 
-    This streams directly from S3 to the client without loading the full
-    image into memory first, which is more efficient for large images.
+    Images are downloaded from S3, resized in-memory if needed, and served.
+    Original S3 files are NOT modified.
     """
     try:
         bucket, key = parse_s3_uri(s3_uri)
@@ -121,31 +173,36 @@ async def serve_s3_image(s3_uri: str):
     try:
         obj = s3_client.get_object(Bucket=bucket, Key=key)
 
-        # Get content type, default to jpeg if not specified
-        content_type = obj.get("ContentType", "image/jpeg")
-        content_length = obj.get("ContentLength")
+        # Read image data from S3
+        image_data = obj["Body"].read()
 
-        # TRUE streaming: pass the S3 body directly to StreamingResponse
-        # This streams chunks as they arrive, without buffering the full image
-        def stream_s3_body():
-            """Generator that yields chunks from S3."""
-            # Read in 64KB chunks for efficient memory usage
-            chunk_size = 65536
-            body = obj["Body"]
-            while True:
-                chunk = body.read(chunk_size)
-                if not chunk:
-                    break
-                yield chunk
-            body.close()
+        # Resize if needed
+        from .image_resize import resize_image_if_needed
 
-        headers = {}
-        if content_length:
-            headers["Content-Length"] = str(content_length)
-
-        return StreamingResponse(
-            stream_s3_body(), media_type=content_type, headers=headers
+        image_bytes, content_type = resize_image_if_needed(
+            image_data, MAX_IMAGE_DIMENSION
         )
+
+        headers = {"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"}
+
+        return Response(content=image_bytes, media_type=content_type, headers=headers)
+    except Exception as e:
+        # Handle any S3 or image processing errors
+        error_msg = str(e)
+        if "NoSuchKey" in error_msg or "not found" in error_msg.lower():
+            raise HTTPException(status_code=404, detail=f"S3 image not found: {s3_uri}")
+        elif "NoSuchBucket" in error_msg:
+            raise HTTPException(
+                status_code=404, detail=f"S3 bucket not found in URI: {s3_uri}"
+            )
+        else:
+            raise HTTPException(
+                status_code=500, detail=f"Failed to process image: {str(e)}"
+            )
+
+        headers = {"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"}
+
+        return Response(content=image_bytes, media_type=content_type, headers=headers)
     except s3_client.exceptions.NoSuchKey:
         raise HTTPException(status_code=404, detail=f"S3 image not found: {s3_uri}")
     except s3_client.exceptions.NoSuchBucket:
@@ -161,13 +218,16 @@ async def serve_s3_image(s3_uri: str):
 @app.get("/api/dataset")
 async def get_dataset():
     """Get cached dataset information."""
-    return {
-        "images": cache.images,
-        "image_map": cache.image_map,
-        "annotations_by_image": cache.annotations_by_image,
-        "cached_indices": list(cache.cached_indices),
-        "total_images": total_images,
-    }
+    return JSONResponse(
+        content={
+            "images": cache.images,
+            "image_map": cache.image_map,
+            "annotations_by_image": cache.annotations_by_image,
+            "cached_indices": list(cache.cached_indices),
+            "total_images": total_images,
+        },
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"},
+    )
 
 
 @app.post("/api/load-range")
@@ -256,7 +316,10 @@ async def segment_image(request: SegmentRequest):
 async def get_categories():
     """Get all categories."""
     categories = dataset.get_categories()
-    return {"categories": categories}
+    return JSONResponse(
+        content={"categories": categories},
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"},
+    )
 
 
 @app.get("/api/annotations/{image_id}")
@@ -264,7 +327,10 @@ async def get_annotations(image_id: int):
     """Get all annotations for a specific image."""
     try:
         annotations = dataset.get_annotations_by_image(image_id)
-        return {"annotations": annotations}
+        return JSONResponse(
+            content={"annotations": annotations},
+            headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"},
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
