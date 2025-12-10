@@ -52,7 +52,7 @@ CACHE_TAIL = 32
 
 # Image serving settings
 MAX_IMAGE_DIMENSION = int(
-    os.environ.get("MAX_IMAGE_DIMENSION", "1024")
+    os.environ.get("MAX_IMAGE_DIMENSION", "2048")
 )  # Resize images larger than this
 
 # SAM2 model settings
