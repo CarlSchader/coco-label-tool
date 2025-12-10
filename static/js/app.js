@@ -635,15 +635,16 @@ function drawExistingAnnotations() {
     canvas.style.height = img.height + "px";
   }
 
-  if (!annotationsVisible) {
-    return;
-  }
-
   const img = document.getElementById("image");
   const scaleX = img.width / img.naturalWidth;
   const scaleY = img.height / img.naturalHeight;
 
-  for (const annotation of annotations) {
+  // Filter annotations based on visibility and selection
+  const visibleAnnotations = annotationsVisible
+    ? annotations
+    : annotations.filter((ann) => selectedAnnotationIds.has(ann.id));
+
+  for (const annotation of visibleAnnotations) {
     const category = categories.find((c) => c.id === annotation.category_id);
     const rgb = getCategoryColorLocal(category);
     const fillColor = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.35)`;
@@ -665,7 +666,7 @@ function drawExistingAnnotations() {
     }
   }
 
-  for (const annotation of annotations) {
+  for (const annotation of visibleAnnotations) {
     const category = categories.find((c) => c.id === annotation.category_id);
 
     const rgb = getCategoryColorLocal(category);
