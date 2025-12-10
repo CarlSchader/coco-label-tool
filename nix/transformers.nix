@@ -41,7 +41,7 @@ in
       owner = "huggingface"; 
       repo = "transformers"; 
       rev = "main"; 
-      sha256 = "sha256-TwtpQVDpj+LrWCC3ApvE0qO3koJQiW0pcgPaTUaaIxM=";
+      sha256 = "sha256-L5nCYqEhFthaoQvWUJurmu15cLvcz80W3DQ3SqSBdLI=";
     }; 
 
     pyproject = true;
