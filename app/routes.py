@@ -1,5 +1,6 @@
 """API route handlers."""
 
+import logging
 import traceback
 from pathlib import Path
 
@@ -13,6 +14,8 @@ from fastapi.templating import Jinja2Templates
 
 from . import create_app, dataset
 from .cache import ImageCache
+
+logger = logging.getLogger(__name__)
 from .config import (
     CACHE_HEAD,
     CACHE_SIZE,
@@ -130,10 +133,15 @@ async def get_image(image_id: int):
     uri_type = detect_uri_type(image_uri)
 
     if uri_type == "s3":
+        logger.info(f"GET /api/image/{image_id} - Serving from S3: {image_uri}")
         return await serve_s3_image(image_uri)
     else:
         # Local file
         image_path = Path(image_uri)
+        logger.info(
+            f"GET /api/image/{image_id} - Serving from local: {image_path.absolute()}"
+        )
+
         if not image_path.exists():
             raise HTTPException(status_code=404, detail="Image file not found")
 
