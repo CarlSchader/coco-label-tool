@@ -146,7 +146,7 @@ class TestCachePaths:
             app.uri_utils._cache_dir = None
 
             cache_dir = get_cache_dir()
-            assert "label-tool" in str(cache_dir)
+            assert "coco-label-tool" in str(cache_dir)
             assert "datasets" in str(cache_dir)
 
     def test_cached_json_path_uses_cache_key(self):

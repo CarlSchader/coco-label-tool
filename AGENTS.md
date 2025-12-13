@@ -1,4 +1,4 @@
-# Agent Instructions for label-tool
+# Agent Instructions for coco-label-tool
 
 ## Project Overview
 

@@ -122,7 +122,7 @@ Core dependencies (automatically installed):
 
    ```bash
    git clone <your-repo-url>
-   cd label-tool
+   cd coco-label-tool
    ```
 
 2. **Install `uv`** (if not already installed):
@@ -353,7 +353,7 @@ For images with multiple separate masks (e.g., from SAM3 PCS or multiple boxes):
 ### Project Structure
 
 ```
-label-tool/
+coco-label-tool/
 ├── app/                      # Backend application package
 │   ├── __init__.py          # FastAPI app factory
 │   ├── cache.py             # ImageCache class for state management
@@ -1207,7 +1207,7 @@ console.timeEnd("operation");
 
 - **Fix**: Run from project root directory
   ```bash
-  cd label-tool
+  cd coco-label-tool
   python server.py
   ```
 

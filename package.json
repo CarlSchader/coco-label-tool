@@ -1,5 +1,5 @@
 {
-  "name": "label-tool",
+  "name": "coco-label-tool",
   "version": "1.0.0",
   "description": "A professional web-based annotation tool for COCO-format datasets with AI-powered segmentation via Meta's SAM2 (Segment Anything Model 2). Features a terminal-inspired interface for efficient image labeling and dataset management.",
   "main": "index.js",

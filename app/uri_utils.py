@@ -74,7 +74,7 @@ def get_cache_dir() -> Path:
     """Get platform-appropriate cache directory.
 
     Uses XDG_CACHE_HOME on Linux, LOCALAPPDATA on Windows,
-    falls back to ~/.cache/label-tool/datasets.
+    falls back to ~/.cache/coco-label-tool/datasets.
 
     Returns:
         Path to cache directory (created if needed)
@@ -91,7 +91,7 @@ def get_cache_dir() -> Path:
         # Windows: use LOCALAPPDATA or fallback
         cache_base = Path(os.environ.get("LOCALAPPDATA", Path.home() / ".cache"))
 
-    cache_dir = cache_base / "label-tool" / "datasets"
+    cache_dir = cache_base / "coco-label-tool" / "datasets"
     cache_dir.mkdir(parents=True, exist_ok=True)
 
     _cache_dir = cache_dir

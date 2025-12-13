@@ -31,7 +31,7 @@ let
   };
 
   applicationPackage = pkgs.stdenv.mkDerivation rec {
-    pname = "label-tool";
+    pname = "coco-label-tool";
     version = "1.0.0";
     
     inherit src;
@@ -46,24 +46,24 @@ let
     dontBuild = true;
     
     installPhase = ''
-      mkdir -p $out/share/label-tool
+      mkdir -p $out/share/coco-label-tool
       mkdir -p $out/bin
       
       # Copy the entire source to the output
-      cp -r . $out/share/label-tool/
-      chmod -R u+w $out/share/label-tool
+      cp -r . $out/share/coco-label-tool/
+      chmod -R u+w $out/share/coco-label-tool
       
       # Create a wrapper script that changes to the source directory
-      cat > $out/bin/label-tool <<'EOF'
+      cat > $out/bin/coco-label-tool <<'EOF'
 #!/usr/bin/env bash
 set -e
 
 # Create a temporary working directory with proper permissions
-WORK_DIR=$(mktemp -d -t label-tool.XXXXXX)
+WORK_DIR=$(mktemp -d -t coco-label-tool.XXXXXX)
 trap "rm -rf '$WORK_DIR' 2>/dev/null || true" EXIT
 
 # Copy source to working directory
-cp -r @out@/share/label-tool/. "$WORK_DIR/"
+cp -r @out@/share/coco-label-tool/. "$WORK_DIR/"
 cd "$WORK_DIR"
 
 # Make all files writable (source files from nix store are read-only)
@@ -92,14 +92,14 @@ echo "--- Setup complete. Running application... ---"
 server "$@"
 EOF
       
-      chmod +x $out/bin/label-tool
+      chmod +x $out/bin/coco-label-tool
       
       # Substitute the @out@ placeholder with actual path
-      substituteInPlace $out/bin/label-tool \
+      substituteInPlace $out/bin/coco-label-tool \
         --replace-warn '@out@' "$out"
       
       # Wrap the script to set up environment
-      wrapProgram $out/bin/label-tool \
+      wrapProgram $out/bin/coco-label-tool \
         --prefix PATH : ${pkgs.lib.makeBinPath buildInputs} \
         --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath buildInputs} \
         --prefix LD_LIBRARY_PATH : ${pkgs.addDriverRunpath.driverLink}/lib
