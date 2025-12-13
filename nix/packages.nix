@@ -109,7 +109,7 @@ in
 {
   apps.default = {
     type = "app";
-    program = "${applicationPackage}/bin/label-tool";
+    program = "${applicationPackage}/bin/coco-label-tool";
   };
 
   packages.default = applicationPackage;
