@@ -1,14 +1,19 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
+
+    flake-utils = {
+      url = "github:numtide/flake-utils";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     pyproject-nix = {
       url = "github:pyproject-nix/pyproject.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    personal-monorepo = {
-      url = "github:carlschader/personal-monorepo";
+    sops-export = {
+      url = "github:carlschader/sops-export";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 

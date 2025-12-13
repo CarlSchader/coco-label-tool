@@ -1,11 +1,11 @@
-{ self, nixpkgs, flake-utils, personal-monorepo, ...}:
+{ self, nixpkgs, flake-utils, sops-export, ...}:
 flake-utils.lib.eachDefaultSystem  (system:
 let
   pkgs = import nixpkgs {
     inherit system;
   };
 
-  sops-export = personal-monorepo.packages.${system}.sops-export;
+  sops-export-pkg = sops-export.packages.${system}.default;
 
   libs = with pkgs; [
     addDriverRunpath.driverLink
@@ -22,7 +22,7 @@ let
     uv
     nodejs_24
     sops
-    sops-export
+    sops-export-pkg
     stdenv.cc.libc
   ];
 in
