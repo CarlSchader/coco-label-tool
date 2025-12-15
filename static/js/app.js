@@ -313,6 +313,22 @@ function checkNestedMaskSupercategoryMismatchLocal() {
   }
 }
 
+/**
+ * Get original image dimensions from COCO JSON metadata.
+ * These are the dimensions annotations are stored in, which may differ
+ * from naturalWidth/naturalHeight if the image was resized for display.
+ * @returns {{width: number, height: number}} Original image dimensions
+ */
+function getOriginalImageDimensions() {
+  const imgData = imageMap[currentIndex];
+  if (imgData && imgData.width && imgData.height) {
+    return { width: imgData.width, height: imgData.height };
+  }
+  // Fallback to naturalWidth/naturalHeight if COCO data not available
+  const img = document.getElementById("image");
+  return { width: img.naturalWidth, height: img.naturalHeight };
+}
+
 function populateCategoryBadges() {
   const container = document.getElementById("category-badges");
   container.innerHTML = "";
@@ -636,8 +652,10 @@ function drawExistingAnnotations() {
   }
 
   const img = document.getElementById("image");
-  const scaleX = img.width / img.naturalWidth;
-  const scaleY = img.height / img.naturalHeight;
+  // Scale from original image dimensions (COCO JSON) to display dimensions
+  const originalDims = getOriginalImageDimensions();
+  const scaleX = img.width / originalDims.width;
+  const scaleY = img.height / originalDims.height;
 
   // Filter annotations based on visibility and selection
   const visibleAnnotations = annotationsVisible
@@ -735,8 +753,10 @@ function handleAnnotationClick(x, y, multiSelect = false) {
   if (annotations.length === 0) return;
 
   const img = document.getElementById("image");
-  const scaleX = img.naturalWidth / img.width;
-  const scaleY = img.naturalHeight / img.height;
+  // Scale from display to original image dimensions (where annotations are stored)
+  const originalDims = getOriginalImageDimensions();
+  const scaleX = originalDims.width / img.width;
+  const scaleY = originalDims.height / img.height;
 
   const annotationId = findAnnotationAtPoint(x, y, annotations, scaleX, scaleY);
 
@@ -758,9 +778,14 @@ function handleAnnotationBoxSelect(box, multiSelect = false) {
   const annotations = annotationsByImage[imgData.id] || [];
   if (annotations.length === 0) return;
 
-  const img = document.getElementById("image");
+  // Use original image dimensions for annotation bounds
+  const originalDims = getOriginalImageDimensions();
 
-  const clampedBox = clampBoxToCanvas(box, img.naturalWidth, img.naturalHeight);
+  const clampedBox = clampBoxToCanvas(
+    box,
+    originalDims.width,
+    originalDims.height,
+  );
   const selectedIds = findAnnotationsInBox(clampedBox, annotations, 1, 1);
 
   if (!multiSelect) {
@@ -778,8 +803,10 @@ function handleAnnotationBoxSelect(box, multiSelect = false) {
 function checkAnnotationHover(e) {
   const rect = canvas.getBoundingClientRect();
   const img = document.getElementById("image");
-  const scaleX = img.naturalWidth / img.width;
-  const scaleY = img.naturalHeight / img.height;
+  // Scale from display to original image dimensions (where annotations are stored)
+  const originalDims = getOriginalImageDimensions();
+  const scaleX = originalDims.width / img.width;
+  const scaleY = originalDims.height / img.height;
 
   const mouseX = e.clientX - rect.left;
   const mouseY = e.clientY - rect.top;
@@ -1279,13 +1306,17 @@ function isClickOnExcludedElement(e) {
 function isPointInFrame(x, y) {
   const img = document.getElementById("image");
   if (!img) return false;
-  return isPointInBounds(x, y, img.naturalWidth, img.naturalHeight);
+  // Use original image dimensions for bounds checking
+  const originalDims = getOriginalImageDimensions();
+  return isPointInBounds(x, y, originalDims.width, originalDims.height);
 }
 
 function isBoxIntersectingFrame(box) {
   const img = document.getElementById("image");
   if (!img || !box) return false;
-  return hasBoxCornerInBounds(box, img.naturalWidth, img.naturalHeight);
+  // Use original image dimensions for bounds checking
+  const originalDims = getOriginalImageDimensions();
+  return hasBoxCornerInBounds(box, originalDims.width, originalDims.height);
 }
 
 function setupCanvas() {
@@ -1318,8 +1349,10 @@ function handleImageClick(e) {
   const canvas = document.getElementById("canvas");
   const rect = canvas.getBoundingClientRect();
   const img = document.getElementById("image");
-  const scaleX = img.naturalWidth / img.width;
-  const scaleY = img.naturalHeight / img.height;
+  // Scale from display to original image dimensions for SAM coordinates
+  const originalDims = getOriginalImageDimensions();
+  const scaleX = originalDims.width / img.width;
+  const scaleY = originalDims.height / img.height;
 
   const x = (e.clientX - rect.left) * scaleX;
   const y = (e.clientY - rect.top) * scaleY;
@@ -1376,8 +1409,10 @@ function detectBoxInteractionLocal(mouseX, mouseY, box = null) {
   if (!boxToCheck) return null;
 
   const img = document.getElementById("image");
-  const scaleX = img.naturalWidth / img.width;
-  const scaleY = img.naturalHeight / img.height;
+  // Scale from display to original image dimensions
+  const originalDims = getOriginalImageDimensions();
+  const scaleX = originalDims.width / img.width;
+  const scaleY = originalDims.height / img.height;
 
   return detectBoxInteraction(mouseX, mouseY, boxToCheck, scaleX, scaleY);
 }
@@ -1385,8 +1420,10 @@ function detectBoxInteractionLocal(mouseX, mouseY, box = null) {
 function checkPromptHover(e) {
   const rect = canvas.getBoundingClientRect();
   const img = document.getElementById("image");
-  const scaleX = img.naturalWidth / img.width;
-  const scaleY = img.naturalHeight / img.height;
+  // Scale from display to original image dimensions
+  const originalDims = getOriginalImageDimensions();
+  const scaleX = originalDims.width / img.width;
+  const scaleY = originalDims.height / img.height;
 
   const mouseX = e.clientX - rect.left;
   const mouseY = e.clientY - rect.top;
@@ -1516,8 +1553,10 @@ function checkPromptHover(e) {
 
 function checkPromptClick(mouseX, mouseY) {
   const img = document.getElementById("image");
-  const scaleX = img.naturalWidth / img.width;
-  const scaleY = img.naturalHeight / img.height;
+  // Scale from display to original image dimensions
+  const originalDims = getOriginalImageDimensions();
+  const scaleX = originalDims.width / img.width;
+  const scaleY = originalDims.height / img.height;
 
   for (let i = 0; i < clickPoints.length; i++) {
     const [x, y] = clickPoints[i];
@@ -1630,8 +1669,10 @@ function handleBoxStart(e) {
 
   const rect = canvas.getBoundingClientRect();
   const img = document.getElementById("image");
-  const scaleX = img.naturalWidth / img.width;
-  const scaleY = img.naturalHeight / img.height;
+  // Scale from display to original image dimensions
+  const originalDims = getOriginalImageDimensions();
+  const scaleX = originalDims.width / img.width;
+  const scaleY = originalDims.height / img.height;
 
   const mouseX = e.clientX - rect.left;
   const mouseY = e.clientY - rect.top;
@@ -1734,8 +1775,10 @@ function handleSelectionDrag(e) {
 
   const rect = canvas.getBoundingClientRect();
   const img = document.getElementById("image");
-  const scaleX = img.naturalWidth / img.width;
-  const scaleY = img.naturalHeight / img.height;
+  // Scale from display to original image dimensions
+  const originalDims = getOriginalImageDimensions();
+  const scaleX = originalDims.width / img.width;
+  const scaleY = originalDims.height / img.height;
 
   const x = (e.clientX - rect.left) * scaleX;
   const y = (e.clientY - rect.top) * scaleY;
@@ -1758,8 +1801,10 @@ function handleBoxDrag(e) {
 
   const rect = canvas.getBoundingClientRect();
   const img = document.getElementById("image");
-  const scaleX = img.naturalWidth / img.width;
-  const scaleY = img.naturalHeight / img.height;
+  // Scale from display to original image dimensions
+  const originalDims = getOriginalImageDimensions();
+  const scaleX = originalDims.width / img.width;
+  const scaleY = originalDims.height / img.height;
 
   const x = (e.clientX - rect.left) * scaleX;
   const y = (e.clientY - rect.top) * scaleY;
@@ -1788,8 +1833,7 @@ function handleBoxDrag(e) {
   }
 
   if (dragBox) {
-    const scaleX = img.naturalWidth / img.width;
-    const scaleY = img.naturalHeight / img.height;
+    // Use the same scale factors already calculated above
     // Use red for right-click (negative), green for left-click (positive)
     ctx.strokeStyle =
       boxStartButton === 2 ? CONFIG.colors.negative : CONFIG.colors.positive;
@@ -1808,8 +1852,10 @@ function handleBoxEnd(e) {
   if (selectionBoxStart) {
     const rect = canvas.getBoundingClientRect();
     const img = document.getElementById("image");
-    const scaleX = img.naturalWidth / img.width;
-    const scaleY = img.naturalHeight / img.height;
+    // Scale from display to original image dimensions
+    const originalDims = getOriginalImageDimensions();
+    const scaleX = originalDims.width / img.width;
+    const scaleY = originalDims.height / img.height;
 
     const x = (e.clientX - rect.left) * scaleX;
     const y = (e.clientY - rect.top) * scaleY;
@@ -1838,8 +1884,10 @@ function handleBoxEnd(e) {
 
   const rect = canvas.getBoundingClientRect();
   const img = document.getElementById("image");
-  const scaleX = img.naturalWidth / img.width;
-  const scaleY = img.naturalHeight / img.height;
+  // Scale from display to original image dimensions
+  const originalDims = getOriginalImageDimensions();
+  const scaleX = originalDims.width / img.width;
+  const scaleY = originalDims.height / img.height;
 
   const x = (e.clientX - rect.left) * scaleX;
   const y = (e.clientY - rect.top) * scaleY;
@@ -2191,8 +2239,10 @@ function drawSegmentationMasks(segmentation) {
   if (!segmentation || segmentation.length === 0) return;
 
   const img = document.getElementById("image");
-  const scaleX = img.width / img.naturalWidth;
-  const scaleY = img.height / img.naturalHeight;
+  // Scale from original image dimensions (where segmentation coords are) to display
+  const originalDims = getOriginalImageDimensions();
+  const scaleX = img.width / originalDims.width;
+  const scaleY = img.height / originalDims.height;
 
   // Check if this is a merged mask (multiple polygons but single category)
   const isMergedMask = maskCategoryIds.length === 1 && segmentation.length > 1;
@@ -2279,8 +2329,10 @@ function drawSelectionBox() {
   if (!selectionBoxDrag) return;
 
   const img = document.getElementById("image");
-  const scaleX = img.naturalWidth / img.width;
-  const scaleY = img.naturalHeight / img.height;
+  // Scale from original image dimensions to display
+  const originalDims = getOriginalImageDimensions();
+  const scaleX = originalDims.width / img.width;
+  const scaleY = originalDims.height / img.height;
 
   const x1 = selectionBoxDrag.x1 / scaleX;
   const y1 = selectionBoxDrag.y1 / scaleY;
@@ -2300,8 +2352,10 @@ function drawSelectionBox() {
 
 function drawAllPrompts() {
   const img = document.getElementById("image");
-  const scaleX = img.naturalWidth / img.width;
-  const scaleY = img.naturalHeight / img.height;
+  // Scale from original image dimensions to display
+  const originalDims = getOriginalImageDimensions();
+  const scaleX = originalDims.width / img.width;
+  const scaleY = originalDims.height / img.height;
 
   if (clickPoints.length > 0) {
     for (let i = 0; i < clickPoints.length; i++) {
@@ -2658,8 +2712,10 @@ function renderMaskCategoryDropdowns() {
     return;
   }
 
-  const scaleX = img.width / img.naturalWidth;
-  const scaleY = img.height / img.naturalHeight;
+  // Scale from original image dimensions to display
+  const originalDims = getOriginalImageDimensions();
+  const scaleX = img.width / originalDims.width;
+  const scaleY = img.height / originalDims.height;
 
   // Check if this is a merged mask (multiple polygons but single category)
   const isMergedMask =
@@ -2681,8 +2737,8 @@ function renderMaskCategoryDropdowns() {
   const positions = polygonsToProcess.map((polygon) => {
     const topPoint = findTopPointOfMask(
       polygon,
-      img.naturalWidth,
-      img.naturalHeight,
+      originalDims.width,
+      originalDims.height,
     );
     if (!topPoint) {
       console.warn("Mask has no points within frame bounds, skipping dropdown");
