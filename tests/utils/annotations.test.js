@@ -3,6 +3,8 @@ import {
   findAnnotationsInBox,
   getAnnotationBoundingBox,
   boxesOverlap,
+  findMostCommonCategoryId,
+  getUniqueCategoryIds,
 } from "../../coco_label_tool/static/js/utils/annotations.js";
 
 describe("findAnnotationAtPoint", () => {
@@ -384,5 +386,131 @@ describe("findAnnotationsInBox", () => {
     const result = findAnnotationsInBox(box, mockAnnotations, 1, 1);
     expect(result).toContain(1);
     expect(result).toContain(3);
+  });
+});
+
+describe("findMostCommonCategoryId", () => {
+  test("returns most common category when clear winner", () => {
+    const annotations = [
+      { id: 1, category_id: 5 },
+      { id: 2, category_id: 5 },
+      { id: 3, category_id: 5 },
+      { id: 4, category_id: 3 },
+    ];
+    expect(findMostCommonCategoryId(annotations)).toBe(5);
+  });
+
+  test("returns first most common category on tie", () => {
+    const annotations = [
+      { id: 1, category_id: 3 },
+      { id: 2, category_id: 5 },
+      { id: 3, category_id: 3 },
+      { id: 4, category_id: 5 },
+    ];
+    // Both have 2, should return first one encountered (3)
+    expect(findMostCommonCategoryId(annotations)).toBe(3);
+  });
+
+  test("returns single category when only one annotation", () => {
+    const annotations = [{ id: 1, category_id: 7 }];
+    expect(findMostCommonCategoryId(annotations)).toBe(7);
+  });
+
+  test("returns null for empty array", () => {
+    expect(findMostCommonCategoryId([])).toBeNull();
+  });
+
+  test("returns null for null input", () => {
+    expect(findMostCommonCategoryId(null)).toBeNull();
+  });
+
+  test("returns null for undefined input", () => {
+    expect(findMostCommonCategoryId(undefined)).toBeNull();
+  });
+
+  test("handles all same category", () => {
+    const annotations = [
+      { id: 1, category_id: 2 },
+      { id: 2, category_id: 2 },
+      { id: 3, category_id: 2 },
+    ];
+    expect(findMostCommonCategoryId(annotations)).toBe(2);
+  });
+
+  test("handles three-way tie by returning first encountered", () => {
+    const annotations = [
+      { id: 1, category_id: 1 },
+      { id: 2, category_id: 2 },
+      { id: 3, category_id: 3 },
+    ];
+    expect(findMostCommonCategoryId(annotations)).toBe(1);
+  });
+
+  test("handles annotations with category_id 0", () => {
+    const annotations = [
+      { id: 1, category_id: 0 },
+      { id: 2, category_id: 0 },
+      { id: 3, category_id: 1 },
+    ];
+    expect(findMostCommonCategoryId(annotations)).toBe(0);
+  });
+});
+
+describe("getUniqueCategoryIds", () => {
+  test("returns unique category IDs", () => {
+    const annotations = [
+      { id: 1, category_id: 5 },
+      { id: 2, category_id: 3 },
+      { id: 3, category_id: 5 },
+      { id: 4, category_id: 7 },
+    ];
+    const result = getUniqueCategoryIds(annotations);
+    expect(result).toHaveLength(3);
+    expect(result).toContain(5);
+    expect(result).toContain(3);
+    expect(result).toContain(7);
+  });
+
+  test("returns single category when all same", () => {
+    const annotations = [
+      { id: 1, category_id: 2 },
+      { id: 2, category_id: 2 },
+      { id: 3, category_id: 2 },
+    ];
+    const result = getUniqueCategoryIds(annotations);
+    expect(result).toEqual([2]);
+  });
+
+  test("returns empty array for empty input", () => {
+    expect(getUniqueCategoryIds([])).toEqual([]);
+  });
+
+  test("returns empty array for null input", () => {
+    expect(getUniqueCategoryIds(null)).toEqual([]);
+  });
+
+  test("returns empty array for undefined input", () => {
+    expect(getUniqueCategoryIds(undefined)).toEqual([]);
+  });
+
+  test("preserves order of first occurrence", () => {
+    const annotations = [
+      { id: 1, category_id: 3 },
+      { id: 2, category_id: 1 },
+      { id: 3, category_id: 2 },
+      { id: 4, category_id: 1 },
+    ];
+    const result = getUniqueCategoryIds(annotations);
+    expect(result).toEqual([3, 1, 2]);
+  });
+
+  test("handles category_id 0", () => {
+    const annotations = [
+      { id: 1, category_id: 0 },
+      { id: 2, category_id: 1 },
+    ];
+    const result = getUniqueCategoryIds(annotations);
+    expect(result).toContain(0);
+    expect(result).toContain(1);
   });
 });

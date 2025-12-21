@@ -325,8 +325,41 @@
           <button id="btn-apply-category">Apply</button>
         </div>
         <div class="editor-section">
+          <button id="btn-merge-annotations" style="background-color: #17a2b8">
+            Merge Selected
+          </button>
           <button id="btn-delete-annotations" class="delete">
             Delete Selected
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="mergeCategoryModal" class="modal">
+      <div class="modal-content">
+        <h2>Select Category for Merged Annotation</h2>
+        <p>
+          The selected annotations have different categories. Choose the
+          category for the merged annotation:
+        </p>
+        <div
+          id="merge-category-options"
+          style="
+            background: #1a1f2e;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            max-height: 200px;
+            overflow-y: auto;
+          "
+        ></div>
+        <div class="modal-buttons">
+          <button id="btn-merge-cancel">Cancel</button>
+          <button
+            id="btn-merge-confirm"
+            style="background-color: #17a2b8; border-color: #17a2b8"
+          >
+            Merge
           </button>
         </div>
       </div>

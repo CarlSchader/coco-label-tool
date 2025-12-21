@@ -25,6 +25,8 @@ import {
 import {
   findAnnotationAtPoint,
   findAnnotationsInBox,
+  findMostCommonCategoryId,
+  getUniqueCategoryIds,
 } from "./utils/annotations.js";
 import { isPointInBounds, hasBoxCornerInBounds } from "./utils/bounds.js";
 import {
@@ -49,7 +51,10 @@ import {
   naturalToScreen,
   offsetOverlappingDropdowns,
 } from "./utils/mask-category.js";
-import { mergeMaskPolygons } from "./utils/mask-merging.js";
+import {
+  mergeMaskPolygons,
+  mergeAnnotationSegmentations,
+} from "./utils/mask-merging.js";
 import { ImagePreloader } from "./utils/image-preloader.js";
 import { ModeRegistry } from "./modes/mode-registry.js";
 import { ModeManager } from "./modes/mode-manager.js";
@@ -242,7 +247,8 @@ let incompleteModal,
   nestedMismatchModal,
   combinedWarningModal,
   deleteModal,
-  categoryModal;
+  categoryModal,
+  mergeCategoryModal;
 
 // Mode system
 const modeRegistry = new ModeRegistry();
@@ -879,6 +885,9 @@ function updateAnnotationEditor() {
       categorySelect.appendChild(option);
     });
   }
+
+  // Update merge button state
+  updateMergeAnnotationsButtonState();
 }
 
 async function changeSelectedAnnotationsCategory() {
@@ -974,6 +983,231 @@ async function deleteSelectedAnnotations() {
   } catch (error) {
     console.error("Delete annotation error:", error);
     alert("Error deleting annotations");
+  }
+}
+
+// Store pending merge data when showing category selection modal
+let pendingMergeData = null;
+
+function updateMergeAnnotationsButtonState() {
+  const mergeBtn = document.getElementById("btn-merge-annotations");
+  if (!mergeBtn) return;
+
+  const canMerge = selectedAnnotationIds.size >= 2;
+  mergeBtn.disabled = !canMerge;
+
+  if (!canMerge) {
+    mergeBtn.style.opacity = "0.5";
+    mergeBtn.style.cursor = "not-allowed";
+  } else {
+    mergeBtn.style.opacity = "1";
+    mergeBtn.style.cursor = "pointer";
+  }
+}
+
+async function mergeSelectedAnnotations() {
+  if (selectedAnnotationIds.size < 2) {
+    alert("Please select at least 2 annotations to merge");
+    return;
+  }
+
+  const currentImage = images[currentIndex];
+  if (!currentImage) return;
+
+  const annotations = annotationsByImage[currentImage.id] || [];
+  const selectedAnnotations = annotations.filter((ann) =>
+    selectedAnnotationIds.has(ann.id),
+  );
+
+  if (selectedAnnotations.length < 2) {
+    alert("Could not find selected annotations");
+    return;
+  }
+
+  // Check if all annotations have the same category
+  const uniqueCategoryIds = getUniqueCategoryIds(selectedAnnotations);
+
+  if (uniqueCategoryIds.length === 1) {
+    // All same category - merge directly
+    await performMerge(uniqueCategoryIds[0], selectedAnnotations);
+  } else {
+    // Different categories - show modal for category selection
+    const mostCommonCategoryId = findMostCommonCategoryId(selectedAnnotations);
+    showMergeCategoryModal(
+      uniqueCategoryIds,
+      mostCommonCategoryId,
+      selectedAnnotations,
+    );
+  }
+}
+
+function showMergeCategoryModal(
+  uniqueCategoryIds,
+  defaultCategoryId,
+  selectedAnnotations,
+) {
+  const optionsContainer = document.getElementById("merge-category-options");
+  if (!optionsContainer) return;
+
+  // Store pending merge data
+  pendingMergeData = {
+    selectedAnnotations,
+    defaultCategoryId,
+  };
+
+  // Build category options with radio buttons
+  optionsContainer.innerHTML = "";
+
+  uniqueCategoryIds.forEach((categoryId) => {
+    const category = categories.find((c) => c.id === categoryId);
+    if (!category) return;
+
+    const isDefault = categoryId === defaultCategoryId;
+    const rgb = getCategoryColorLocal(category);
+    const hexColor = rgbToHex(rgb);
+
+    // Count how many selected annotations have this category
+    const count = selectedAnnotations.filter(
+      (ann) => ann.category_id === categoryId,
+    ).length;
+
+    const optionDiv = document.createElement("div");
+    optionDiv.style.cssText =
+      "display: flex; align-items: center; padding: 10px; margin-bottom: 8px; " +
+      "background: #0d1117; border: 1px solid #30363d; border-radius: 4px; cursor: pointer;";
+
+    if (isDefault) {
+      optionDiv.style.borderColor = "#48d1cc";
+    }
+
+    const categoryLabel =
+      category.supercategory && category.supercategory !== "none"
+        ? `${category.supercategory} > ${category.name}`
+        : category.name;
+
+    optionDiv.innerHTML = `
+      <input type="radio" name="merge-category" value="${categoryId}" 
+             ${isDefault ? "checked" : ""} 
+             style="margin-right: 12px; accent-color: #48d1cc;">
+      <span style="display: inline-block; width: 16px; height: 16px; 
+                   background-color: ${hexColor}; border: 1px solid #fff; 
+                   border-radius: 2px; margin-right: 10px;"></span>
+      <span style="flex: 1;">${categoryLabel}</span>
+      <span style="color: #8a9199; font-size: 12px;">(${count} selected)</span>
+    `;
+
+    // Click anywhere on the option to select the radio
+    optionDiv.addEventListener("click", () => {
+      const radio = optionDiv.querySelector('input[type="radio"]');
+      radio.checked = true;
+    });
+
+    optionsContainer.appendChild(optionDiv);
+  });
+
+  mergeCategoryModal.show();
+}
+
+async function confirmMerge() {
+  if (!pendingMergeData) {
+    mergeCategoryModal.hide();
+    return;
+  }
+
+  const selectedRadio = document.querySelector(
+    'input[name="merge-category"]:checked',
+  );
+  if (!selectedRadio) {
+    alert("Please select a category");
+    return;
+  }
+
+  const categoryId = parseInt(selectedRadio.value);
+  await performMerge(categoryId, pendingMergeData.selectedAnnotations);
+
+  pendingMergeData = null;
+  mergeCategoryModal.hide();
+}
+
+function cancelMerge() {
+  pendingMergeData = null;
+  mergeCategoryModal.hide();
+}
+
+async function performMerge(categoryId, selectedAnnotations) {
+  const currentImage = images[currentIndex];
+  if (!currentImage) return;
+
+  // Merge all segmentations
+  const mergedResult = mergeAnnotationSegmentations(selectedAnnotations);
+  if (!mergedResult) {
+    alert("Failed to merge annotations - no valid polygons found");
+    return;
+  }
+
+  try {
+    // 1. Save the new merged annotation
+    const saveResponse = await fetch("/api/save-annotation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        image_id: currentImage.id,
+        category_id: categoryId,
+        segmentation: mergedResult.mergedPolygons,
+      }),
+    });
+
+    if (!saveResponse.ok) {
+      throw new Error("Failed to save merged annotation");
+    }
+
+    const saveData = await saveResponse.json();
+    const newAnnotationId = saveData.annotation?.id;
+
+    // 2. Delete the original annotations
+    const deletePromises = selectedAnnotations.map((ann) =>
+      fetch("/api/delete-annotation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          annotation_id: ann.id,
+          confirmed: true,
+        }),
+      }),
+    );
+
+    const deleteResponses = await Promise.all(deletePromises);
+    const allDeleted = deleteResponses.every((r) => r.ok);
+
+    if (!allDeleted) {
+      console.warn("Some original annotations could not be deleted");
+    }
+
+    // 3. Clear selection and select the new merged annotation
+    selectedAnnotationIds.clear();
+    if (newAnnotationId) {
+      selectedAnnotationIds.add(newAnnotationId);
+    }
+
+    // 4. Mark S3 as dirty and refresh
+    markS3Dirty();
+    await loadDataset(true);
+
+    if (canvas) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawExistingAnnotations();
+    }
+
+    // Update UI
+    updateAnnotationEditor();
+    updateMergeAnnotationsButtonState();
+
+    console.log(
+      `Merged ${selectedAnnotations.length} annotations into annotation #${newAnnotationId}`,
+    );
+  } catch (error) {
+    console.error("Merge annotations error:", error);
+    alert("Error merging annotations: " + error.message);
   }
 }
 
@@ -3280,6 +3514,17 @@ function setupEventListeners() {
     .getElementById("btn-delete-annotations")
     ?.addEventListener("click", deleteSelectedAnnotations);
 
+  // Merge selected annotations
+  document
+    .getElementById("btn-merge-annotations")
+    ?.addEventListener("click", mergeSelectedAnnotations);
+  document
+    .getElementById("btn-merge-cancel")
+    ?.addEventListener("click", cancelMerge);
+  document
+    .getElementById("btn-merge-confirm")
+    ?.addEventListener("click", confirmMerge);
+
   // S3 Save button
   document
     .getElementById("save-to-s3-btn")
@@ -3352,6 +3597,7 @@ nestedMismatchModal = new ModalManager("nestedMaskMismatchModal");
 combinedWarningModal = new ModalManager("combinedWarningModal");
 deleteModal = new ModalManager("deleteModal");
 categoryModal = new ModalManager("categoryModal");
+mergeCategoryModal = new ModalManager("mergeCategoryModal");
 
 function setupMobileDebugConsole() {
   const debugConsole = document.getElementById("mobile-debug-console");
