@@ -26,13 +26,27 @@ let
     sourcePreference = "wheel";
   };
 
+  
+  dependencies-overlay = final: prev: lib.optionalAttrs (pkgs.stdenv.isLinux && pkgs.stdenv.isx86_64) {
+    nvidia-cufile-cu12 = prev.nvidia-cufile-cu12.overrideAttrs (old: { # Fix for NVIDIA cufile RDMA dependencies (only needed on Linux x86_64)
+      autoPatchelfIgnoreMissingDeps = [ "libmlx5.so.1" "librdmacm.so.1" "libibverbs.so.1" ];
+    });
+
+    torchvision = prev.torchvision.overrideAttrs (old: { # use torch deps which are being build by uv2nix
+      buildInputs = (old.buildInputs or []) ++ [ final.torch ];
+    });
+  };
+
+
+
   pythonSet = pythonBase.overrideScope (
     lib.composeManyExtensions [
       pyproject-build-systems.overlays.wheel
       overlay
+      dependencies-overlay
     ]
   );
 in 
 {
-  packages.uv2nix = pythonSet."coco-label-tool";
+  packages.uv2nix = pythonSet.mkVirtualEnv "coco-label-tool" workspace.deps.default;
 })
