@@ -3,7 +3,7 @@ import {
   hideAllModals,
   createWarningListItem,
   createNestedMismatchListItem,
-} from "../static/js/modals.js";
+} from "../coco_label_tool/static/js/modals.js";
 
 class MockElement {
   constructor(id, classes = []) {

@@ -1,4 +1,4 @@
-import { CONFIG } from "../static/js/config.js";
+import { CONFIG } from "../coco_label_tool/static/js/config.js";
 
 describe("CONFIG object structure", () => {
   test("CONFIG object exists", () => {

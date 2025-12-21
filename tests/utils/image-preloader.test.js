@@ -1,4 +1,4 @@
-import { ImagePreloader } from "../../static/js/utils/image-preloader.js";
+import { ImagePreloader } from "../../coco_label_tool/static/js/utils/image-preloader.js";
 
 // Mock Image class for Node.js environment
 global.Image = class Image {
@@ -22,6 +22,10 @@ global.Image = class Image {
     return this._src;
   }
 };
+
+// Suppress console.log from async preloading to avoid "Cannot log after tests are done" warnings
+// This is needed because ImagePreloader fires off async image loads that complete after tests finish
+console.log = () => {};
 
 describe("ImagePreloader", () => {
   let preloader;

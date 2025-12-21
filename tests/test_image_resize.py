@@ -8,7 +8,8 @@ from PIL import Image
 
 # Import module directly to avoid app package initialization issues
 spec = importlib.util.spec_from_file_location(
-    "image_resize", Path(__file__).parent.parent / "app" / "image_resize.py"
+    "image_resize",
+    Path(__file__).parent.parent / "coco_label_tool" / "app" / "image_resize.py",
 )
 if spec and spec.loader:
     image_resize_module = importlib.util.module_from_spec(spec)

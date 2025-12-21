@@ -8,7 +8,7 @@
 import {
   findAnnotationsInBox,
   getAnnotationBoundingBox,
-} from "../../static/js/utils/annotations.js";
+} from "../../coco_label_tool/static/js/utils/annotations.js";
 
 describe("Coordinate System Bug", () => {
   test("reproduces the bug: scaleX/scaleY cause wrong bounding boxes", () => {

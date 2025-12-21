@@ -1,4 +1,4 @@
-import { SAM2Mode } from "../../static/js/modes/sam2-mode.js";
+import { SAM2Mode } from "../../coco_label_tool/static/js/modes/sam2-mode.js";
 
 describe("SAM2Mode", () => {
   let mode;

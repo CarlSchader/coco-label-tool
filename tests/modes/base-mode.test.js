@@ -1,4 +1,4 @@
-import { BaseMode } from "../../static/js/modes/base-mode.js";
+import { BaseMode } from "../../coco_label_tool/static/js/modes/base-mode.js";
 
 describe("BaseMode", () => {
   describe("constructor", () => {

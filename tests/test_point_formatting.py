@@ -8,7 +8,7 @@ from pathlib import Path
 import importlib.util
 
 # Load module directly from file, bypassing package imports
-module_path = Path(__file__).parent.parent / "app" / "sam3_utils.py"
+module_path = Path(__file__).parent.parent / "coco_label_tool" / "app" / "sam3_utils.py"
 spec = importlib.util.spec_from_file_location("sam3_utils", module_path)
 sam3_utils = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(sam3_utils)

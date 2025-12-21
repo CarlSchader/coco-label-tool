@@ -1,5 +1,4 @@
 {
-  self,
   nixpkgs,
   flake-utils,
   sops-export,
@@ -25,6 +24,7 @@ flake-utils.lib.eachDefaultSystem (
     core-packages = with pkgs; [
       python312
       python312Packages.cmake
+      nixfmt-tree
       uv
       nodejs_24
       sops

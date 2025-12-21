@@ -8,7 +8,7 @@ from unittest.mock import patch, mock_open
 with patch.dict("os.environ", {"DATASET_PATH": "/tmp/test-dataset/dataset.json"}):
     with patch("pathlib.Path.exists", return_value=True):
         with patch("pathlib.Path.is_file", return_value=True):
-            from app.dataset import (
+            from coco_label_tool.app.dataset import (
                 load_full_metadata,
                 load_images_range,
                 get_categories,
@@ -22,7 +22,7 @@ with patch.dict("os.environ", {"DATASET_PATH": "/tmp/test-dataset/dataset.json"}
                 delete_annotation,
                 delete_image,
             )
-            from app.exceptions import (
+            from coco_label_tool.app.exceptions import (
                 CategoryInUseError,
                 AnnotationNotFoundError,
                 ImageNotFoundError,
@@ -84,7 +84,7 @@ def mock_dataset_file():
 @pytest.fixture
 def mock_dataset_path():
     """Mock the DATASET_JSON path."""
-    with patch("app.dataset.DATASET_JSON", Path("/tmp/test.json")):
+    with patch("coco_label_tool.app.dataset.DATASET_JSON", Path("/tmp/test.json")):
         yield
 
 
@@ -348,7 +348,7 @@ class TestDeleteImage:
     def test_delete_image_with_annotations(self, mock_dataset_path, mock_dataset_file):
         """Test deleting image cascades to annotations."""
         with patch("builtins.open", mock_open(read_data=json.dumps(MOCK_DATASET))) as m:
-            with patch("app.dataset.DATASET_URI", "/tmp/dataset.json"):
+            with patch("coco_label_tool.app.dataset.DATASET_URI", "/tmp/dataset.json"):
                 with patch("pathlib.Path.exists", return_value=True):
                     with patch("pathlib.Path.unlink") as mock_unlink:
                         delete_image(1)
@@ -375,7 +375,7 @@ class TestDeleteImage:
     def test_delete_image_file_not_exists(self, mock_dataset_path, mock_dataset_file):
         """Test file deletion when file doesn't exist."""
         with patch("builtins.open", mock_open(read_data=json.dumps(MOCK_DATASET))):
-            with patch("app.dataset.DATASET_URI", "/tmp/dataset.json"):
+            with patch("coco_label_tool.app.dataset.DATASET_URI", "/tmp/dataset.json"):
                 with patch("pathlib.Path.exists", return_value=False):
                     with patch("pathlib.Path.unlink") as mock_unlink:
                         delete_image(1)
@@ -391,7 +391,7 @@ class TestDeleteImage:
             ],
         }
         with patch("builtins.open", mock_open(read_data=json.dumps(dataset_no_annot))):
-            with patch("app.dataset.DATASET_URI", "/tmp/dataset.json"):
+            with patch("coco_label_tool.app.dataset.DATASET_URI", "/tmp/dataset.json"):
                 with patch("pathlib.Path.exists", return_value=False):
                     delete_image(2)
 
@@ -399,17 +399,19 @@ class TestDeleteImage:
 class TestResolveImagePath:
     def test_resolve_relative_path(self):
         """Test resolving relative path."""
-        from app.dataset import resolve_image_path
+        from coco_label_tool.app.dataset import resolve_image_path
 
         # resolve_image_path now uses DATASET_URI, not DATASET_DIR
-        with patch("app.dataset.DATASET_URI", "/dataset/dir/dataset.json"):
+        with patch(
+            "coco_label_tool.app.dataset.DATASET_URI", "/dataset/dir/dataset.json"
+        ):
             result = resolve_image_path("images/test.jpg")
             # Now returns string, not Path
             assert result == "/dataset/dir/images/test.jpg"
 
     def test_resolve_absolute_path(self):
         """Test resolving absolute path."""
-        from app.dataset import resolve_image_path
+        from coco_label_tool.app.dataset import resolve_image_path
 
         result = resolve_image_path("/absolute/path/test.jpg")
         # Now returns string, not Path
@@ -417,7 +419,7 @@ class TestResolveImagePath:
 
     def test_resolve_home_path(self):
         """Test resolving home directory path."""
-        from app.dataset import resolve_image_path
+        from coco_label_tool.app.dataset import resolve_image_path
         import os
 
         result = resolve_image_path("~/test.jpg")

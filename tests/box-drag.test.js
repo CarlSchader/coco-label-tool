@@ -6,7 +6,7 @@
 import {
   updateBoxInArray,
   findBoxIndexAtPoint,
-} from "../static/js/utils/box-manipulation.js";
+} from "../coco_label_tool/static/js/utils/box-manipulation.js";
 
 describe("Box drag behavior", () => {
   describe("updateBoxInArray", () => {

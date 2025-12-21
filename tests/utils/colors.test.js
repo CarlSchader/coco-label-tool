@@ -3,7 +3,7 @@ import {
   getSupercategoryColor,
   getCategoryColor,
   rgbToHex,
-} from "../../static/js/utils/colors.js";
+} from "../../coco_label_tool/static/js/utils/colors.js";
 
 describe("hashString", () => {
   test("returns consistent hash for same string", () => {

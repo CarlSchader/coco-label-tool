@@ -1,52 +1,77 @@
 {
-  self,
   nixpkgs,
   flake-utils,
   pyproject-nix,
   uv2nix,
+  uv2nix_hammer_overrides,
   pyproject-build-systems,
   ...
 }:
-flake-utils.lib.eachDefaultSystem ( system:
-let
-  inherit (nixpkgs) lib;
-  pkgs = import nixpkgs {
-    inherit system;
-  };
-  
-  python = pkgs.python312;
+flake-utils.lib.eachDefaultSystem (
+  system:
+  let
+    inherit (nixpkgs) lib;
+    pkgs = import nixpkgs {
+      inherit system;
+      config = {
+        allowUnfree = true;
+      };
+    };
 
-  pythonBase = pkgs.callPackage pyproject-nix.build.packages {
-    inherit python;
-  };
- 
-  workspace = uv2nix.lib.workspace.loadWorkspace { workspaceRoot = ./..; };
+    python = pkgs.python312;
 
-  overlay = workspace.mkPyprojectOverlay {
-    sourcePreference = "wheel";
-  };
+    pythonBase = pkgs.callPackage pyproject-nix.build.packages {
+      inherit python;
+    };
 
-  
-  dependencies-overlay = final: prev: lib.optionalAttrs (pkgs.stdenv.isLinux && pkgs.stdenv.isx86_64) {
-    nvidia-cufile-cu12 = prev.nvidia-cufile-cu12.overrideAttrs (old: { # Fix for NVIDIA cufile RDMA dependencies (only needed on Linux x86_64)
-      autoPatchelfIgnoreMissingDeps = [ "libmlx5.so.1" "librdmacm.so.1" "libibverbs.so.1" ];
-    });
+    workspace = uv2nix.lib.workspace.loadWorkspace { workspaceRoot = ./..; };
 
-    torchvision = prev.torchvision.overrideAttrs (old: { # use torch deps which are being build by uv2nix
-      buildInputs = (old.buildInputs or []) ++ [ final.torch ];
-    });
-  };
+    overlay = workspace.mkPyprojectOverlay {
+      sourcePreference = "wheel";
+    };
 
+    pyprojectOverrides = pkgs.lib.composeExtensions (uv2nix_hammer_overrides.overrides pkgs) (
+      final: prev: {
+        nvidia-cufile-cu12 = prev.nvidia-cufile-cu12.overrideAttrs (old: {
+          buildInputs = (old.buildInputs or [ ]) ++ [ pkgs.rdma-core ];
+        });
 
+        nvidia-nvshmem-cu12 = prev.nvidia-nvshmem-cu12.overrideAttrs (old: {
+          buildInputs =
+            (old.buildInputs or [ ])
+            ++ (with pkgs; [
+              rdma-core
+              pmix
+              openmpi
+              libfabric
+              ucx
+            ]);
+        });
 
-  pythonSet = pythonBase.overrideScope (
-    lib.composeManyExtensions [
-      pyproject-build-systems.overlays.wheel
-      overlay
-      dependencies-overlay
-    ]
-  );
-in 
-{
-  packages.uv2nix = pythonSet.mkVirtualEnv "coco-label-tool" workspace.deps.default;
-})
+        torch = prev.torch.overrideAttrs (old: {
+          buildInputs =
+            (old.buildInputs or [ ])
+            ++ (with pkgs; [
+              cudaPackages.libcufile
+              cudaPackages.libnvshmem
+              cudaPackages.libcusparse_lt
+            ]);
+          autoPatchelfIgnoreMissingDeps = [ "libcuda.so.1" ]; # ignore because it's the CUDA driver provided by the host system
+        });
+      }
+    );
+
+    pythonSet' = pythonBase.overrideScope (
+      lib.composeManyExtensions [
+        pyproject-build-systems.overlays.wheel
+        overlay
+      ]
+    );
+
+    # Override host packages with build fixups
+    pythonSet = pythonSet'.pythonPkgsHostHost.overrideScope pyprojectOverrides;
+  in
+  {
+    packages.uv2nix = pythonSet.mkVirtualEnv "coco-label-tool" workspace.deps.default;
+  }
+)

@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
 export PYTORCH_ENABLE_MPS_FALLBACK=1
 if [ -z "$1" ]; then
     echo "Usage: ./run-server.sh /path/to/dataset.json"

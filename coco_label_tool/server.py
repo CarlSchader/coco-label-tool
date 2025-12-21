@@ -28,7 +28,7 @@ def main():
     os.environ["DATASET_PATH"] = args.coco_file
 
     uvicorn.run(
-        "app.routes:app",
+        "coco_label_tool.app.routes:app",
         host=args.host,
         port=args.port,
         reload=args.reload,

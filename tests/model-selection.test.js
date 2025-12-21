@@ -7,7 +7,7 @@ import {
   getModelInfoEndpoint,
   getSetModelSizeEndpoint,
   formatModelDisplayName,
-} from "../static/js/utils/model-selection.js";
+} from "../coco_label_tool/static/js/utils/model-selection.js";
 
 describe("Model Selection Utilities", () => {
   describe("getSegmentEndpoint", () => {

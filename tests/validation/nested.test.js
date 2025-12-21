@@ -1,4 +1,4 @@
-import { checkNestedMaskSupercategoryMismatch } from "../../static/js/validation/nested.js";
+import { checkNestedMaskSupercategoryMismatch } from "../../coco_label_tool/static/js/validation/nested.js";
 
 describe("checkNestedMaskSupercategoryMismatch", () => {
   const mockCategories = [

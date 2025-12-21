@@ -5,7 +5,7 @@ import {
   apiPost,
   showApiError,
   safeApiCall,
-} from "../static/js/api.js";
+} from "../coco_label_tool/static/js/api.js";
 
 describe("ApiError", () => {
   test("creates error with message, status, and url", () => {

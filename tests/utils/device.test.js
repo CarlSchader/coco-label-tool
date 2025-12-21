@@ -3,7 +3,7 @@ import {
   isSmallScreen,
   isMobileDevice,
   getTouchConfig,
-} from "../../static/js/utils/device.js";
+} from "../../coco_label_tool/static/js/utils/device.js";
 
 describe("isTouchDevice", () => {
   let originalWindow;

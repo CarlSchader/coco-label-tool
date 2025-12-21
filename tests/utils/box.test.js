@@ -3,7 +3,7 @@ import {
   calculateBoxResize,
   normalizeBox,
   getCursorForBoxInteraction,
-} from "../../static/js/utils/box.js";
+} from "../../coco_label_tool/static/js/utils/box.js";
 
 describe("detectBoxInteraction", () => {
   const box = { x1: 100, y1: 100, x2: 300, y2: 200 };

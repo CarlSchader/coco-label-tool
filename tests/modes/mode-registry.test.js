@@ -1,5 +1,5 @@
-import { ModeRegistry } from "../../static/js/modes/mode-registry.js";
-import { BaseMode } from "../../static/js/modes/base-mode.js";
+import { ModeRegistry } from "../../coco_label_tool/static/js/modes/mode-registry.js";
+import { BaseMode } from "../../coco_label_tool/static/js/modes/base-mode.js";
 
 // Mock mode class for testing
 class TestMode extends BaseMode {

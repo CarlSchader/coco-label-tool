@@ -7,7 +7,7 @@ from unittest.mock import patch
 with patch.dict("os.environ", {"DATASET_PATH": "/tmp/test-dataset/dataset.json"}):
     with patch("pathlib.Path.exists", return_value=True):
         with patch("pathlib.Path.is_file", return_value=True):
-            from app.s3_state import S3State, s3_state
+            from coco_label_tool.app.s3_state import S3State, s3_state
 
 
 class TestS3StateInitialization:

@@ -7,7 +7,7 @@
 import {
   isPointInBounds,
   hasBoxCornerInBounds,
-} from "../../static/js/utils/bounds.js";
+} from "../../coco_label_tool/static/js/utils/bounds.js";
 
 describe("Frame Bounds Checking", () => {
   describe("Point in frame detection", () => {

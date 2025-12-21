@@ -22,6 +22,7 @@ flake-utils.lib.eachDefaultSystem (
 
       shellHook = ''
         export LD_LIBRARY_PATH="${libs-path}:$LD_LIBRARY_PATH"
+        export PATH="${../scripts}:$PATH"
 
         # check for .venv dir and create if it doesn't exist
         if [ ! -d ".venv" ]; then

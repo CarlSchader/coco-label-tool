@@ -1,7 +1,7 @@
 import {
   isPolygonInsidePolygon,
   isPointInPolygon,
-} from "../../static/js/utils/geometry.js";
+} from "../../coco_label_tool/static/js/utils/geometry.js";
 
 describe("isPointInPolygon", () => {
   const squarePolygon = [0, 0, 100, 0, 100, 100, 0, 100];

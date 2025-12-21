@@ -1,7 +1,7 @@
 import {
   calculateDragBox,
   clampBoxToCanvas,
-} from "../../static/js/utils/box.js";
+} from "../../coco_label_tool/static/js/utils/box.js";
 
 describe("calculateDragBox", () => {
   test("allows box to extend beyond canvas bounds", () => {

@@ -14,14 +14,14 @@ with patch.dict("os.environ", {"DATASET_PATH": "/tmp/test-dataset/dataset.json"}
                 with patch(
                     "transformers.models.sam3_tracker.processing_sam3_tracker.Sam3TrackerProcessor"
                 ):
-                    from app.sam3 import SAM3TrackerService
+                    from coco_label_tool.app.sam3 import SAM3TrackerService
 
 
 class TestSAM3TrackerServiceInit:
-    @patch("app.sam3.Sam3TrackerModel")
-    @patch("app.sam3.Sam3TrackerProcessor")
-    @patch("app.sam3.SAM3_DEVICE", "cpu")
-    @patch("app.sam3.SAM3_MODEL_ID", "facebook/sam3")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerModel")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerProcessor")
+    @patch("coco_label_tool.app.sam3.SAM3_DEVICE", "cpu")
+    @patch("coco_label_tool.app.sam3.SAM3_MODEL_ID", "facebook/sam3")
     def test_init_default_model(self, mock_processor_cls, mock_model_cls):
         """Test initialization with default model."""
         mock_model = MagicMock()
@@ -36,9 +36,9 @@ class TestSAM3TrackerServiceInit:
         mock_model_cls.from_pretrained.assert_called_once_with("facebook/sam3")
         mock_processor_cls.from_pretrained.assert_called_once_with("facebook/sam3")
 
-    @patch("app.sam3.Sam3TrackerModel")
-    @patch("app.sam3.Sam3TrackerProcessor")
-    @patch("app.sam3.SAM3_DEVICE", "cuda")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerModel")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerProcessor")
+    @patch("coco_label_tool.app.sam3.SAM3_DEVICE", "cuda")
     def test_init_custom_model(self, mock_processor_cls, mock_model_cls):
         """Test initialization with custom model_id."""
         mock_model = MagicMock()
@@ -51,9 +51,9 @@ class TestSAM3TrackerServiceInit:
         assert service.model_id == "facebook/sam3-custom"
         mock_model_cls.from_pretrained.assert_called_once_with("facebook/sam3-custom")
 
-    @patch("app.sam3.Sam3TrackerModel")
-    @patch("app.sam3.Sam3TrackerProcessor")
-    @patch("app.sam3.SAM3_DEVICE", "cuda")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerModel")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerProcessor")
+    @patch("coco_label_tool.app.sam3.SAM3_DEVICE", "cuda")
     def test_init_device_assignment(self, mock_processor_cls, mock_model_cls):
         """Test device assignment."""
         mock_model = MagicMock()
@@ -68,10 +68,10 @@ class TestSAM3TrackerServiceInit:
 
 
 class TestSAM3TrackerServiceReloadModel:
-    @patch("app.sam3.Sam3TrackerModel")
-    @patch("app.sam3.Sam3TrackerProcessor")
-    @patch("app.sam3.SAM3_DEVICE", "cpu")
-    @patch("app.sam3.SAM3_MODEL_ID", "facebook/sam3")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerModel")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerProcessor")
+    @patch("coco_label_tool.app.sam3.SAM3_DEVICE", "cpu")
+    @patch("coco_label_tool.app.sam3.SAM3_MODEL_ID", "facebook/sam3")
     def test_reload_model(self, mock_processor_cls, mock_model_cls):
         """Test reloading with different model_id."""
         mock_model = MagicMock()
@@ -87,10 +87,10 @@ class TestSAM3TrackerServiceReloadModel:
         assert service.model_id == "facebook/sam3-new"
         assert mock_model_cls.from_pretrained.call_count == initial_calls + 1
 
-    @patch("app.sam3.Sam3TrackerModel")
-    @patch("app.sam3.Sam3TrackerProcessor")
-    @patch("app.sam3.SAM3_DEVICE", "cpu")
-    @patch("app.sam3.SAM3_MODEL_ID", "facebook/sam3")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerModel")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerProcessor")
+    @patch("coco_label_tool.app.sam3.SAM3_DEVICE", "cpu")
+    @patch("coco_label_tool.app.sam3.SAM3_MODEL_ID", "facebook/sam3")
     def test_reload_preserves_device(self, mock_processor_cls, mock_model_cls):
         """Test device persistence after reload."""
         mock_model = MagicMock()
@@ -107,13 +107,13 @@ class TestSAM3TrackerServiceReloadModel:
 
 
 class TestSAM3TrackerServiceSegmentImage:
-    @patch("app.sam3.Sam3TrackerModel")
-    @patch("app.sam3.Sam3TrackerProcessor")
-    @patch("app.sam3.SAM3_DEVICE", "cpu")
-    @patch("app.sam3.SAM3_MODEL_ID", "facebook/sam3")
-    @patch("app.sam3.Image")
-    @patch("app.sam3.cv2")
-    @patch("app.sam3.torch")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerModel")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerProcessor")
+    @patch("coco_label_tool.app.sam3.SAM3_DEVICE", "cpu")
+    @patch("coco_label_tool.app.sam3.SAM3_MODEL_ID", "facebook/sam3")
+    @patch("coco_label_tool.app.sam3.Image")
+    @patch("coco_label_tool.app.sam3.cv2")
+    @patch("coco_label_tool.app.sam3.torch")
     def test_segment_with_points_only(
         self, mock_torch, mock_cv2, mock_image, mock_processor_cls, mock_model_cls
     ):
@@ -155,13 +155,13 @@ class TestSAM3TrackerServiceSegmentImage:
         assert isinstance(result, list)
         mock_image.open.assert_called_once()
 
-    @patch("app.sam3.Sam3TrackerModel")
-    @patch("app.sam3.Sam3TrackerProcessor")
-    @patch("app.sam3.SAM3_DEVICE", "cpu")
-    @patch("app.sam3.SAM3_MODEL_ID", "facebook/sam3")
-    @patch("app.sam3.Image")
-    @patch("app.sam3.cv2")
-    @patch("app.sam3.torch")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerModel")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerProcessor")
+    @patch("coco_label_tool.app.sam3.SAM3_DEVICE", "cpu")
+    @patch("coco_label_tool.app.sam3.SAM3_MODEL_ID", "facebook/sam3")
+    @patch("coco_label_tool.app.sam3.Image")
+    @patch("coco_label_tool.app.sam3.cv2")
+    @patch("coco_label_tool.app.sam3.torch")
     def test_segment_with_box_only(
         self, mock_torch, mock_cv2, mock_image, mock_processor_cls, mock_model_cls
     ):
@@ -199,13 +199,13 @@ class TestSAM3TrackerServiceSegmentImage:
 
         assert isinstance(result, list)
 
-    @patch("app.sam3.Sam3TrackerModel")
-    @patch("app.sam3.Sam3TrackerProcessor")
-    @patch("app.sam3.SAM3_DEVICE", "cpu")
-    @patch("app.sam3.SAM3_MODEL_ID", "facebook/sam3")
-    @patch("app.sam3.Image")
-    @patch("app.sam3.cv2")
-    @patch("app.sam3.torch")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerModel")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerProcessor")
+    @patch("coco_label_tool.app.sam3.SAM3_DEVICE", "cpu")
+    @patch("coco_label_tool.app.sam3.SAM3_MODEL_ID", "facebook/sam3")
+    @patch("coco_label_tool.app.sam3.Image")
+    @patch("coco_label_tool.app.sam3.cv2")
+    @patch("coco_label_tool.app.sam3.torch")
     def test_segment_with_points_and_box(
         self, mock_torch, mock_cv2, mock_image, mock_processor_cls, mock_model_cls
     ):
@@ -247,11 +247,11 @@ class TestSAM3TrackerServiceSegmentImage:
 
         assert isinstance(result, list)
 
-    @patch("app.sam3.Sam3TrackerModel")
-    @patch("app.sam3.Sam3TrackerProcessor")
-    @patch("app.sam3.SAM3_DEVICE", "cpu")
-    @patch("app.sam3.SAM3_MODEL_ID", "facebook/sam3")
-    @patch("app.sam3.Image")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerModel")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerProcessor")
+    @patch("coco_label_tool.app.sam3.SAM3_DEVICE", "cpu")
+    @patch("coco_label_tool.app.sam3.SAM3_MODEL_ID", "facebook/sam3")
+    @patch("coco_label_tool.app.sam3.Image")
     def test_segment_exception_handling(
         self, mock_image, mock_processor_cls, mock_model_cls
     ):
@@ -268,13 +268,13 @@ class TestSAM3TrackerServiceSegmentImage:
 
         assert result == []
 
-    @patch("app.sam3.Sam3TrackerModel")
-    @patch("app.sam3.Sam3TrackerProcessor")
-    @patch("app.sam3.SAM3_DEVICE", "cpu")
-    @patch("app.sam3.SAM3_MODEL_ID", "facebook/sam3")
-    @patch("app.sam3.Image")
-    @patch("app.sam3.cv2")
-    @patch("app.sam3.torch")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerModel")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerProcessor")
+    @patch("coco_label_tool.app.sam3.SAM3_DEVICE", "cpu")
+    @patch("coco_label_tool.app.sam3.SAM3_MODEL_ID", "facebook/sam3")
+    @patch("coco_label_tool.app.sam3.Image")
+    @patch("coco_label_tool.app.sam3.cv2")
+    @patch("coco_label_tool.app.sam3.torch")
     def test_segment_filters_small_contours(
         self, mock_torch, mock_cv2, mock_image, mock_processor_cls, mock_model_cls
     ):
@@ -312,13 +312,13 @@ class TestSAM3TrackerServiceSegmentImage:
 
         assert len(result) == 0
 
-    @patch("app.sam3.Sam3TrackerModel")
-    @patch("app.sam3.Sam3TrackerProcessor")
-    @patch("app.sam3.SAM3_DEVICE", "cpu")
-    @patch("app.sam3.SAM3_MODEL_ID", "facebook/sam3")
-    @patch("app.sam3.Image")
-    @patch("app.sam3.cv2")
-    @patch("app.sam3.torch")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerModel")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerProcessor")
+    @patch("coco_label_tool.app.sam3.SAM3_DEVICE", "cpu")
+    @patch("coco_label_tool.app.sam3.SAM3_MODEL_ID", "facebook/sam3")
+    @patch("coco_label_tool.app.sam3.Image")
+    @patch("coco_label_tool.app.sam3.cv2")
+    @patch("coco_label_tool.app.sam3.torch")
     def test_segment_multimask_output(
         self, mock_torch, mock_cv2, mock_image, mock_processor_cls, mock_model_cls
     ):
@@ -359,13 +359,13 @@ class TestSAM3TrackerServiceSegmentImage:
         call_kwargs = mock_model.call_args[1]
         assert call_kwargs.get("multimask_output") is False
 
-    @patch("app.sam3.Sam3TrackerModel")
-    @patch("app.sam3.Sam3TrackerProcessor")
-    @patch("app.sam3.SAM3_DEVICE", "cpu")
-    @patch("app.sam3.SAM3_MODEL_ID", "facebook/sam3")
-    @patch("app.sam3.Image")
-    @patch("app.sam3.cv2")
-    @patch("app.sam3.torch")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerModel")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerProcessor")
+    @patch("coco_label_tool.app.sam3.SAM3_DEVICE", "cpu")
+    @patch("coco_label_tool.app.sam3.SAM3_MODEL_ID", "facebook/sam3")
+    @patch("coco_label_tool.app.sam3.Image")
+    @patch("coco_label_tool.app.sam3.cv2")
+    @patch("coco_label_tool.app.sam3.torch")
     def test_segment_handles_negative_points(
         self, mock_torch, mock_cv2, mock_image, mock_processor_cls, mock_model_cls
     ):
@@ -406,13 +406,13 @@ class TestSAM3TrackerServiceSegmentImage:
 
         assert isinstance(result, list)
 
-    @patch("app.sam3.Sam3TrackerModel")
-    @patch("app.sam3.Sam3TrackerProcessor")
-    @patch("app.sam3.SAM3_DEVICE", "cpu")
-    @patch("app.sam3.SAM3_MODEL_ID", "facebook/sam3")
-    @patch("app.sam3.Image")
-    @patch("app.sam3.cv2")
-    @patch("app.sam3.torch")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerModel")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerProcessor")
+    @patch("coco_label_tool.app.sam3.SAM3_DEVICE", "cpu")
+    @patch("coco_label_tool.app.sam3.SAM3_MODEL_ID", "facebook/sam3")
+    @patch("coco_label_tool.app.sam3.Image")
+    @patch("coco_label_tool.app.sam3.cv2")
+    @patch("coco_label_tool.app.sam3.torch")
     def test_segment_with_multiple_boxes(
         self, mock_torch, mock_cv2, mock_image, mock_processor_cls, mock_model_cls
     ):
@@ -457,13 +457,13 @@ class TestSAM3TrackerServiceSegmentImage:
         assert "input_boxes" in call_kwargs
         assert call_kwargs["input_boxes"] == [[[10, 10, 20, 20], [30, 30, 40, 40]]]
 
-    @patch("app.sam3.Sam3TrackerModel")
-    @patch("app.sam3.Sam3TrackerProcessor")
-    @patch("app.sam3.SAM3_DEVICE", "cpu")
-    @patch("app.sam3.SAM3_MODEL_ID", "facebook/sam3")
-    @patch("app.sam3.Image")
-    @patch("app.sam3.cv2")
-    @patch("app.sam3.torch")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerModel")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerProcessor")
+    @patch("coco_label_tool.app.sam3.SAM3_DEVICE", "cpu")
+    @patch("coco_label_tool.app.sam3.SAM3_MODEL_ID", "facebook/sam3")
+    @patch("coco_label_tool.app.sam3.Image")
+    @patch("coco_label_tool.app.sam3.cv2")
+    @patch("coco_label_tool.app.sam3.torch")
     def test_segment_with_multiple_boxes_and_labels(
         self, mock_torch, mock_cv2, mock_image, mock_processor_cls, mock_model_cls
     ):
@@ -528,13 +528,13 @@ class TestSAM3TrackerServiceSegmentImage:
         assert "input_boxes_labels" not in call_kwargs  # Labels are ignored
         assert call_kwargs["input_boxes"] == [[[10, 10, 20, 20], [30, 30, 40, 40]]]
 
-    @patch("app.sam3.Sam3TrackerModel")
-    @patch("app.sam3.Sam3TrackerProcessor")
-    @patch("app.sam3.SAM3_DEVICE", "cpu")
-    @patch("app.sam3.SAM3_MODEL_ID", "facebook/sam3")
-    @patch("app.sam3.Image")
-    @patch("app.sam3.cv2")
-    @patch("app.sam3.torch")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerModel")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerProcessor")
+    @patch("coco_label_tool.app.sam3.SAM3_DEVICE", "cpu")
+    @patch("coco_label_tool.app.sam3.SAM3_MODEL_ID", "facebook/sam3")
+    @patch("coco_label_tool.app.sam3.Image")
+    @patch("coco_label_tool.app.sam3.cv2")
+    @patch("coco_label_tool.app.sam3.torch")
     def test_segment_boxes_array_overrides_single_box(
         self, mock_torch, mock_cv2, mock_image, mock_processor_cls, mock_model_cls
     ):
@@ -579,13 +579,13 @@ class TestSAM3TrackerServiceSegmentImage:
         call_kwargs = mock_processor.call_args[1]
         assert call_kwargs["input_boxes"] == [[[10, 10, 20, 20]]]
 
-    @patch("app.sam3.Sam3TrackerModel")
-    @patch("app.sam3.Sam3TrackerProcessor")
-    @patch("app.sam3.SAM3_DEVICE", "cpu")
-    @patch("app.sam3.SAM3_MODEL_ID", "facebook/sam3")
-    @patch("app.sam3.Image")
-    @patch("app.sam3.cv2")
-    @patch("app.sam3.torch")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerModel")
+    @patch("coco_label_tool.app.sam3.Sam3TrackerProcessor")
+    @patch("coco_label_tool.app.sam3.SAM3_DEVICE", "cpu")
+    @patch("coco_label_tool.app.sam3.SAM3_MODEL_ID", "facebook/sam3")
+    @patch("coco_label_tool.app.sam3.Image")
+    @patch("coco_label_tool.app.sam3.cv2")
+    @patch("coco_label_tool.app.sam3.torch")
     def test_segment_with_points_and_multiple_boxes(
         self, mock_torch, mock_cv2, mock_image, mock_processor_cls, mock_model_cls
     ):

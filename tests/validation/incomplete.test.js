@@ -1,4 +1,4 @@
-import { checkIncompleteSupercategories } from "../../static/js/validation/incomplete.js";
+import { checkIncompleteSupercategories } from "../../coco_label_tool/static/js/validation/incomplete.js";
 
 describe("checkIncompleteSupercategories", () => {
   const mockCategories = [

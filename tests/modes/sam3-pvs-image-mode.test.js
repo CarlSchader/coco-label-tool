@@ -1,4 +1,4 @@
-import { SAM3PVSImageMode } from "../../static/js/modes/sam3-pvs-image-mode.js";
+import { SAM3PVSImageMode } from "../../coco_label_tool/static/js/modes/sam3-pvs-image-mode.js";
 
 describe("SAM3PVSImageMode", () => {
   let mode;

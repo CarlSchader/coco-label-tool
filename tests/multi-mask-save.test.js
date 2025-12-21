@@ -7,7 +7,7 @@ import {
   calculateBboxFromPolygon,
   validateMaskCategoriesForSaving,
   calculateAreaFromPolygon,
-} from "../static/js/utils/multi-mask-save.js";
+} from "../coco_label_tool/static/js/utils/multi-mask-save.js";
 
 describe("Multi-mask save workflow", () => {
   describe("prepareMasksForSaving", () => {

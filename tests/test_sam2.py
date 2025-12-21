@@ -7,16 +7,16 @@ import numpy as np
 with patch.dict("os.environ", {"DATASET_PATH": "/tmp/test-dataset/dataset.json"}):
     with patch("pathlib.Path.exists", return_value=True):
         with patch("pathlib.Path.is_file", return_value=True):
-            with patch("app.sam2.Sam2Model"):
-                with patch("app.sam2.Sam2Processor"):
-                    from app.sam2 import SAM2Service
+            with patch("coco_label_tool.app.sam2.Sam2Model"):
+                with patch("coco_label_tool.app.sam2.Sam2Processor"):
+                    from coco_label_tool.app.sam2 import SAM2Service
 
 
 class TestSAM2ServiceInit:
-    @patch("app.sam2.Sam2Model")
-    @patch("app.sam2.Sam2Processor")
-    @patch("app.sam2.SAM2_DEVICE", "cpu")
-    @patch("app.sam2.SAM2_MODEL_ID", "facebook/sam2-hiera-tiny")
+    @patch("coco_label_tool.app.sam2.Sam2Model")
+    @patch("coco_label_tool.app.sam2.Sam2Processor")
+    @patch("coco_label_tool.app.sam2.SAM2_DEVICE", "cpu")
+    @patch("coco_label_tool.app.sam2.SAM2_MODEL_ID", "facebook/sam2-hiera-tiny")
     def test_init_default_model(self, mock_processor_cls, mock_model_cls):
         """Test initialization with default model."""
         mock_model = MagicMock()
@@ -35,9 +35,9 @@ class TestSAM2ServiceInit:
             "facebook/sam2-hiera-tiny"
         )
 
-    @patch("app.sam2.Sam2Model")
-    @patch("app.sam2.Sam2Processor")
-    @patch("app.sam2.SAM2_DEVICE", "cuda")
+    @patch("coco_label_tool.app.sam2.Sam2Model")
+    @patch("coco_label_tool.app.sam2.Sam2Processor")
+    @patch("coco_label_tool.app.sam2.SAM2_DEVICE", "cuda")
     def test_init_custom_model(self, mock_processor_cls, mock_model_cls):
         """Test initialization with custom model_id."""
         mock_model = MagicMock()
@@ -52,9 +52,9 @@ class TestSAM2ServiceInit:
             "facebook/sam2-hiera-large"
         )
 
-    @patch("app.sam2.Sam2Model")
-    @patch("app.sam2.Sam2Processor")
-    @patch("app.sam2.SAM2_DEVICE", "cuda")
+    @patch("coco_label_tool.app.sam2.Sam2Model")
+    @patch("coco_label_tool.app.sam2.Sam2Processor")
+    @patch("coco_label_tool.app.sam2.SAM2_DEVICE", "cuda")
     def test_init_device_assignment(self, mock_processor_cls, mock_model_cls):
         """Test device assignment."""
         mock_model = MagicMock()
@@ -69,10 +69,10 @@ class TestSAM2ServiceInit:
 
 
 class TestSAM2ServiceReloadModel:
-    @patch("app.sam2.Sam2Model")
-    @patch("app.sam2.Sam2Processor")
-    @patch("app.sam2.SAM2_DEVICE", "cpu")
-    @patch("app.sam2.SAM2_MODEL_ID", "facebook/sam2-hiera-tiny")
+    @patch("coco_label_tool.app.sam2.Sam2Model")
+    @patch("coco_label_tool.app.sam2.Sam2Processor")
+    @patch("coco_label_tool.app.sam2.SAM2_DEVICE", "cpu")
+    @patch("coco_label_tool.app.sam2.SAM2_MODEL_ID", "facebook/sam2-hiera-tiny")
     def test_reload_model(self, mock_processor_cls, mock_model_cls):
         """Test reloading with different model_id."""
         mock_model = MagicMock()
@@ -88,10 +88,10 @@ class TestSAM2ServiceReloadModel:
         assert service.model_id == "facebook/sam2-hiera-large"
         assert mock_model_cls.from_pretrained.call_count == initial_calls + 1
 
-    @patch("app.sam2.Sam2Model")
-    @patch("app.sam2.Sam2Processor")
-    @patch("app.sam2.SAM2_DEVICE", "cpu")
-    @patch("app.sam2.SAM2_MODEL_ID", "facebook/sam2-hiera-tiny")
+    @patch("coco_label_tool.app.sam2.Sam2Model")
+    @patch("coco_label_tool.app.sam2.Sam2Processor")
+    @patch("coco_label_tool.app.sam2.SAM2_DEVICE", "cpu")
+    @patch("coco_label_tool.app.sam2.SAM2_MODEL_ID", "facebook/sam2-hiera-tiny")
     def test_reload_preserves_device(self, mock_processor_cls, mock_model_cls):
         """Test device persistence after reload."""
         mock_model = MagicMock()
@@ -108,13 +108,13 @@ class TestSAM2ServiceReloadModel:
 
 
 class TestSAM2ServiceSegmentImage:
-    @patch("app.sam2.Sam2Model")
-    @patch("app.sam2.Sam2Processor")
-    @patch("app.sam2.SAM2_DEVICE", "cpu")
-    @patch("app.sam2.SAM2_MODEL_ID", "facebook/sam2-hiera-tiny")
-    @patch("app.sam2.Image")
-    @patch("app.sam2.cv2")
-    @patch("app.sam2.torch")
+    @patch("coco_label_tool.app.sam2.Sam2Model")
+    @patch("coco_label_tool.app.sam2.Sam2Processor")
+    @patch("coco_label_tool.app.sam2.SAM2_DEVICE", "cpu")
+    @patch("coco_label_tool.app.sam2.SAM2_MODEL_ID", "facebook/sam2-hiera-tiny")
+    @patch("coco_label_tool.app.sam2.Image")
+    @patch("coco_label_tool.app.sam2.cv2")
+    @patch("coco_label_tool.app.sam2.torch")
     def test_segment_with_points_only(
         self, mock_torch, mock_cv2, mock_image, mock_processor_cls, mock_model_cls
     ):
@@ -150,13 +150,13 @@ class TestSAM2ServiceSegmentImage:
         assert isinstance(result, list)
         mock_image.open.assert_called_once()
 
-    @patch("app.sam2.Sam2Model")
-    @patch("app.sam2.Sam2Processor")
-    @patch("app.sam2.SAM2_DEVICE", "cpu")
-    @patch("app.sam2.SAM2_MODEL_ID", "facebook/sam2-hiera-tiny")
-    @patch("app.sam2.Image")
-    @patch("app.sam2.cv2")
-    @patch("app.sam2.torch")
+    @patch("coco_label_tool.app.sam2.Sam2Model")
+    @patch("coco_label_tool.app.sam2.Sam2Processor")
+    @patch("coco_label_tool.app.sam2.SAM2_DEVICE", "cpu")
+    @patch("coco_label_tool.app.sam2.SAM2_MODEL_ID", "facebook/sam2-hiera-tiny")
+    @patch("coco_label_tool.app.sam2.Image")
+    @patch("coco_label_tool.app.sam2.cv2")
+    @patch("coco_label_tool.app.sam2.torch")
     def test_segment_with_box_only(
         self, mock_torch, mock_cv2, mock_image, mock_processor_cls, mock_model_cls
     ):
@@ -189,13 +189,13 @@ class TestSAM2ServiceSegmentImage:
 
         assert isinstance(result, list)
 
-    @patch("app.sam2.Sam2Model")
-    @patch("app.sam2.Sam2Processor")
-    @patch("app.sam2.SAM2_DEVICE", "cpu")
-    @patch("app.sam2.SAM2_MODEL_ID", "facebook/sam2-hiera-tiny")
-    @patch("app.sam2.Image")
-    @patch("app.sam2.cv2")
-    @patch("app.sam2.torch")
+    @patch("coco_label_tool.app.sam2.Sam2Model")
+    @patch("coco_label_tool.app.sam2.Sam2Processor")
+    @patch("coco_label_tool.app.sam2.SAM2_DEVICE", "cpu")
+    @patch("coco_label_tool.app.sam2.SAM2_MODEL_ID", "facebook/sam2-hiera-tiny")
+    @patch("coco_label_tool.app.sam2.Image")
+    @patch("coco_label_tool.app.sam2.cv2")
+    @patch("coco_label_tool.app.sam2.torch")
     def test_segment_with_points_and_box(
         self, mock_torch, mock_cv2, mock_image, mock_processor_cls, mock_model_cls
     ):
@@ -230,11 +230,11 @@ class TestSAM2ServiceSegmentImage:
 
         assert isinstance(result, list)
 
-    @patch("app.sam2.Sam2Model")
-    @patch("app.sam2.Sam2Processor")
-    @patch("app.sam2.SAM2_DEVICE", "cpu")
-    @patch("app.sam2.SAM2_MODEL_ID", "facebook/sam2-hiera-tiny")
-    @patch("app.sam2.Image")
+    @patch("coco_label_tool.app.sam2.Sam2Model")
+    @patch("coco_label_tool.app.sam2.Sam2Processor")
+    @patch("coco_label_tool.app.sam2.SAM2_DEVICE", "cpu")
+    @patch("coco_label_tool.app.sam2.SAM2_MODEL_ID", "facebook/sam2-hiera-tiny")
+    @patch("coco_label_tool.app.sam2.Image")
     def test_segment_exception_handling(
         self, mock_image, mock_processor_cls, mock_model_cls
     ):
@@ -251,13 +251,13 @@ class TestSAM2ServiceSegmentImage:
 
         assert result == []
 
-    @patch("app.sam2.Sam2Model")
-    @patch("app.sam2.Sam2Processor")
-    @patch("app.sam2.SAM2_DEVICE", "cpu")
-    @patch("app.sam2.SAM2_MODEL_ID", "facebook/sam2-hiera-tiny")
-    @patch("app.sam2.Image")
-    @patch("app.sam2.cv2")
-    @patch("app.sam2.torch")
+    @patch("coco_label_tool.app.sam2.Sam2Model")
+    @patch("coco_label_tool.app.sam2.Sam2Processor")
+    @patch("coco_label_tool.app.sam2.SAM2_DEVICE", "cpu")
+    @patch("coco_label_tool.app.sam2.SAM2_MODEL_ID", "facebook/sam2-hiera-tiny")
+    @patch("coco_label_tool.app.sam2.Image")
+    @patch("coco_label_tool.app.sam2.cv2")
+    @patch("coco_label_tool.app.sam2.torch")
     def test_segment_filters_small_contours(
         self, mock_torch, mock_cv2, mock_image, mock_processor_cls, mock_model_cls
     ):

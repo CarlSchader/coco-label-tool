@@ -1,4 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+echo "Auto-fixing Nix (treefmt)..."
+treefmt .
 
 echo "Auto-fixing Python (Ruff)..."
 uv run ruff check --fix

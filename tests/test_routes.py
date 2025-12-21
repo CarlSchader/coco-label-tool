@@ -39,7 +39,7 @@ def client():
                                 "cv2": MagicMock(),
                             },
                         ):
-                            from app.routes import app, cache
+                            from coco_label_tool.app.routes import app, cache
 
                             # Manually populate cache for tests (startup event isn't triggered by TestClient)
                             cache.update(
@@ -75,7 +75,7 @@ class TestDatasetEndpoint:
 class TestLoadRangeEndpoint:
     def test_load_range_success(self, client):
         """Test /api/load-range loads images."""
-        with patch("app.dataset.load_images_range") as mock_load:
+        with patch("coco_label_tool.app.dataset.load_images_range") as mock_load:
             mock_load.return_value = ([], {}, {}, set())
 
             response = client.post("/api/load-range", json={"start": 0, "end": 10})
@@ -94,7 +94,7 @@ class TestDeleteImageEndpoint:
 
     def test_delete_image_confirmed(self, client):
         """Test delete image when confirmed."""
-        with patch("app.dataset.delete_image") as mock_delete:
+        with patch("coco_label_tool.app.dataset.delete_image") as mock_delete:
             response = client.post(
                 "/api/delete-image", json={"image_id": 1, "confirmed": True}
             )
@@ -119,7 +119,9 @@ class TestSegmentEndpoint:
     def test_segment_success(self, client):
         """Test successful segmentation."""
         with patch("pathlib.Path.exists", return_value=True):
-            with patch("app.routes.get_sam2_service") as mock_get_service:
+            with patch(
+                "coco_label_tool.app.routes.get_sam2_service"
+            ) as mock_get_service:
                 mock_service = MagicMock()
                 mock_service.segment_image.return_value = [[10, 10, 20, 20]]
                 mock_get_service.return_value = mock_service
@@ -135,7 +137,7 @@ class TestSegmentEndpoint:
 class TestCategoriesEndpoint:
     def test_get_categories(self, client):
         """Test /api/categories returns categories."""
-        with patch("app.dataset.get_categories") as mock_get:
+        with patch("coco_label_tool.app.dataset.get_categories") as mock_get:
             mock_get.return_value = [{"id": 1, "name": "dog"}]
 
             response = client.get("/api/categories")
@@ -146,7 +148,7 @@ class TestCategoriesEndpoint:
 class TestSaveAnnotationEndpoint:
     def test_save_annotation_success(self, client):
         """Test saving annotation."""
-        with patch("app.dataset.add_annotation") as mock_add:
+        with patch("coco_label_tool.app.dataset.add_annotation") as mock_add:
             mock_add.return_value = {"id": 2, "image_id": 1, "category_id": 1}
 
             response = client.post(
@@ -165,7 +167,7 @@ class TestSaveAnnotationEndpoint:
 class TestAddCategoryEndpoint:
     def test_add_category_success(self, client):
         """Test adding category."""
-        with patch("app.dataset.add_category") as mock_add:
+        with patch("coco_label_tool.app.dataset.add_category") as mock_add:
             mock_add.return_value = {"id": 2, "name": "cat", "supercategory": "animal"}
 
             response = client.post(
@@ -178,7 +180,7 @@ class TestAddCategoryEndpoint:
 class TestUpdateCategoryEndpoint:
     def test_update_category_success(self, client):
         """Test updating category."""
-        with patch("app.dataset.update_category"):
+        with patch("coco_label_tool.app.dataset.update_category"):
             response = client.post(
                 "/api/update-category",
                 json={"id": 1, "name": "puppy", "supercategory": "animal"},
@@ -190,8 +192,8 @@ class TestUpdateCategoryEndpoint:
 class TestDeleteCategoryEndpoint:
     def test_delete_category_in_use(self, client):
         """Test deleting category in use returns 400."""
-        with patch("app.dataset.delete_category") as mock_delete:
-            from app.exceptions import CategoryInUseError
+        with patch("coco_label_tool.app.dataset.delete_category") as mock_delete:
+            from coco_label_tool.app.exceptions import CategoryInUseError
 
             mock_delete.side_effect = CategoryInUseError("Category is in use")
 
@@ -201,7 +203,7 @@ class TestDeleteCategoryEndpoint:
 
     def test_delete_category_success(self, client):
         """Test successful category deletion."""
-        with patch("app.dataset.delete_category"):
+        with patch("coco_label_tool.app.dataset.delete_category"):
             response = client.post("/api/delete-category", json={"id": 1})
             assert response.status_code == 200
 
@@ -209,8 +211,8 @@ class TestDeleteCategoryEndpoint:
 class TestUpdateAnnotationEndpoint:
     def test_update_annotation_not_found(self, client):
         """Test updating non-existent annotation returns 404."""
-        with patch("app.dataset.update_annotation") as mock_update:
-            from app.exceptions import AnnotationNotFoundError
+        with patch("coco_label_tool.app.dataset.update_annotation") as mock_update:
+            from coco_label_tool.app.exceptions import AnnotationNotFoundError
 
             mock_update.side_effect = AnnotationNotFoundError("Not found")
 
@@ -221,7 +223,7 @@ class TestUpdateAnnotationEndpoint:
 
     def test_update_annotation_success(self, client):
         """Test successful annotation update."""
-        with patch("app.dataset.update_annotation") as mock_update:
+        with patch("coco_label_tool.app.dataset.update_annotation") as mock_update:
             mock_update.return_value = {"id": 1, "category_id": 2}
 
             response = client.post(
@@ -241,7 +243,7 @@ class TestDeleteAnnotationEndpoint:
 
     def test_delete_annotation_success(self, client):
         """Test successful annotation deletion."""
-        with patch("app.dataset.delete_annotation"):
+        with patch("coco_label_tool.app.dataset.delete_annotation"):
             response = client.post(
                 "/api/delete-annotation", json={"annotation_id": 1, "confirmed": True}
             )
@@ -251,7 +253,7 @@ class TestDeleteAnnotationEndpoint:
 class TestModelInfoEndpoint:
     def test_get_model_info(self, client):
         """Test /api/model-info returns model details."""
-        with patch("app.routes.get_sam2_service") as mock_get_service:
+        with patch("coco_label_tool.app.routes.get_sam2_service") as mock_get_service:
             mock_service = MagicMock()
             mock_service.model_id = "facebook/sam2-hiera-tiny"
             mock_service.device = "cpu"
@@ -274,7 +276,7 @@ class TestSetModelSizeEndpoint:
 
     def test_set_model_size_success(self, client):
         """Test successful model size change."""
-        with patch("app.routes.get_sam2_service") as mock_get_service:
+        with patch("coco_label_tool.app.routes.get_sam2_service") as mock_get_service:
             mock_service = MagicMock()
             mock_get_service.return_value = mock_service
 
@@ -299,7 +301,7 @@ class TestCacheHeaders:
 
     def test_categories_endpoint_no_cache(self, client):
         """Test /api/categories has no-cache headers."""
-        with patch("app.dataset.get_categories") as mock_get:
+        with patch("coco_label_tool.app.dataset.get_categories") as mock_get:
             mock_get.return_value = [{"id": 1, "name": "dog"}]
 
             response = client.get("/api/categories")
@@ -312,7 +314,7 @@ class TestCacheHeaders:
 
     def test_annotations_endpoint_no_cache(self, client):
         """Test /api/annotations/{image_id} has no-cache headers."""
-        with patch("app.dataset.get_annotations_by_image") as mock_get:
+        with patch("coco_label_tool.app.dataset.get_annotations_by_image") as mock_get:
             mock_get.return_value = [{"id": 1, "image_id": 1, "category_id": 1}]
 
             response = client.get("/api/annotations/1")
@@ -344,13 +346,16 @@ class TestCacheHeaders:
             "ContentLength": len(img_bytes),
         }
 
-        with patch("app.routes.detect_uri_type", return_value="s3"):
-            with patch("app.routes.get_s3_client") as mock_get_client:
+        with patch("coco_label_tool.app.routes.detect_uri_type", return_value="s3"):
+            with patch("coco_label_tool.app.routes.get_s3_client") as mock_get_client:
                 mock_client = MagicMock()
                 mock_client.get_object = mock_s3_response
                 mock_get_client.return_value = mock_client
 
-                with patch("app.routes.parse_s3_uri", return_value=("bucket", "key")):
+                with patch(
+                    "coco_label_tool.app.routes.parse_s3_uri",
+                    return_value=("bucket", "key"),
+                ):
                     response = client.get("/api/image/1")
                     assert response.status_code == 200
                     assert "Cache-Control" in response.headers

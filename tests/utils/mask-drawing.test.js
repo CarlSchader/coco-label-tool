@@ -5,7 +5,7 @@
 import {
   getMaskColor,
   shouldDrawMultipleMasks,
-} from "../../static/js/utils/mask-drawing.js";
+} from "../../coco_label_tool/static/js/utils/mask-drawing.js";
 
 describe("getMaskColor", () => {
   test("returns different colors for different indices", () => {

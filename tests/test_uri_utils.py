@@ -13,7 +13,7 @@ import pytest
 with patch.dict("os.environ", {"DATASET_PATH": "/tmp/test-dataset/dataset.json"}):
     with patch("pathlib.Path.exists", return_value=True):
         with patch("pathlib.Path.is_file", return_value=True):
-            from app.uri_utils import (
+            from coco_label_tool.app.uri_utils import (
                 _retry_with_backoff,
                 detect_uri_type,
                 download_s3_image,
@@ -31,7 +31,7 @@ with patch.dict("os.environ", {"DATASET_PATH": "/tmp/test-dataset/dataset.json"}
                 save_cache_metadata,
                 upload_json_to_s3,
             )
-            import app.uri_utils
+            import coco_label_tool.app.uri_utils
 
 
 class TestURIDetection:
@@ -143,7 +143,7 @@ class TestCachePaths:
         """Cache directory is created if it doesn't exist."""
         with patch.dict(os.environ, {"XDG_CACHE_HOME": "/tmp/test-cache"}):
             # Reset the cached value
-            app.uri_utils._cache_dir = None
+            coco_label_tool.app.uri_utils._cache_dir = None
 
             cache_dir = get_cache_dir()
             assert "coco-label-tool" in str(cache_dir)
@@ -191,7 +191,9 @@ class TestImageDownload:
         """Downloaded image is cached to local file."""
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch.object(
-                app.uri_utils, "get_cache_dir", return_value=Path(tmpdir)
+                coco_label_tool.app.uri_utils,
+                "get_cache_dir",
+                return_value=Path(tmpdir),
             ):
                 mock_client = MagicMock()
                 mock_client.get_object.return_value = {
@@ -199,7 +201,9 @@ class TestImageDownload:
                 }
 
                 with patch.object(
-                    app.uri_utils, "get_s3_client", return_value=mock_client
+                    coco_label_tool.app.uri_utils,
+                    "get_s3_client",
+                    return_value=mock_client,
                 ):
                     uri = "s3://bucket/images/test.jpg"
                     result_path = download_s3_image(uri)
@@ -212,7 +216,9 @@ class TestImageDownload:
         """Returns cached file without re-downloading."""
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch.object(
-                app.uri_utils, "get_cache_dir", return_value=Path(tmpdir)
+                coco_label_tool.app.uri_utils,
+                "get_cache_dir",
+                return_value=Path(tmpdir),
             ):
                 uri = "s3://bucket/images/test.jpg"
                 cached_path = get_cached_image_path(uri)
@@ -221,7 +227,9 @@ class TestImageDownload:
 
                 mock_client = MagicMock()
                 with patch.object(
-                    app.uri_utils, "get_s3_client", return_value=mock_client
+                    coco_label_tool.app.uri_utils,
+                    "get_s3_client",
+                    return_value=mock_client,
                 ):
                     result_path = download_s3_image(uri)
 
@@ -233,7 +241,9 @@ class TestImageDownload:
         """Retries download on transient failures."""
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch.object(
-                app.uri_utils, "get_cache_dir", return_value=Path(tmpdir)
+                coco_label_tool.app.uri_utils,
+                "get_cache_dir",
+                return_value=Path(tmpdir),
             ):
                 mock_client = MagicMock()
                 # Fail first call, succeed second
@@ -243,7 +253,9 @@ class TestImageDownload:
                 ]
 
                 with patch.object(
-                    app.uri_utils, "get_s3_client", return_value=mock_client
+                    coco_label_tool.app.uri_utils,
+                    "get_s3_client",
+                    return_value=mock_client,
                 ):
                     with patch("time.sleep"):  # Skip actual sleep
                         uri = "s3://bucket/images/test.jpg"
@@ -260,7 +272,9 @@ class TestCacheMetadata:
         """Saving metadata creates a file."""
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch.object(
-                app.uri_utils, "get_cache_dir", return_value=Path(tmpdir)
+                coco_label_tool.app.uri_utils,
+                "get_cache_dir",
+                return_value=Path(tmpdir),
             ):
                 uri = "s3://bucket/file.json"
                 metadata = {"etag": "abc123", "size": 1000}
@@ -275,7 +289,9 @@ class TestCacheMetadata:
         """Loading existing metadata returns dict."""
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch.object(
-                app.uri_utils, "get_cache_dir", return_value=Path(tmpdir)
+                coco_label_tool.app.uri_utils,
+                "get_cache_dir",
+                return_value=Path(tmpdir),
             ):
                 uri = "s3://bucket/file.json"
                 # Use ETag (with capital T) to match S3 response format
@@ -290,7 +306,9 @@ class TestCacheMetadata:
         """Loading non-existent metadata returns None."""
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch.object(
-                app.uri_utils, "get_cache_dir", return_value=Path(tmpdir)
+                coco_label_tool.app.uri_utils,
+                "get_cache_dir",
+                return_value=Path(tmpdir),
             ):
                 result = load_cache_metadata("s3://bucket/nonexistent.json")
                 assert result is None
@@ -299,7 +317,9 @@ class TestCacheMetadata:
         """Loading corrupted metadata returns None gracefully."""
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch.object(
-                app.uri_utils, "get_cache_dir", return_value=Path(tmpdir)
+                coco_label_tool.app.uri_utils,
+                "get_cache_dir",
+                return_value=Path(tmpdir),
             ):
                 uri = "s3://bucket/file.json"
                 metadata_path = get_cache_metadata_path(uri)
@@ -320,7 +340,9 @@ class TestCacheValidation:
         """Cache is invalid when no cache file exists."""
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch.object(
-                app.uri_utils, "get_cache_dir", return_value=Path(tmpdir)
+                coco_label_tool.app.uri_utils,
+                "get_cache_dir",
+                return_value=Path(tmpdir),
             ):
                 assert is_cache_valid("s3://bucket/file.json") is False
 
@@ -328,7 +350,9 @@ class TestCacheValidation:
         """Cache is valid when ETag matches S3."""
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch.object(
-                app.uri_utils, "get_cache_dir", return_value=Path(tmpdir)
+                coco_label_tool.app.uri_utils,
+                "get_cache_dir",
+                return_value=Path(tmpdir),
             ):
                 uri = "s3://bucket/file.json"
 
@@ -346,7 +370,9 @@ class TestCacheValidation:
                 mock_client.head_object.return_value = {"ETag": '"abc123"'}
 
                 with patch.object(
-                    app.uri_utils, "get_s3_client", return_value=mock_client
+                    coco_label_tool.app.uri_utils,
+                    "get_s3_client",
+                    return_value=mock_client,
                 ):
                     assert is_cache_valid(uri) is True
 
@@ -354,7 +380,9 @@ class TestCacheValidation:
         """Cache is invalid when ETag doesn't match S3."""
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch.object(
-                app.uri_utils, "get_cache_dir", return_value=Path(tmpdir)
+                coco_label_tool.app.uri_utils,
+                "get_cache_dir",
+                return_value=Path(tmpdir),
             ):
                 uri = "s3://bucket/file.json"
 
@@ -372,7 +400,9 @@ class TestCacheValidation:
                 mock_client.head_object.return_value = {"ETag": '"new-etag"'}
 
                 with patch.object(
-                    app.uri_utils, "get_s3_client", return_value=mock_client
+                    coco_label_tool.app.uri_utils,
+                    "get_s3_client",
+                    return_value=mock_client,
                 ):
                     assert is_cache_valid(uri) is False
 
@@ -380,7 +410,9 @@ class TestCacheValidation:
         """Returns False (re-download) when S3 check fails."""
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch.object(
-                app.uri_utils, "get_cache_dir", return_value=Path(tmpdir)
+                coco_label_tool.app.uri_utils,
+                "get_cache_dir",
+                return_value=Path(tmpdir),
             ):
                 uri = "s3://bucket/file.json"
 
@@ -397,7 +429,9 @@ class TestCacheValidation:
                 mock_client.head_object.side_effect = Exception("Network error")
 
                 with patch.object(
-                    app.uri_utils, "get_s3_client", return_value=mock_client
+                    coco_label_tool.app.uri_utils,
+                    "get_s3_client",
+                    return_value=mock_client,
                 ):
                     # Should return False to force re-download
                     assert is_cache_valid(uri) is False
@@ -462,7 +496,9 @@ class TestJSONLoading:
         """Loading from S3 downloads and caches."""
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch.object(
-                app.uri_utils, "get_cache_dir", return_value=Path(tmpdir)
+                coco_label_tool.app.uri_utils,
+                "get_cache_dir",
+                return_value=Path(tmpdir),
             ):
                 uri = "s3://bucket/file.json"
                 test_data = {"test": "s3-data"}
@@ -478,10 +514,14 @@ class TestJSONLoading:
                 }
 
                 with patch.object(
-                    app.uri_utils, "get_s3_client", return_value=mock_client
+                    coco_label_tool.app.uri_utils,
+                    "get_s3_client",
+                    return_value=mock_client,
                 ):
                     with patch.object(
-                        app.uri_utils, "is_cache_valid", return_value=False
+                        coco_label_tool.app.uri_utils,
+                        "is_cache_valid",
+                        return_value=False,
                     ):
                         data, local_path = load_json_from_uri(uri)
 
@@ -492,7 +532,9 @@ class TestJSONLoading:
         """Loading from S3 uses cache when valid."""
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch.object(
-                app.uri_utils, "get_cache_dir", return_value=Path(tmpdir)
+                coco_label_tool.app.uri_utils,
+                "get_cache_dir",
+                return_value=Path(tmpdir),
             ):
                 uri = "s3://bucket/file.json"
                 cached_data = {"cached": "data"}
@@ -504,7 +546,9 @@ class TestJSONLoading:
                     json.dump(cached_data, f)
 
                 # Mock cache as valid
-                with patch.object(app.uri_utils, "is_cache_valid", return_value=True):
+                with patch.object(
+                    coco_label_tool.app.uri_utils, "is_cache_valid", return_value=True
+                ):
                     data, local_path = load_json_from_uri(uri)
 
                     assert data == cached_data
@@ -527,7 +571,9 @@ class TestS3Upload:
                 }
 
                 with patch.object(
-                    app.uri_utils, "get_s3_client", return_value=mock_client
+                    coco_label_tool.app.uri_utils,
+                    "get_s3_client",
+                    return_value=mock_client,
                 ):
                     result = upload_json_to_s3("s3://bucket/file.json", Path(f.name))
 
@@ -551,7 +597,9 @@ class TestS3Upload:
                 ]
 
                 with patch.object(
-                    app.uri_utils, "get_s3_client", return_value=mock_client
+                    coco_label_tool.app.uri_utils,
+                    "get_s3_client",
+                    return_value=mock_client,
                 ):
                     with patch("time.sleep"):  # Don't actually sleep in tests
                         result = upload_json_to_s3(
@@ -574,7 +622,9 @@ class TestS3Upload:
                 mock_client.put_object.side_effect = Exception("Persistent error")
 
                 with patch.object(
-                    app.uri_utils, "get_s3_client", return_value=mock_client
+                    coco_label_tool.app.uri_utils,
+                    "get_s3_client",
+                    return_value=mock_client,
                 ):
                     with patch("time.sleep"):  # Don't actually sleep in tests
                         with pytest.raises(Exception, match="Persistent error"):
@@ -589,7 +639,7 @@ class TestS3Client:
     def test_default_region(self):
         """Default region is us-east-1."""
         # Reset cached client
-        app.uri_utils._s3_client = None
+        coco_label_tool.app.uri_utils._s3_client = None
 
         with patch.dict(os.environ, {}, clear=True):
             with patch("boto3.client") as mock_boto:
@@ -601,11 +651,11 @@ class TestS3Client:
                 assert call_kwargs["region_name"] == "us-east-1"
 
         # Reset for other tests
-        app.uri_utils._s3_client = None
+        coco_label_tool.app.uri_utils._s3_client = None
 
     def test_aws_region_env_var(self):
         """AWS_REGION environment variable is respected."""
-        app.uri_utils._s3_client = None
+        coco_label_tool.app.uri_utils._s3_client = None
 
         with patch.dict(os.environ, {"AWS_REGION": "eu-west-1"}, clear=True):
             with patch("boto3.client") as mock_boto:
@@ -615,11 +665,11 @@ class TestS3Client:
                 call_kwargs = mock_boto.call_args[1]
                 assert call_kwargs["region_name"] == "eu-west-1"
 
-        app.uri_utils._s3_client = None
+        coco_label_tool.app.uri_utils._s3_client = None
 
     def test_aws_default_region_env_var(self):
         """AWS_DEFAULT_REGION environment variable is respected."""
-        app.uri_utils._s3_client = None
+        coco_label_tool.app.uri_utils._s3_client = None
 
         with patch.dict(os.environ, {"AWS_DEFAULT_REGION": "ap-south-1"}, clear=True):
             with patch("boto3.client") as mock_boto:
@@ -629,11 +679,11 @@ class TestS3Client:
                 call_kwargs = mock_boto.call_args[1]
                 assert call_kwargs["region_name"] == "ap-south-1"
 
-        app.uri_utils._s3_client = None
+        coco_label_tool.app.uri_utils._s3_client = None
 
     def test_region_priority(self):
         """AWS_REGION takes priority over AWS_DEFAULT_REGION."""
-        app.uri_utils._s3_client = None
+        coco_label_tool.app.uri_utils._s3_client = None
 
         env = {"AWS_REGION": "us-west-2", "AWS_DEFAULT_REGION": "eu-central-1"}
         with patch.dict(os.environ, env, clear=True):
@@ -644,11 +694,11 @@ class TestS3Client:
                 call_kwargs = mock_boto.call_args[1]
                 assert call_kwargs["region_name"] == "us-west-2"
 
-        app.uri_utils._s3_client = None
+        coco_label_tool.app.uri_utils._s3_client = None
 
     def test_client_is_cached(self):
         """S3 client is cached (singleton)."""
-        app.uri_utils._s3_client = None
+        coco_label_tool.app.uri_utils._s3_client = None
 
         with patch("boto3.client") as mock_boto:
             mock_boto.return_value = MagicMock()
@@ -660,11 +710,11 @@ class TestS3Client:
             assert mock_boto.call_count == 1
             assert client1 is client2
 
-        app.uri_utils._s3_client = None
+        coco_label_tool.app.uri_utils._s3_client = None
 
     def test_custom_endpoint_url(self):
         """AWS_ENDPOINT_URL_S3 environment variable is used for custom endpoints."""
-        app.uri_utils._s3_client = None
+        coco_label_tool.app.uri_utils._s3_client = None
 
         env = {"AWS_ENDPOINT_URL_S3": "http://localhost:9000"}
         with patch.dict(os.environ, env, clear=True):
@@ -675,11 +725,11 @@ class TestS3Client:
                 call_kwargs = mock_boto.call_args[1]
                 assert call_kwargs["endpoint_url"] == "http://localhost:9000"
 
-        app.uri_utils._s3_client = None
+        coco_label_tool.app.uri_utils._s3_client = None
 
     def test_no_endpoint_url_by_default(self):
         """Without AWS_ENDPOINT_URL_S3, endpoint_url is None (standard AWS)."""
-        app.uri_utils._s3_client = None
+        coco_label_tool.app.uri_utils._s3_client = None
 
         with patch.dict(os.environ, {}, clear=True):
             with patch("boto3.client") as mock_boto:
@@ -689,11 +739,11 @@ class TestS3Client:
                 call_kwargs = mock_boto.call_args[1]
                 assert call_kwargs["endpoint_url"] is None
 
-        app.uri_utils._s3_client = None
+        coco_label_tool.app.uri_utils._s3_client = None
 
     def test_custom_endpoint_with_credentials(self):
         """Custom endpoint works with AWS credentials."""
-        app.uri_utils._s3_client = None
+        coco_label_tool.app.uri_utils._s3_client = None
 
         env = {
             "AWS_ENDPOINT_URL_S3": "https://nyc3.digitaloceanspaces.com",
@@ -714,7 +764,7 @@ class TestS3Client:
                 assert call_kwargs["aws_secret_access_key"] == "my-secret-key"
                 assert call_kwargs["region_name"] == "nyc3"
 
-        app.uri_utils._s3_client = None
+        coco_label_tool.app.uri_utils._s3_client = None
 
 
 class TestRetryLogic:

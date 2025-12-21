@@ -7,7 +7,7 @@ import {
   calculateTotalArea,
   calculateCombinedBbox,
   mergeMaskPolygons,
-} from "../../static/js/utils/mask-merging.js";
+} from "../../coco_label_tool/static/js/utils/mask-merging.js";
 
 describe("calculatePolygonArea", () => {
   test("calculates area of simple rectangle", () => {

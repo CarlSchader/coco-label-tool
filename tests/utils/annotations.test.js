@@ -3,7 +3,7 @@ import {
   findAnnotationsInBox,
   getAnnotationBoundingBox,
   boxesOverlap,
-} from "../../static/js/utils/annotations.js";
+} from "../../coco_label_tool/static/js/utils/annotations.js";
 
 describe("findAnnotationAtPoint", () => {
   const mockAnnotations = [

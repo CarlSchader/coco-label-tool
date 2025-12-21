@@ -1,10 +1,16 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
 set -e
 
 echo "=== Auto-fixing All Issues ==="
 echo ""
 
 echo "Step 1: Formatting code..."
+echo "Nix (treefmt):"
+treefmt .
+echo "✅ Nix formatted"
+echo ""
+
 echo "Python (Ruff):"
 uv run ruff format
 echo "✅ Python formatted"

@@ -20,18 +20,18 @@ dependencies = [
 ]
 
 [project.scripts]
-server = "server:main"
+server = "coco_label_tool.server:main"
 
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-py-modules = ["server"]
-
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["app*"]
+include = ["coco_label_tool*"]
+
+[tool.setuptools.package-data]
+coco_label_tool = ["static/**/*", "templates/**/*"]
 
 [dependency-groups]
 dev = [

@@ -1,4 +1,4 @@
-import { SAM3PCSImageMode } from "../../static/js/modes/sam3-pcs-image-mode.js";
+import { SAM3PCSImageMode } from "../../coco_label_tool/static/js/modes/sam3-pcs-image-mode.js";
 
 describe("SAM3PCSImageMode", () => {
   let mode;

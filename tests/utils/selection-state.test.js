@@ -5,8 +5,8 @@
  * which would have caught the "selectionBoxDrag can be null" bug.
  */
 
-import { calculateDragBox } from "../../static/js/utils/box.js";
-import { findAnnotationsInBox } from "../../static/js/utils/annotations.js";
+import { calculateDragBox } from "../../coco_label_tool/static/js/utils/box.js";
+import { findAnnotationsInBox } from "../../coco_label_tool/static/js/utils/annotations.js";
 
 describe("Selection State Coordination", () => {
   describe("Box selection workflow", () => {

@@ -5,7 +5,7 @@ import {
   naturalToScreen,
   detectDropdownOverlap,
   offsetOverlappingDropdowns,
-} from "../../static/js/utils/mask-category.js";
+} from "../../coco_label_tool/static/js/utils/mask-category.js";
 
 describe("findTopPointOfMask", () => {
   test("finds top point of rectangle", () => {

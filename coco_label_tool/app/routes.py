@@ -14,8 +14,6 @@ from fastapi.templating import Jinja2Templates
 
 from . import create_app, dataset
 from .cache import ImageCache
-
-logger = logging.getLogger(__name__)
 from .config import (
     CACHE_HEAD,
     CACHE_SIZE,
@@ -47,6 +45,8 @@ from .sam2 import get_sam2_service
 from .sam3 import get_sam3_tracker_service
 from .sam3_pcs import get_sam3_pcs_service
 from .uri_utils import detect_uri_type, download_s3_image, get_s3_client, parse_s3_uri
+
+logger = logging.getLogger(__name__)
 
 app = create_app()
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
