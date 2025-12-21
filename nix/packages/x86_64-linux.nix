@@ -14,7 +14,6 @@ let
     inherit system;
     config = {
       allowUnfree = true;
-      allowUnsupportedSystem = true;
     };
   };
 

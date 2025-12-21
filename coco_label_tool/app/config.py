@@ -50,6 +50,10 @@ CACHE_SIZE = 64
 CACHE_HEAD = 32
 CACHE_TAIL = 32
 
+# Dataset auto-save settings (seconds)
+# Changes are kept in memory and flushed to disk on this interval
+DATASET_AUTO_SAVE_INTERVAL = int(os.environ.get("DATASET_AUTO_SAVE_INTERVAL", "30"))
+
 # Image serving settings
 MAX_IMAGE_DIMENSION = int(
     os.environ.get("MAX_IMAGE_DIMENSION", "2048")

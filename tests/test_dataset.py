@@ -1,10 +1,16 @@
-"""Unit tests for dataset operations."""
+"""Unit tests for dataset operations.
+
+These tests verify that the dataset module functions correctly delegate
+to the DatasetManager and perform proper business logic (bbox calculation,
+validation, etc.).
+"""
+
+import json
+from unittest.mock import patch
 
 import pytest
-import json
-from pathlib import Path
-from unittest.mock import patch, mock_open
 
+# Mock environment and path before importing
 with patch.dict("os.environ", {"DATASET_PATH": "/tmp/test-dataset/dataset.json"}):
     with patch("pathlib.Path.exists", return_value=True):
         with patch("pathlib.Path.is_file", return_value=True):
@@ -21,7 +27,9 @@ with patch.dict("os.environ", {"DATASET_PATH": "/tmp/test-dataset/dataset.json"}
                 update_annotation,
                 delete_annotation,
                 delete_image,
+                resolve_image_path,
             )
+            from coco_label_tool.app.dataset_manager import dataset_manager
             from coco_label_tool.app.exceptions import (
                 CategoryInUseError,
                 AnnotationNotFoundError,
@@ -75,21 +83,21 @@ MOCK_DATASET = {
 
 
 @pytest.fixture
-def mock_dataset_file():
-    """Mock the dataset JSON file."""
-    with patch("builtins.open", mock_open(read_data=json.dumps(MOCK_DATASET))):
-        yield
-
-
-@pytest.fixture
-def mock_dataset_path():
-    """Mock the DATASET_JSON path."""
-    with patch("coco_label_tool.app.dataset.DATASET_JSON", Path("/tmp/test.json")):
-        yield
+def loaded_dataset(tmp_path):
+    """Load mock dataset into the DatasetManager."""
+    json_path = tmp_path / "dataset.json"
+    json_path.write_text(json.dumps(MOCK_DATASET))
+    dataset_manager.load(json_path)
+    yield
+    # Cleanup: cancel any pending timers
+    dataset_manager._cancel_timer()
+    dataset_manager._data = None
+    dataset_manager._local_path = None
+    dataset_manager._changes.reset()
 
 
 class TestLoadFullMetadata:
-    def test_load_full_metadata(self, mock_dataset_file):
+    def test_load_full_metadata(self, loaded_dataset):
         """Test loading dataset metadata."""
         metadata = load_full_metadata()
 
@@ -100,7 +108,7 @@ class TestLoadFullMetadata:
 
 
 class TestLoadImagesRange:
-    def test_load_range_valid(self, mock_dataset_file):
+    def test_load_range_valid(self, loaded_dataset):
         """Test loading valid range."""
         images, image_map, annot_by_image, indices = load_images_range(0, 2)
 
@@ -112,7 +120,7 @@ class TestLoadImagesRange:
         assert images[1]["index"] == 1
         assert indices == {0, 1}
 
-    def test_load_range_with_annotations(self, mock_dataset_file):
+    def test_load_range_with_annotations(self, loaded_dataset):
         """Test annotations are grouped correctly."""
         images, image_map, annot_by_image, indices = load_images_range(0, 2)
 
@@ -120,14 +128,14 @@ class TestLoadImagesRange:
         assert len(annot_by_image[1]) == 2
         assert 2 not in annot_by_image
 
-    def test_load_range_exceeds_dataset(self, mock_dataset_file):
+    def test_load_range_exceeds_dataset(self, loaded_dataset):
         """Test loading range that exceeds dataset size."""
         images, image_map, annot_by_image, indices = load_images_range(0, 100)
 
         assert len(images) == 3
         assert len(image_map) == 3
 
-    def test_load_range_empty(self, mock_dataset_file):
+    def test_load_range_empty(self, loaded_dataset):
         """Test empty range."""
         images, image_map, annot_by_image, indices = load_images_range(5, 5)
 
@@ -135,7 +143,7 @@ class TestLoadImagesRange:
         assert len(image_map) == 0
         assert len(annot_by_image) == 0
 
-    def test_load_range_no_annotations(self, mock_dataset_file):
+    def test_load_range_no_annotations(self, loaded_dataset):
         """Test range with image that has no annotations."""
         images, image_map, annot_by_image, indices = load_images_range(1, 2)
 
@@ -144,7 +152,7 @@ class TestLoadImagesRange:
 
 
 class TestGetCategories:
-    def test_get_categories(self, mock_dataset_file):
+    def test_get_categories(self, loaded_dataset):
         """Test retrieving categories."""
         categories = get_categories()
 
@@ -154,253 +162,259 @@ class TestGetCategories:
 
 
 class TestSaveDataset:
-    def test_save_dataset(self, mock_dataset_path):
+    def test_save_dataset(self, loaded_dataset):
         """Test saving dataset preserves structure."""
-        with patch("builtins.open", mock_open(read_data=json.dumps(MOCK_DATASET))) as m:
-            new_images = [{"id": 1, "file_name": "new.jpg"}]
-            new_annotations = [{"id": 1, "image_id": 1, "category_id": 1}]
+        new_images = [{"id": 1, "file_name": "new.jpg"}]
+        new_annotations = [{"id": 1, "image_id": 1, "category_id": 1}]
 
-            save_dataset(new_images, new_annotations)
+        save_dataset(new_images, new_annotations)
 
-            handle = m()
-            written_data = "".join(call.args[0] for call in handle.write.call_args_list)
-            saved = json.loads(written_data)
+        # Verify the data was saved to disk (flush is called)
+        # Read from the manager's local path
+        json_path = dataset_manager._local_path
+        saved_data = json.loads(json_path.read_text())
 
-            assert saved["images"] == new_images
-            assert saved["annotations"] == new_annotations
-            assert "categories" in saved
-            assert "info" in saved
+        assert saved_data["images"] == new_images
+        assert saved_data["annotations"] == new_annotations
+        assert "categories" in saved_data
+        assert "info" in saved_data
 
 
 class TestAddCategory:
-    def test_add_category(self, mock_dataset_path, mock_dataset_file):
+    def test_add_category(self, loaded_dataset):
         """Test adding a new category."""
-        with patch("builtins.open", mock_open(read_data=json.dumps(MOCK_DATASET))):
-            new_cat = add_category("bird", "animal")
+        new_cat = add_category("fish", "animal")
 
-            assert new_cat["name"] == "bird"
-            assert new_cat["supercategory"] == "animal"
-            assert new_cat["id"] == 4
+        assert new_cat["name"] == "fish"
+        assert new_cat["supercategory"] == "animal"
+        assert new_cat["id"] == 4  # Max existing is 3
 
-    def test_add_category_empty_list(self, mock_dataset_path):
+        # Verify it's in the dataset
+        categories = get_categories()
+        assert any(c["id"] == 4 and c["name"] == "fish" for c in categories)
+
+    def test_add_category_empty_list(self, tmp_path):
         """Test adding category when no categories exist."""
         empty_dataset = {**MOCK_DATASET, "categories": []}
-        with patch("builtins.open", mock_open(read_data=json.dumps(empty_dataset))):
+        json_path = tmp_path / "dataset.json"
+        json_path.write_text(json.dumps(empty_dataset))
+        dataset_manager.load(json_path)
+
+        try:
             new_cat = add_category("first", "none")
             assert new_cat["id"] == 1
+        finally:
+            dataset_manager._cancel_timer()
+            dataset_manager._data = None
+            dataset_manager._local_path = None
+            dataset_manager._changes.reset()
 
 
 class TestUpdateCategory:
-    def test_update_category_name(self, mock_dataset_path, mock_dataset_file):
+    def test_update_category_name(self, loaded_dataset):
         """Test updating category name."""
-        with patch("builtins.open", mock_open(read_data=json.dumps(MOCK_DATASET))) as m:
-            update_category(1, "puppy", "animal")
+        update_category(1, "puppy", "animal")
 
-            handle = m()
-            written_data = "".join(call.args[0] for call in handle.write.call_args_list)
-            saved = json.loads(written_data)
+        categories = get_categories()
+        updated_cat = next(c for c in categories if c["id"] == 1)
+        assert updated_cat["name"] == "puppy"
 
-            updated_cat = next(c for c in saved["categories"] if c["id"] == 1)
-            assert updated_cat["name"] == "puppy"
-
-    def test_update_category_supercategory(self, mock_dataset_path, mock_dataset_file):
+    def test_update_category_supercategory(self, loaded_dataset):
         """Test updating supercategory."""
-        with patch("builtins.open", mock_open(read_data=json.dumps(MOCK_DATASET))) as m:
-            update_category(1, "dog", "pet")
+        update_category(1, "dog", "pet")
 
-            handle = m()
-            written_data = "".join(call.args[0] for call in handle.write.call_args_list)
-            saved = json.loads(written_data)
+        categories = get_categories()
+        updated_cat = next(c for c in categories if c["id"] == 1)
+        assert updated_cat["supercategory"] == "pet"
 
-            updated_cat = next(c for c in saved["categories"] if c["id"] == 1)
-            assert updated_cat["supercategory"] == "pet"
-
-    def test_update_nonexistent_category(self, mock_dataset_path, mock_dataset_file):
+    def test_update_nonexistent_category(self, loaded_dataset):
         """Test updating non-existent category silently succeeds."""
-        with patch("builtins.open", mock_open(read_data=json.dumps(MOCK_DATASET))):
-            update_category(999, "ghost", "none")
+        # Should not raise, just does nothing
+        update_category(999, "ghost", "none")
 
 
 class TestDeleteCategory:
-    def test_delete_category_in_use(self, mock_dataset_path, mock_dataset_file):
+    def test_delete_category_in_use(self, loaded_dataset):
         """Test deleting a category that is in use."""
         with pytest.raises(CategoryInUseError):
             delete_category(1)
 
-    def test_delete_category_success(self, mock_dataset_path, mock_dataset_file):
+    def test_delete_category_success(self, loaded_dataset):
         """Test successfully deleting an unused category."""
-        with patch("builtins.open", mock_open(read_data=json.dumps(MOCK_DATASET))) as m:
-            delete_category(3)
-            assert m.call_count >= 2
+        # Category 3 (bird) has no annotations
+        delete_category(3)
+
+        categories = get_categories()
+        assert len(categories) == 2
+        assert not any(c["id"] == 3 for c in categories)
 
 
 class TestGetAnnotationsByImage:
-    def test_get_annotations_for_image_with_annotations(self):
+    def test_get_annotations_for_image_with_annotations(self, loaded_dataset):
         """Test getting annotations for an image that has annotations."""
-        with patch("builtins.open", mock_open(read_data=json.dumps(MOCK_DATASET))):
-            annotations = get_annotations_by_image(1)
-            assert len(annotations) == 2
-            assert all(ann["image_id"] == 1 for ann in annotations)
-            assert annotations[0]["id"] == 1
-            assert annotations[1]["id"] == 2
+        annotations = get_annotations_by_image(1)
+        assert len(annotations) == 2
+        assert all(ann["image_id"] == 1 for ann in annotations)
+        assert annotations[0]["id"] == 1
+        assert annotations[1]["id"] == 2
 
-    def test_get_annotations_for_image_without_annotations(self):
+    def test_get_annotations_for_image_without_annotations(self, loaded_dataset):
         """Test getting annotations for an image that has no annotations."""
-        with patch("builtins.open", mock_open(read_data=json.dumps(MOCK_DATASET))):
-            # Image 2 exists but has no annotations in MOCK_DATASET
-            annotations = get_annotations_by_image(2)
-            assert len(annotations) == 0
-            assert annotations == []
+        # Image 2 exists but has no annotations in MOCK_DATASET
+        annotations = get_annotations_by_image(2)
+        assert len(annotations) == 0
+        assert annotations == []
 
-    def test_get_annotations_for_nonexistent_image(self):
+    def test_get_annotations_for_nonexistent_image(self, loaded_dataset):
         """Test getting annotations for an image that doesn't exist."""
-        with patch("builtins.open", mock_open(read_data=json.dumps(MOCK_DATASET))):
-            annotations = get_annotations_by_image(999)
-            assert len(annotations) == 0
-            assert annotations == []
+        annotations = get_annotations_by_image(999)
+        assert len(annotations) == 0
+        assert annotations == []
 
 
 class TestAddAnnotation:
-    def test_add_annotation_single_polygon(self, mock_dataset_path, mock_dataset_file):
+    def test_add_annotation_single_polygon(self, loaded_dataset):
         """Test adding annotation with single polygon."""
-        with patch("builtins.open", mock_open(read_data=json.dumps(MOCK_DATASET))):
-            with patch("cv2.contourArea", return_value=150.0):
-                segmentation = [[10, 10, 20, 10, 20, 20, 10, 20]]
-                annotation = add_annotation(1, 1, segmentation)
+        with patch("cv2.contourArea", return_value=150.0):
+            segmentation = [[10.0, 10.0, 20.0, 10.0, 20.0, 20.0, 10.0, 20.0]]
+            annotation = add_annotation(1, 1, segmentation)
 
-                assert annotation["id"] == 4
-                assert annotation["image_id"] == 1
-                assert annotation["category_id"] == 1
-                assert annotation["segmentation"] == segmentation
-                assert annotation["iscrowd"] == 0
-                assert annotation["bbox"] == [10, 10, 10, 10]
-                assert annotation["area"] == 150.0
+            assert annotation["id"] == 4  # Max existing is 3
+            assert annotation["image_id"] == 1
+            assert annotation["category_id"] == 1
+            assert annotation["segmentation"] == segmentation
+            assert annotation["iscrowd"] == 0
+            assert annotation["bbox"] == [10.0, 10.0, 10.0, 10.0]
+            assert annotation["area"] == 150.0
 
-    def test_add_annotation_multiple_polygons(
-        self, mock_dataset_path, mock_dataset_file
-    ):
+    def test_add_annotation_multiple_polygons(self, loaded_dataset):
         """Test adding annotation with multiple polygons."""
-        with patch("builtins.open", mock_open(read_data=json.dumps(MOCK_DATASET))):
-            with patch("cv2.contourArea", return_value=100.0):
-                segmentation = [
-                    [10, 10, 20, 10, 20, 20, 10, 20],
-                    [30, 30, 40, 30, 40, 40, 30, 40],
-                ]
-                annotation = add_annotation(1, 1, segmentation)
+        with patch("cv2.contourArea", return_value=100.0):
+            segmentation = [
+                [10.0, 10.0, 20.0, 10.0, 20.0, 20.0, 10.0, 20.0],
+                [30.0, 30.0, 40.0, 30.0, 40.0, 40.0, 30.0, 40.0],
+            ]
+            annotation = add_annotation(1, 1, segmentation)
 
-                assert len(annotation["segmentation"]) == 2
-                assert annotation["bbox"] == [10, 10, 30, 30]
+            assert len(annotation["segmentation"]) == 2
+            assert annotation["bbox"] == [10.0, 10.0, 30.0, 30.0]
 
-    def test_add_annotation_empty_list(self, mock_dataset_path):
+    def test_add_annotation_empty_list(self, tmp_path):
         """Test adding first annotation."""
         dataset_no_annot = {**MOCK_DATASET, "annotations": []}
-        with patch("builtins.open", mock_open(read_data=json.dumps(dataset_no_annot))):
+        json_path = tmp_path / "dataset.json"
+        json_path.write_text(json.dumps(dataset_no_annot))
+        dataset_manager.load(json_path)
+
+        try:
             with patch("cv2.contourArea", return_value=100.0):
-                annotation = add_annotation(1, 1, [[10, 10, 20, 20]])
+                annotation = add_annotation(1, 1, [[10.0, 10.0, 20.0, 20.0]])
                 assert annotation["id"] == 1
+        finally:
+            dataset_manager._cancel_timer()
+            dataset_manager._data = None
+            dataset_manager._local_path = None
+            dataset_manager._changes.reset()
 
 
 class TestUpdateAnnotation:
-    def test_update_annotation_category(self, mock_dataset_path, mock_dataset_file):
+    def test_update_annotation_category(self, loaded_dataset):
         """Test updating annotation category."""
-        with patch("builtins.open", mock_open(read_data=json.dumps(MOCK_DATASET))):
-            annotation = update_annotation(1, 2)
+        annotation = update_annotation(1, 2)
 
-            assert annotation["category_id"] == 2
-            assert annotation["id"] == 1
+        assert annotation["category_id"] == 2
+        assert annotation["id"] == 1
 
-    def test_update_annotation_not_found(self, mock_dataset_path, mock_dataset_file):
+    def test_update_annotation_not_found(self, loaded_dataset):
         """Test AnnotationNotFoundError when annotation doesn't exist."""
         with pytest.raises(AnnotationNotFoundError):
             update_annotation(999, 1)
 
-    def test_update_annotation_preserves_fields(
-        self, mock_dataset_path, mock_dataset_file
-    ):
+    def test_update_annotation_preserves_fields(self, loaded_dataset):
         """Test other fields are preserved."""
-        with patch("builtins.open", mock_open(read_data=json.dumps(MOCK_DATASET))):
-            annotation = update_annotation(1, 2)
+        annotation = update_annotation(1, 2)
 
-            assert annotation["segmentation"] == [[10, 10, 20, 20, 30, 10]]
-            assert annotation["bbox"] == [10, 10, 20, 10]
+        assert annotation["segmentation"] == [[10, 10, 20, 20, 30, 10]]
+        assert annotation["bbox"] == [10, 10, 20, 10]
 
 
 class TestDeleteAnnotation:
-    def test_delete_annotation_exists(self, mock_dataset_path, mock_dataset_file):
+    def test_delete_annotation_exists(self, loaded_dataset):
         """Test deleting existing annotation."""
-        with patch("builtins.open", mock_open(read_data=json.dumps(MOCK_DATASET))) as m:
-            delete_annotation(1)
+        delete_annotation(1)
 
-            handle = m()
-            written_data = "".join(call.args[0] for call in handle.write.call_args_list)
-            saved = json.loads(written_data)
+        annotations = get_annotations_by_image(1)
+        assert len(annotations) == 1
+        assert not any(a["id"] == 1 for a in annotations)
 
-            assert len(saved["annotations"]) == 2
-            assert not any(a["id"] == 1 for a in saved["annotations"])
-
-    def test_delete_annotation_nonexistent(self, mock_dataset_path, mock_dataset_file):
+    def test_delete_annotation_nonexistent(self, loaded_dataset):
         """Test deleting non-existent annotation succeeds silently."""
-        with patch("builtins.open", mock_open(read_data=json.dumps(MOCK_DATASET))):
-            delete_annotation(999)
+        delete_annotation(999)
+        # Should not raise
 
 
 class TestDeleteImage:
-    def test_delete_image_with_annotations(self, mock_dataset_path, mock_dataset_file):
+    def test_delete_image_with_annotations(self, loaded_dataset):
         """Test deleting image cascades to annotations."""
-        with patch("builtins.open", mock_open(read_data=json.dumps(MOCK_DATASET))) as m:
-            with patch("coco_label_tool.app.dataset.DATASET_URI", "/tmp/dataset.json"):
-                with patch("pathlib.Path.exists", return_value=True):
-                    with patch("pathlib.Path.unlink") as mock_unlink:
-                        delete_image(1)
+        with patch("coco_label_tool.app.dataset.DATASET_URI", "/tmp/dataset.json"):
+            with patch("pathlib.Path.exists", return_value=True):
+                with patch("pathlib.Path.unlink") as mock_unlink:
+                    delete_image(1)
 
-                        mock_unlink.assert_called_once()
+                    mock_unlink.assert_called_once()
 
-                        handle = m()
-                        written_data = "".join(
-                            call.args[0] for call in handle.write.call_args_list
-                        )
-                        saved = json.loads(written_data)
+                    # Verify image removed
+                    images = dataset_manager.get_images()
+                    assert len(images) == 2
+                    assert not any(img["id"] == 1 for img in images)
 
-                        assert len(saved["images"]) == 2
-                        assert not any(img["id"] == 1 for img in saved["images"])
-                        assert not any(
-                            ann["image_id"] == 1 for ann in saved["annotations"]
-                        )
+                    # Verify annotations removed
+                    annotations = get_annotations_by_image(1)
+                    assert len(annotations) == 0
 
-    def test_delete_image_not_found(self, mock_dataset_path, mock_dataset_file):
+    def test_delete_image_not_found(self, loaded_dataset):
         """Test ImageNotFoundError when image doesn't exist."""
         with pytest.raises(ImageNotFoundError):
             delete_image(999)
 
-    def test_delete_image_file_not_exists(self, mock_dataset_path, mock_dataset_file):
+    def test_delete_image_file_not_exists(self, loaded_dataset):
         """Test file deletion when file doesn't exist."""
-        with patch("builtins.open", mock_open(read_data=json.dumps(MOCK_DATASET))):
-            with patch("coco_label_tool.app.dataset.DATASET_URI", "/tmp/dataset.json"):
-                with patch("pathlib.Path.exists", return_value=False):
-                    with patch("pathlib.Path.unlink") as mock_unlink:
-                        delete_image(1)
+        with patch("coco_label_tool.app.dataset.DATASET_URI", "/tmp/dataset.json"):
+            with patch("pathlib.Path.exists", return_value=False):
+                with patch("pathlib.Path.unlink") as mock_unlink:
+                    delete_image(1)
 
-                        mock_unlink.assert_not_called()
+                    mock_unlink.assert_not_called()
 
-    def test_delete_image_no_annotations(self, mock_dataset_path):
+    def test_delete_image_no_annotations(self, tmp_path):
         """Test deleting image without annotations."""
-        dataset_no_annot = {
+        dataset_no_annot_for_2 = {
             **MOCK_DATASET,
             "annotations": [
                 a for a in MOCK_DATASET["annotations"] if a["image_id"] != 2
             ],
         }
-        with patch("builtins.open", mock_open(read_data=json.dumps(dataset_no_annot))):
+        json_path = tmp_path / "dataset.json"
+        json_path.write_text(json.dumps(dataset_no_annot_for_2))
+        dataset_manager.load(json_path)
+
+        try:
             with patch("coco_label_tool.app.dataset.DATASET_URI", "/tmp/dataset.json"):
                 with patch("pathlib.Path.exists", return_value=False):
                     delete_image(2)
+
+                    images = dataset_manager.get_images()
+                    assert not any(img["id"] == 2 for img in images)
+        finally:
+            dataset_manager._cancel_timer()
+            dataset_manager._data = None
+            dataset_manager._local_path = None
+            dataset_manager._changes.reset()
 
 
 class TestResolveImagePath:
     def test_resolve_relative_path(self):
         """Test resolving relative path."""
-        from coco_label_tool.app.dataset import resolve_image_path
-
         # resolve_image_path now uses DATASET_URI, not DATASET_DIR
         with patch(
             "coco_label_tool.app.dataset.DATASET_URI", "/dataset/dir/dataset.json"
@@ -411,15 +425,12 @@ class TestResolveImagePath:
 
     def test_resolve_absolute_path(self):
         """Test resolving absolute path."""
-        from coco_label_tool.app.dataset import resolve_image_path
-
         result = resolve_image_path("/absolute/path/test.jpg")
         # Now returns string, not Path
         assert result == "/absolute/path/test.jpg"
 
     def test_resolve_home_path(self):
         """Test resolving home directory path."""
-        from coco_label_tool.app.dataset import resolve_image_path
         import os
 
         result = resolve_image_path("~/test.jpg")

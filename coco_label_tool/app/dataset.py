@@ -1,6 +1,10 @@
-"""Dataset operations for COCO format JSON."""
+"""Dataset operations for COCO format JSON.
 
-import json
+This module provides the public API for dataset operations. All data access
+and mutations are delegated to the DatasetManager singleton, which keeps
+the dataset in memory and handles periodic auto-save to disk.
+"""
+
 from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple
 
@@ -8,6 +12,7 @@ import cv2
 import numpy as np
 
 from .config import DATASET_IS_S3, DATASET_JSON, DATASET_URI
+from .dataset_manager import dataset_manager
 from .exceptions import AnnotationNotFoundError, CategoryInUseError, ImageNotFoundError
 from .s3_state import s3_state
 from .uri_utils import (
@@ -18,11 +23,19 @@ from .uri_utils import (
 )
 
 
-def _get_local_json_path() -> Path:
+# =============================================================================
+# Initialization Functions (called at startup)
+# =============================================================================
+
+
+def get_local_json_path() -> Path:
     """Get the path to the local JSON file (original or cached).
 
     For local datasets, returns DATASET_JSON.
-    For S3 datasets, returns the cached local path from s3_state.
+    For S3 datasets, downloads and caches the file, then returns the cache path.
+
+    This function should be called at startup to get the path for loading
+    into the DatasetManager.
     """
     if DATASET_IS_S3:
         local_path = s3_state.get_local_path()
@@ -41,24 +54,6 @@ def _initialize_s3_dataset() -> None:
     s3_state.set_local_path(local_path)
 
 
-def _load_dataset() -> Dict[str, Any]:
-    """Load dataset from local file or S3 cache."""
-    local_path = _get_local_json_path()
-    with open(local_path, "r") as f:
-        return json.load(f)
-
-
-def _save_dataset(data: Dict[str, Any]) -> None:
-    """Save dataset to local file and mark dirty if S3."""
-    local_path = _get_local_json_path()
-    with open(local_path, "w") as f:
-        json.dump(data, f, indent=2)
-
-    # Mark as dirty if S3 dataset (has unsaved remote changes)
-    if DATASET_IS_S3:
-        s3_state.mark_dirty()
-
-
 def resolve_image_path(file_name: str) -> str:
     """Resolve image path from file_name.
 
@@ -68,14 +63,18 @@ def resolve_image_path(file_name: str) -> str:
     return resolve_image_uri(file_name, DATASET_URI)
 
 
+# =============================================================================
+# Read Operations (delegate to DatasetManager)
+# =============================================================================
+
+
 def load_full_metadata() -> Dict:
     """Load dataset metadata without loading all images."""
-    data = _load_dataset()
     return {
-        "info": data.get("info", {}),
-        "licenses": data.get("licenses", []),
-        "categories": data.get("categories", []),
-        "total_images": len(data.get("images", [])),
+        "info": dataset_manager.get_info(),
+        "licenses": dataset_manager.get_licenses(),
+        "categories": dataset_manager.get_categories(),
+        "total_images": len(dataset_manager.get_images()),
     }
 
 
@@ -83,9 +82,8 @@ def load_images_range(
     start: int, end: int
 ) -> Tuple[List[Dict], Dict[int, Dict], Dict[int, List], Set[int]]:
     """Load a range of images and their annotations."""
-    data = _load_dataset()
-    images = data.get("images", [])
-    annotations = data.get("annotations", [])
+    images = dataset_manager.get_images()
+    annotations = dataset_manager.get_annotations()
 
     selected_images = []
     for i in range(start, end):
@@ -113,81 +111,75 @@ def load_images_range(
 
 def get_categories() -> List[Dict]:
     """Get all categories."""
-    data = _load_dataset()
-    return data.get("categories", [])
+    return dataset_manager.get_categories()
+
+
+def get_annotations_by_image(image_id: int) -> List[Dict]:
+    """Get all annotations for a specific image."""
+    annotations = dataset_manager.get_annotations()
+    return [ann for ann in annotations if ann["image_id"] == image_id]
+
+
+# =============================================================================
+# Write Operations (delegate to DatasetManager)
+# =============================================================================
 
 
 def save_dataset(images: List[Dict], annotations: List[Dict]) -> None:
-    """Save dataset to JSON file."""
-    data = _load_dataset()
-    data["images"] = images
-    data["annotations"] = annotations
-    _save_dataset(data)
+    """Save dataset to JSON file (bulk replacement).
+
+    This is a bulk operation that replaces all images and annotations,
+    then forces an immediate write to disk.
+    """
+    dataset_manager.set_images(images)
+    dataset_manager.set_annotations(annotations)
+    # Force immediate save for bulk operations (mark dirty first since
+    # set_images/set_annotations don't track changes)
+    dataset_manager._changes.annotations_updated = 1  # Force dirty flag
+    dataset_manager.flush()
 
 
 def add_category(name: str, supercategory: str) -> Dict:
     """Add a new category."""
-    data = _load_dataset()
-
-    categories = data.get("categories", [])
-    new_id = max([cat["id"] for cat in categories], default=0) + 1
-
+    new_id = dataset_manager.get_next_category_id()
     new_category = {"id": new_id, "name": name, "supercategory": supercategory}
-
-    categories.append(new_category)
-    data["categories"] = categories
-
-    _save_dataset(data)
+    dataset_manager.add_category(new_category)
     return new_category
 
 
 def update_category(category_id: int, name: str, supercategory: str) -> None:
     """Update an existing category."""
-    data = _load_dataset()
-
-    categories = data.get("categories", [])
-    for cat in categories:
-        if cat["id"] == category_id:
-            cat["name"] = name
-            cat["supercategory"] = supercategory
-            break
-
-    data["categories"] = categories
-    _save_dataset(data)
+    dataset_manager.update_category(
+        category_id, {"name": name, "supercategory": supercategory}
+    )
 
 
 def delete_category(category_id: int) -> None:
-    """Delete a category."""
-    data = _load_dataset()
+    """Delete a category.
 
-    annotations = data.get("annotations", [])
+    Raises:
+        CategoryInUseError: If the category is used by any annotation
+    """
+    # Check if category is in use
+    annotations = dataset_manager.get_annotations()
     if any(ann["category_id"] == category_id for ann in annotations):
         raise CategoryInUseError(
             "Cannot delete category: it is used by one or more annotations"
         )
 
-    categories = [cat for cat in data.get("categories", []) if cat["id"] != category_id]
-    data["categories"] = categories
-
-    _save_dataset(data)
-
-
-def get_annotations_by_image(image_id: int) -> List[Dict]:
-    """Get all annotations for a specific image."""
-    data = _load_dataset()
-    annotations = data.get("annotations", [])
-    return [ann for ann in annotations if ann["image_id"] == image_id]
+    dataset_manager.delete_category(category_id)
 
 
 def add_annotation(
     image_id: int, category_id: int, segmentation: List[List[float]]
 ) -> Dict:
-    """Add a new annotation."""
-    data = _load_dataset()
+    """Add a new annotation.
 
-    annotations = data.get("annotations", [])
-    new_id = max([ann["id"] for ann in annotations], default=0) + 1
+    Calculates bbox and area from the segmentation polygons.
+    """
+    new_id = dataset_manager.get_next_annotation_id()
 
+    # Calculate bounding box from segmentation
     x_coords = []
     y_coords = []
     for polygon in segmentation:
@@ -199,6 +191,7 @@ def add_annotation(
     y_min, y_max = min(y_coords), max(y_coords)
     bbox = [x_min, y_min, x_max - x_min, y_max - y_min]
 
+    # Calculate area using OpenCV
     area = float(
         np.sum(
             [
@@ -226,49 +219,41 @@ def add_annotation(
         "iscrowd": 0,
     }
 
-    annotations.append(new_annotation)
-    data["annotations"] = annotations
-
-    _save_dataset(data)
+    dataset_manager.add_annotation(new_annotation)
     return new_annotation
 
 
 def update_annotation(annotation_id: int, category_id: int) -> Dict:
-    """Update an annotation's category."""
-    data = _load_dataset()
+    """Update an annotation's category.
 
-    annotation = None
-    for ann in data.get("annotations", []):
-        if ann["id"] == annotation_id:
-            ann["category_id"] = category_id
-            annotation = ann
-            break
-
-    if not annotation:
+    Raises:
+        AnnotationNotFoundError: If the annotation doesn't exist
+    """
+    result = dataset_manager.update_annotation(
+        annotation_id, {"category_id": category_id}
+    )
+    if result is None:
         raise AnnotationNotFoundError("Annotation not found")
-
-    _save_dataset(data)
-    return annotation
+    return result
 
 
 def delete_annotation(annotation_id: int) -> None:
     """Delete an annotation."""
-    data = _load_dataset()
-
-    annotations = [
-        ann for ann in data.get("annotations", []) if ann["id"] != annotation_id
-    ]
-    data["annotations"] = annotations
-
-    _save_dataset(data)
+    dataset_manager.delete_annotation(annotation_id)
 
 
 def delete_image(image_id: int) -> None:
-    """Delete an image and its annotations."""
-    data = _load_dataset()
+    """Delete an image and its annotations.
 
+    For local datasets, also deletes the image file from disk.
+
+    Raises:
+        ImageNotFoundError: If the image doesn't exist
+    """
+    # Find the image first to get file_name for deletion
+    images = dataset_manager.get_images()
     image_to_delete = None
-    for img in data["images"]:
+    for img in images:
         if img["id"] == image_id:
             image_to_delete = img
             break
@@ -282,19 +267,19 @@ def delete_image(image_id: int) -> None:
         if image_path.exists():
             image_path.unlink()
 
-    data["images"] = [img for img in data["images"] if img["id"] != image_id]
-    data["annotations"] = [
-        ann for ann in data.get("annotations", []) if ann["image_id"] != image_id
-    ]
-
-    _save_dataset(data)
+    # Delete from dataset (also removes associated annotations)
+    dataset_manager.delete_image(image_id)
 
 
+# =============================================================================
 # S3-specific functions
+# =============================================================================
 
 
 def save_dataset_to_s3() -> Dict[str, Any]:
     """Upload local cached JSON back to S3.
+
+    Flushes any pending changes to disk first, then uploads to S3.
 
     Returns:
         Upload status with ETag
@@ -305,6 +290,9 @@ def save_dataset_to_s3() -> Dict[str, Any]:
     """
     if not DATASET_IS_S3:
         raise ValueError("Cannot save to S3: dataset is not from S3")
+
+    # Flush local changes to disk first
+    dataset_manager.flush()
 
     local_path = s3_state.get_local_path()
     if local_path is None:

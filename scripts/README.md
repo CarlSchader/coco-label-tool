@@ -106,7 +106,6 @@ Run the FastAPI server.
 ./scripts/run-server.sh /path/to/dataset
 ```
 
-
 ---
 
 ## Workflow Recommendations

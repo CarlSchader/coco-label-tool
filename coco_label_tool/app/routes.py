@@ -14,6 +14,7 @@ from fastapi.templating import Jinja2Templates
 
 from . import create_app, dataset
 from .cache import ImageCache
+from .dataset_manager import dataset_manager
 from .config import (
     CACHE_HEAD,
     CACHE_SIZE,
@@ -58,11 +59,15 @@ total_images = 0
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize cache on application startup."""
+    """Initialize dataset manager and cache on application startup."""
     global total_images
 
     # Clear any existing cache (important for reload scenarios)
     cache.clear()
+
+    # Load dataset into memory manager
+    local_path = dataset.get_local_json_path()
+    dataset_manager.load(local_path)
 
     # Load dataset metadata and populate cache
     metadata = dataset.load_full_metadata()
@@ -95,9 +100,11 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Clean up cache on application shutdown."""
+    """Save pending changes and clean up on application shutdown."""
+    # Save any pending changes to disk
+    dataset_manager.shutdown()
     cache.clear()
-    print("✅ Cache cleared on shutdown")
+    print("✅ Dataset saved and cache cleared on shutdown")
 
 
 @app.middleware("http")
