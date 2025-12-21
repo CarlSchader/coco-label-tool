@@ -1413,10 +1413,30 @@ document.addEventListener("keydown", (e) => {
       toggleAnnotationsVisibility();
     }
     if (e.key === "Enter") {
-      const saveBtn = document.getElementById("save-btn");
-      if (!saveBtn.disabled && currentSegmentation && selectedCategoryId) {
-        e.preventDefault();
-        saveAnnotation();
+      // Check if focus is on an input/textarea that should handle Enter normally
+      const activeEl = document.activeElement;
+      const isTextInputFocused =
+        activeEl &&
+        (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA");
+
+      if (!isTextInputFocused) {
+        // Blur any focused select element (dropdown) so it doesn't capture Enter
+        if (activeEl && activeEl.tagName === "SELECT") {
+          activeEl.blur();
+        }
+
+        const saveBtn = document.getElementById("save-btn");
+        if (!saveBtn.disabled && currentSegmentation) {
+          e.preventDefault();
+          saveAnnotation();
+        }
+      }
+    }
+    if (e.key === "m" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      const mergeBtn = document.getElementById("btn-merge-masks");
+      if (mergeBtn && !mergeBtn.disabled) {
+        mergeMasks();
       }
     }
     if (e.key === "t" || e.key === "T") {
