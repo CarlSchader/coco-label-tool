@@ -106,17 +106,6 @@ Run the FastAPI server.
 ./scripts/run-server.sh /path/to/dataset
 ```
 
----
-
-#### `./scripts/run-server-intel-mac.sh`
-
-Run the FastAPI server on Intel Macs (MPS device support).
-
-**Usage:**
-
-```bash
-./scripts/run-server-intel-mac.sh /path/to/dataset
-```
 
 ---
 
