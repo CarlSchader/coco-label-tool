@@ -4,4 +4,5 @@ flake-utils.lib.meld inputs [
   ./packages.nix
   ./transformers.nix
   ./common.nix
+  ./uv2nix.nix
 ]

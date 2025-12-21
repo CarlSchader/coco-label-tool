@@ -1,15 +1,23 @@
-{ self, nixpkgs, flake-utils, ...}:
-flake-utils.lib.eachDefaultSystem  (system:
-let
-  pkgs = import nixpkgs {
-    inherit system;
-  };
-
-  libs-path = pkgs.lib.makeLibraryPath (self.common.${system}.libs ++ [ pkgs.addDriverRunpath.driverLink ] );
-  core-packages = self.common.${system}.core-packages;
-in
 {
-  devShells.default = pkgs.mkShell {
+  self,
+  nixpkgs,
+  flake-utils,
+  ...
+}:
+flake-utils.lib.eachDefaultSystem (
+  system:
+  let
+    pkgs = import nixpkgs {
+      inherit system;
+    };
+
+    libs-path = pkgs.lib.makeLibraryPath (
+      self.common.${system}.libs ++ [ pkgs.addDriverRunpath.driverLink ]
+    );
+    core-packages = self.common.${system}.core-packages;
+  in
+  {
+    devShells.default = pkgs.mkShell {
       buildInputs = core-packages;
 
       shellHook = ''
@@ -25,5 +33,6 @@ in
 
         uv pip install -e .
       '';
-  };
-})
+    };
+  }
+)

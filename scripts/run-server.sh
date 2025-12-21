@@ -12,4 +12,4 @@ echo "COCO JSON file: $DATASET_PATH"
 echo "Server will be available at http://localhost:8000"
 echo ""
 
-python server.py
+python server.py $DATASET_PATH
