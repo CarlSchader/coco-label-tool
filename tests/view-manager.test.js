@@ -57,9 +57,9 @@ describe("parseUrlParams", () => {
 });
 
 describe("getCurrentView", () => {
-  test("returns EDITOR when no view param", () => {
+  test("returns GALLERY when no view param (default)", () => {
     const view = getCurrentView({});
-    expect(view).toBe(ViewType.EDITOR);
+    expect(view).toBe(ViewType.GALLERY);
   });
 
   test("returns EDITOR when view=editor", () => {
@@ -72,14 +72,14 @@ describe("getCurrentView", () => {
     expect(view).toBe(ViewType.GALLERY);
   });
 
-  test("returns EDITOR for unknown view value", () => {
+  test("returns GALLERY for unknown view value (default)", () => {
     const view = getCurrentView({ view: "unknown" });
-    expect(view).toBe(ViewType.EDITOR);
+    expect(view).toBe(ViewType.GALLERY);
   });
 
-  test("returns EDITOR for empty view value", () => {
+  test("returns GALLERY for empty view value (default)", () => {
     const view = getCurrentView({ view: "" });
-    expect(view).toBe(ViewType.EDITOR);
+    expect(view).toBe(ViewType.GALLERY);
   });
 });
 

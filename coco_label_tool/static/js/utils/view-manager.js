@@ -46,10 +46,11 @@ export function parseUrlParams(search) {
  */
 export function getCurrentView(params) {
   const view = params.view;
-  if (view === ViewType.GALLERY) {
-    return ViewType.GALLERY;
+  if (view === ViewType.EDITOR) {
+    return ViewType.EDITOR;
   }
-  return ViewType.EDITOR;
+  // Default to gallery view when no view param is set
+  return ViewType.GALLERY;
 }
 
 /**
