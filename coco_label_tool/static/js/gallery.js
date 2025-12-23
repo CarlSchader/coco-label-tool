@@ -132,6 +132,8 @@ export function createGalleryItemHtml(imageData) {
   const itemClass = isUnannotated ? "gallery-item unannotated" : "gallery-item";
   const escapedFilename = escapeHtml(file_name);
 
+  // Note: onload/onerror handlers are attached programmatically in renderGalleryItems
+  // because inline handlers don't work when HTML is inserted via innerHTML
   return `
     <div class="${itemClass}" data-index="${index}" data-image-id="${id}">
       <div class="gallery-thumbnail-container">
@@ -141,8 +143,6 @@ export function createGalleryItemHtml(imageData) {
           src="/api/thumbnail/${id}?size=64" 
           alt="${escapedFilename}"
           loading="lazy"
-          onload="this.style.display='block'; this.previousElementSibling.style.display='none';"
-          onerror="this.previousElementSibling.textContent='!'; this.previousElementSibling.classList.add('error');"
         >
       </div>
       <div class="gallery-item-info">
@@ -191,6 +191,21 @@ function renderGalleryItems(images, append = false) {
     item.addEventListener("click", () => {
       handleImageClick(imageData.index);
     });
+
+    // Attach image load/error handlers programmatically
+    // (inline handlers don't work when HTML is inserted via innerHTML)
+    const img = item.querySelector(".gallery-thumbnail");
+    const spinner = item.querySelector(".gallery-thumbnail-spinner");
+    if (img && spinner) {
+      img.addEventListener("load", () => {
+        img.style.display = "block";
+        spinner.style.display = "none";
+      });
+      img.addEventListener("error", () => {
+        spinner.textContent = "!";
+        spinner.classList.add("error");
+      });
+    }
 
     fragment.appendChild(item);
   }
