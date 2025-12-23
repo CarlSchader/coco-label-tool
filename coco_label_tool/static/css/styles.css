@@ -789,26 +789,28 @@ p {
   gap: var(--spacing-md);
 }
 
-.nav-link {
-  padding: var(--spacing-sm) var(--spacing-md);
-  color: var(--text-secondary);
-  text-decoration: none;
+.nav-btn {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  color: var(--text-primary);
+  background: transparent;
+  border: 2px solid var(--border-accent);
   border-radius: var(--radius-sm);
+  cursor: pointer;
   transition: all 0.15s ease;
   font-family: var(--font-family);
   font-size: var(--font-size-base);
-  border: 1px solid transparent;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.nav-link:hover {
-  color: var(--text-primary);
-  background: var(--btn-secondary-hover);
-}
-
-.nav-link.active {
-  color: var(--text-primary);
+.nav-btn:hover {
   background: rgba(72, 209, 204, 0.15);
-  border: 1px solid var(--border-accent);
+  box-shadow: 0 0 10px rgba(72, 209, 204, 0.3);
+}
+
+.nav-btn:active {
+  background: rgba(72, 209, 204, 0.25);
 }
 
 /* ========================================

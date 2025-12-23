@@ -314,8 +314,10 @@ async function handleViewChange(view, params = {}) {
     // Switch to Gallery View
     if (editorView) editorView.style.display = "none";
     if (galleryView) galleryView.style.display = "block";
-    if (navEditor) navEditor.classList.remove("active");
-    if (navGallery) navGallery.classList.add("active");
+
+    // Show "Back to Editor" button, hide "Browse Gallery" button
+    if (navEditor) navEditor.style.display = "inline-block";
+    if (navGallery) navGallery.style.display = "none";
 
     // Initialize gallery
     resetGalleryState();
@@ -325,8 +327,10 @@ async function handleViewChange(view, params = {}) {
     // Switch to Editor View
     if (galleryView) galleryView.style.display = "none";
     if (editorView) editorView.style.display = "block";
-    if (navGallery) navGallery.classList.remove("active");
-    if (navEditor) navEditor.classList.add("active");
+
+    // Show "Browse Gallery" button, hide "Back to Editor" button
+    if (navGallery) navGallery.style.display = "inline-block";
+    if (navEditor) navEditor.style.display = "none";
 
     // Cleanup gallery if it was initialized
     if (galleryInitialized) {
@@ -3617,9 +3621,8 @@ if (indexInput) {
 }
 
 function setupEventListeners() {
-  // Navigation links - use view manager for client-side navigation
-  document.getElementById("nav-editor")?.addEventListener("click", (e) => {
-    e.preventDefault();
+  // Navigation buttons - use view manager for client-side navigation
+  document.getElementById("nav-editor")?.addEventListener("click", () => {
     handleViewChange(ViewType.EDITOR, { index: currentIndex });
     window.history.pushState(
       { view: ViewType.EDITOR, params: { index: currentIndex } },
@@ -3628,8 +3631,7 @@ function setupEventListeners() {
     );
   });
 
-  document.getElementById("nav-gallery")?.addEventListener("click", (e) => {
-    e.preventDefault();
+  document.getElementById("nav-gallery")?.addEventListener("click", () => {
     handleViewChange(ViewType.GALLERY, {});
     window.history.pushState(
       { view: ViewType.GALLERY, params: {} },
