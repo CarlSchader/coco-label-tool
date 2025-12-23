@@ -256,6 +256,22 @@ function handleImageClick(imageIndex) {
 }
 
 /**
+ * Check if we need to load more content to fill the viewport.
+ * This handles the case where the initial page doesn't fill the screen.
+ */
+function checkNeedMoreContent() {
+  if (state.isLoading || !state.hasMore) return;
+
+  // If content doesn't fill the viewport, load more
+  const contentHeight = document.body.offsetHeight;
+  const viewportHeight = window.innerHeight;
+
+  if (contentHeight <= viewportHeight + SCROLL_THRESHOLD) {
+    loadNextPage();
+  }
+}
+
+/**
  * Load next page of images (for infinite scroll).
  */
 async function loadNextPage() {
@@ -275,6 +291,10 @@ async function loadNextPage() {
     renderGalleryItems(data.images, true);
     updateGalleryStats();
     setEmpty(state.loadedImages.length === 0);
+
+    // After rendering, check if we need to load more to fill viewport
+    // Use setTimeout to allow DOM to update
+    setTimeout(checkNeedMoreContent, 100);
   } catch (error) {
     console.error("Error loading gallery page:", error);
   } finally {
