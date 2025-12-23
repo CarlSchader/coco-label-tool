@@ -84,6 +84,7 @@ let boxModeEnabled = true;
 let clickPoints = [];
 let clickLabels = [];
 let canvas, ctx;
+let crosshairCanvas, crosshairCtx;
 let boxStart = null;
 let boxStartButton = 0; // Track which mouse button started the box drag (0=left, 2=right)
 let currentBox = null; // Legacy: kept for backward compatibility
@@ -1590,6 +1591,14 @@ function setupCanvas() {
   canvas.style.width = img.width + "px";
   canvas.style.height = img.height + "px";
 
+  // Setup crosshair canvas (separate layer with mix-blend-mode: difference)
+  crosshairCanvas = document.getElementById("crosshair-canvas");
+  crosshairCtx = crosshairCanvas.getContext("2d");
+  crosshairCanvas.width = img.width;
+  crosshairCanvas.height = img.height;
+  crosshairCanvas.style.width = img.width + "px";
+  crosshairCanvas.style.height = img.height + "px";
+
   const wrapper = document.getElementById("image-wrapper");
   wrapper.style.cursor = "crosshair";
   wrapper.oncontextmenu = (e) => {
@@ -1920,43 +1929,44 @@ function removeBox() {
 function redrawCanvas() {
   if (!canvas) return;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawCrosshairs();
   drawExistingAnnotations();
   if (currentSegmentation) {
     drawSegmentationMasks(currentSegmentation.segmentation);
   }
   drawAllPrompts();
+  drawCrosshairs();
 }
 
 function drawCrosshairs() {
-  if (!crosshairPosition || !ctx) return;
+  if (!crosshairCanvas || !crosshairCtx) return;
+
+  // Clear the crosshair canvas
+  crosshairCtx.clearRect(0, 0, crosshairCanvas.width, crosshairCanvas.height);
+
+  if (!crosshairPosition) return;
 
   const lines = getCrosshairLines(
     crosshairPosition.x,
     crosshairPosition.y,
-    canvas.width,
-    canvas.height,
+    crosshairCanvas.width,
+    crosshairCanvas.height,
   );
 
-  ctx.save();
-  ctx.strokeStyle = CROSSHAIR_DEFAULTS.strokeStyle;
-  ctx.lineWidth = CROSSHAIR_DEFAULTS.lineWidth;
-  ctx.globalAlpha = CROSSHAIR_DEFAULTS.globalAlpha;
-  ctx.setLineDash(CROSSHAIR_DEFAULTS.dashPattern);
+  crosshairCtx.strokeStyle = CROSSHAIR_DEFAULTS.strokeStyle;
+  crosshairCtx.lineWidth = CROSSHAIR_DEFAULTS.lineWidth;
+  crosshairCtx.setLineDash(CROSSHAIR_DEFAULTS.dashPattern);
 
   // Draw horizontal line
-  ctx.beginPath();
-  ctx.moveTo(lines.horizontal.x1, lines.horizontal.y1);
-  ctx.lineTo(lines.horizontal.x2, lines.horizontal.y2);
-  ctx.stroke();
+  crosshairCtx.beginPath();
+  crosshairCtx.moveTo(lines.horizontal.x1, lines.horizontal.y1);
+  crosshairCtx.lineTo(lines.horizontal.x2, lines.horizontal.y2);
+  crosshairCtx.stroke();
 
   // Draw vertical line
-  ctx.beginPath();
-  ctx.moveTo(lines.vertical.x1, lines.vertical.y1);
-  ctx.lineTo(lines.vertical.x2, lines.vertical.y2);
-  ctx.stroke();
-
-  ctx.restore();
+  crosshairCtx.beginPath();
+  crosshairCtx.moveTo(lines.vertical.x1, lines.vertical.y1);
+  crosshairCtx.lineTo(lines.vertical.x2, lines.vertical.y2);
+  crosshairCtx.stroke();
 }
 
 function handleBoxStart(e) {
@@ -2118,10 +2128,10 @@ function handleSelectionDrag(e) {
   );
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawCrosshairs();
   drawExistingAnnotations();
   drawAllPrompts();
   drawSelectionBox();
+  drawCrosshairs();
 }
 
 function handleBoxDrag(e) {
@@ -2157,7 +2167,6 @@ function handleBoxDrag(e) {
   }
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawCrosshairs();
   drawExistingAnnotations();
   drawAllPrompts();
 
@@ -2177,6 +2186,8 @@ function handleBoxDrag(e) {
     const y2 = dragBox.y2 / scaleY;
     ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
   }
+
+  drawCrosshairs();
 }
 
 function handleBoxEnd(e) {

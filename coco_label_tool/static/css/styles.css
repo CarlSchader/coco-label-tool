@@ -248,6 +248,10 @@ input[type="text"]:focus {
   top: 0;
   left: 0;
 }
+.image-container #crosshair-canvas {
+  mix-blend-mode: difference;
+  pointer-events: none;
+}
 .annotation-list {
   margin-top: var(--spacing-lg);
   padding: var(--spacing-lg);

@@ -10,13 +10,11 @@ describe("crosshair utilities", () => {
       expect(CROSSHAIR_DEFAULTS).toHaveProperty("strokeStyle");
       expect(CROSSHAIR_DEFAULTS).toHaveProperty("lineWidth");
       expect(CROSSHAIR_DEFAULTS).toHaveProperty("dashPattern");
-      expect(CROSSHAIR_DEFAULTS).toHaveProperty("globalAlpha");
     });
 
     test("has reasonable default values", () => {
       expect(CROSSHAIR_DEFAULTS.lineWidth).toBeGreaterThan(0);
-      expect(CROSSHAIR_DEFAULTS.globalAlpha).toBeGreaterThan(0);
-      expect(CROSSHAIR_DEFAULTS.globalAlpha).toBeLessThanOrEqual(1);
+      expect(CROSSHAIR_DEFAULTS.strokeStyle).toBe("#ffffff");
       expect(Array.isArray(CROSSHAIR_DEFAULTS.dashPattern)).toBe(true);
     });
   });

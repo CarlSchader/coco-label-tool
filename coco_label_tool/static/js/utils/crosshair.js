@@ -4,10 +4,9 @@
  */
 
 export const CROSSHAIR_DEFAULTS = {
-  strokeStyle: "rgba(255, 255, 255, 0.5)",
+  strokeStyle: "#ffffff",
   lineWidth: 1,
   dashPattern: [8, 8],
-  globalAlpha: 0.6,
 };
 
 /**
