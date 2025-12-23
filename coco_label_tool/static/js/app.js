@@ -66,6 +66,12 @@ import { ModeManager } from "./modes/mode-manager.js";
 import { SAM2Mode } from "./modes/sam2-mode.js";
 import { SAM3PVSImageMode } from "./modes/sam3-pvs-image-mode.js";
 import { SAM3PCSImageMode } from "./modes/sam3-pcs-image-mode.js";
+import {
+  initViewManager,
+  ViewType,
+  updateUrlParams,
+} from "./utils/view-manager.js";
+import { initGallery, cleanupGallery, resetGalleryState } from "./gallery.js";
 
 let images = [];
 let currentModelType = "sam2";
@@ -125,6 +131,10 @@ let isS3Dataset = false;
 let s3SourceUri = "";
 let s3IsDirty = false; // Track unsaved changes
 let s3UploadInProgress = false; // Prevent race conditions
+
+// View management state
+let currentView = ViewType.EDITOR;
+let galleryInitialized = false;
 
 // S3 Support functions
 function updateS3UI() {
@@ -282,6 +292,63 @@ modeRegistry.register("sam3-pcs-image", SAM3PCSImageMode, {
   description: "SAM3 Concept Search with text prompts to find ALL instances",
   modelType: "sam3-pcs",
 });
+
+// View Management Functions
+
+/**
+ * Handle view changes (called when navigating between editor and gallery)
+ * @param {string} view - ViewType.EDITOR or ViewType.GALLERY
+ * @param {Object} params - View-specific parameters
+ */
+async function handleViewChange(view, params = {}) {
+  console.log(`Switching to view: ${view}`, params);
+
+  const editorView = document.getElementById("editor-view");
+  const galleryView = document.getElementById("gallery-view");
+  const navEditor = document.getElementById("nav-editor");
+  const navGallery = document.getElementById("nav-gallery");
+
+  currentView = view;
+
+  if (view === ViewType.GALLERY) {
+    // Switch to Gallery View
+    if (editorView) editorView.style.display = "none";
+    if (galleryView) galleryView.style.display = "block";
+    if (navEditor) navEditor.classList.remove("active");
+    if (navGallery) navGallery.classList.add("active");
+
+    // Initialize gallery
+    resetGalleryState();
+    await initGallery(params);
+    galleryInitialized = true;
+  } else {
+    // Switch to Editor View
+    if (galleryView) galleryView.style.display = "none";
+    if (editorView) editorView.style.display = "block";
+    if (navGallery) navGallery.classList.remove("active");
+    if (navEditor) navEditor.classList.add("active");
+
+    // Cleanup gallery if it was initialized
+    if (galleryInitialized) {
+      cleanupGallery();
+      galleryInitialized = false;
+    }
+
+    // Navigate to specific image if index provided
+    if (params.index !== undefined) {
+      const index = parseInt(params.index, 10);
+      if (!isNaN(index) && index >= 0) {
+        // Wait for dataset to be loaded before navigating
+        if (images.length > 0) {
+          navigateToImage(index);
+        } else {
+          // Store for later when dataset loads
+          pendingNavigationIndex = index;
+        }
+      }
+    }
+  }
+}
 
 function getSupercategoryColorLocal(supercategory) {
   return getSupercategoryColor(supercategory, categories, supercategoryColors);
@@ -490,19 +557,14 @@ async function loadDataset(preserveIndex = false) {
   if (images.length > 0) {
     if (preserveIndex) {
       showImage(currentIndex % totalImages);
-    } else {
-      const urlParams = new URLSearchParams(window.location.search);
-      const urlIndex = parseInt(urlParams.get("index"));
-      const startIndex =
-        !isNaN(urlIndex) && urlIndex >= 0 && urlIndex < totalImages
-          ? urlIndex
-          : 0;
-      const hideAnnotations = urlParams.get("hideAnnotations") === "true";
-      if (hideAnnotations !== annotationsVisible) {
-        annotationsVisible = !hideAnnotations;
-        updateToggleButton();
-      }
-      showImage(startIndex);
+    } else if (pendingNavigationIndex !== null) {
+      // Navigation index was set from URL params before dataset loaded
+      const targetIndex = Math.min(pendingNavigationIndex, totalImages - 1);
+      pendingNavigationIndex = null;
+      showImage(targetIndex);
+    } else if (currentView === ViewType.EDITOR) {
+      // Default to first image in editor view
+      showImage(0);
     }
   }
 }
@@ -539,14 +601,10 @@ async function showImage(index) {
 
   currentIndex = ((index % totalImages) + totalImages) % totalImages;
 
-  const url = new URL(window.location);
-  url.searchParams.set("index", currentIndex);
-  if (!annotationsVisible) {
-    url.searchParams.set("hideAnnotations", "true");
-  } else {
-    url.searchParams.delete("hideAnnotations");
+  // Update URL params (only in editor view)
+  if (currentView === ViewType.EDITOR) {
+    updateUrlParams({ index: currentIndex });
   }
-  window.history.replaceState({}, "", url);
 
   document.getElementById("spinner").classList.add("show");
 
@@ -1357,7 +1415,7 @@ function confirmNavigation() {
 function toggleAnnotationsVisibility() {
   annotationsVisible = !annotationsVisible;
   updateToggleButton();
-  updateUrlParams();
+  updateAnnotationVisibilityUrl();
 
   if (canvas) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1377,7 +1435,7 @@ function updateToggleButton() {
   }
 }
 
-function updateUrlParams() {
+function updateAnnotationVisibilityUrl() {
   const url = new URL(window.location);
   if (!annotationsVisible) {
     url.searchParams.set("hideAnnotations", "true");
@@ -3559,6 +3617,27 @@ if (indexInput) {
 }
 
 function setupEventListeners() {
+  // Navigation links - use view manager for client-side navigation
+  document.getElementById("nav-editor")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    handleViewChange(ViewType.EDITOR, { index: currentIndex });
+    window.history.pushState(
+      { view: ViewType.EDITOR, params: { index: currentIndex } },
+      "",
+      `/?view=editor&index=${currentIndex}`,
+    );
+  });
+
+  document.getElementById("nav-gallery")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    handleViewChange(ViewType.GALLERY, {});
+    window.history.pushState(
+      { view: ViewType.GALLERY, params: {} },
+      "",
+      "/?view=gallery",
+    );
+  });
+
   document
     .getElementById("btn-previous")
     ?.addEventListener("click", previousImage);
@@ -3766,7 +3845,13 @@ function setupMobileDebugConsole() {
 setupMobileDebugConsole();
 setupEventListeners();
 
+// Initialize view manager to handle URL-based view switching
+const initialViewState = initViewManager(handleViewChange);
+
 // Initialize mode system, then load model info and dataset
-initializeModeSystem().then(() => {
-  loadDataset();
+initializeModeSystem().then(async () => {
+  await loadDataset();
+
+  // After dataset loads, switch to the correct view based on URL
+  handleViewChange(initialViewState.view, initialViewState.params);
 });

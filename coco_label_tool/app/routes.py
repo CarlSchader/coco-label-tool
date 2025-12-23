@@ -34,6 +34,9 @@ from .models import (
     DeleteAnnotationRequest,
     DeleteCategoryRequest,
     DeleteImageRequest,
+    GalleryDataRequest,
+    GalleryDataResponse,
+    GalleryImageData,
     LoadRangeRequest,
     SaveAnnotationRequest,
     SegmentRequest,
@@ -692,3 +695,106 @@ async def save_to_s3():
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save to S3: {str(e)}")
+
+
+# =============================================================================
+# Gallery View Endpoints
+# =============================================================================
+
+
+@app.get("/api/thumbnail/{image_id}")
+async def get_thumbnail(image_id: int, size: int = 64):
+    """Serve cached thumbnail for an image.
+
+    Thumbnails are generated on first request and cached to disk.
+    Subsequent requests return the cached version.
+
+    Args:
+        image_id: Image ID to get thumbnail for
+        size: Maximum dimension (default 64)
+    """
+    from .thumbnail_cache import thumbnail_cache
+
+    image_data = cache.get_image_by_id(image_id)
+    if not image_data:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    # Resolve to absolute path or URI
+    image_uri = resolve_image_path(image_data["file_name"])
+    uri_type = detect_uri_type(image_uri)
+
+    try:
+        if uri_type == "s3":
+            # For S3 images, download first then generate thumbnail
+            local_path = download_s3_image(image_uri)
+            thumb_bytes, content_type = thumbnail_cache.get_or_generate(
+                str(local_path), size
+            )
+        else:
+            # Local file
+            image_path = Path(image_uri)
+            if not image_path.exists():
+                raise HTTPException(status_code=404, detail="Image file not found")
+
+            thumb_bytes, content_type = thumbnail_cache.get_or_generate(
+                str(image_path), size
+            )
+
+        return Response(
+            content=thumb_bytes,
+            media_type=content_type,
+            headers={"Cache-Control": "public, max-age=86400"},  # Cache for 1 day
+        )
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Image file not found")
+    except Exception as e:
+        logger.error(f"Error generating thumbnail for image {image_id}: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Error generating thumbnail: {str(e)}"
+        )
+
+
+@app.post("/api/gallery-data")
+async def get_gallery_data(request: GalleryDataRequest):
+    """Get paginated gallery data with annotation counts.
+
+    Returns a page of images with their annotation type counts for the gallery view.
+    Supports filtering (all/annotated/unannotated) and sorting.
+    """
+    try:
+        page_images, total_images_count, total_filtered, has_more = (
+            dataset.get_gallery_page(
+                page=request.page,
+                page_size=request.page_size,
+                filter_type=request.filter,
+                sort_by=request.sort,
+            )
+        )
+
+        # Convert to response models
+        gallery_images = [
+            GalleryImageData(
+                id=img["id"],
+                index=img["index"],
+                file_name=img["file_name"],
+                width=img["width"],
+                height=img["height"],
+                annotation_counts=img["annotation_counts"],
+                total_annotations=img["total_annotations"],
+            )
+            for img in page_images
+        ]
+
+        return GalleryDataResponse(
+            images=gallery_images,
+            total_images=total_images_count,
+            total_filtered=total_filtered,
+            page=request.page,
+            page_size=request.page_size,
+            has_more=has_more,
+        )
+    except Exception as e:
+        logger.error(f"Error getting gallery data: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Error getting gallery data: {str(e)}"
+        )

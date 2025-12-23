@@ -318,3 +318,91 @@ def save_dataset_to_s3() -> Dict[str, Any]:
 def get_s3_dirty_status() -> bool:
     """Check if there are unsaved changes for S3 dataset."""
     return s3_state.get_dirty_status()
+
+
+# =============================================================================
+# Gallery View Functions
+# =============================================================================
+
+
+def get_gallery_page(
+    page: int,
+    page_size: int,
+    filter_type: str = "all",
+    sort_by: str = "index",
+) -> Tuple[List[Dict], int, int, bool]:
+    """Get paginated gallery data with annotation counts.
+
+    Args:
+        page: Page number (0-indexed)
+        page_size: Items per page
+        filter_type: "all" | "annotated" | "unannotated"
+        sort_by: "index" | "filename" | "annotations_asc" | "annotations_desc"
+
+    Returns:
+        Tuple of:
+        - List of image data dicts with annotation counts
+        - Total images in dataset
+        - Total images matching filter
+        - has_more flag (whether more pages exist)
+    """
+    from .annotation_types import (
+        count_annotation_types_for_image,
+        get_total_annotation_count,
+    )
+
+    images = dataset_manager.get_images()
+    annotations = dataset_manager.get_annotations()
+    total_images = len(images)
+
+    # Build annotations by image lookup
+    annotations_by_image: Dict[int, List] = {}
+    for ann in annotations:
+        img_id = ann["image_id"]
+        if img_id not in annotations_by_image:
+            annotations_by_image[img_id] = []
+        annotations_by_image[img_id].append(ann)
+
+    # Build list with index and annotation counts
+    image_data_list = []
+    for idx, img in enumerate(images):
+        img_annotations = annotations_by_image.get(img["id"], [])
+        ann_counts = count_annotation_types_for_image(img_annotations)
+        total_ann = get_total_annotation_count(ann_counts)
+
+        image_data_list.append(
+            {
+                "id": img["id"],
+                "index": idx,
+                "file_name": img.get("file_name", ""),
+                "width": img.get("width", 0),
+                "height": img.get("height", 0),
+                "annotation_counts": ann_counts,
+                "total_annotations": total_ann,
+            }
+        )
+
+    # Apply filter
+    if filter_type == "annotated":
+        image_data_list = [d for d in image_data_list if d["total_annotations"] > 0]
+    elif filter_type == "unannotated":
+        image_data_list = [d for d in image_data_list if d["total_annotations"] == 0]
+
+    total_filtered = len(image_data_list)
+
+    # Apply sort
+    if sort_by == "filename":
+        image_data_list.sort(key=lambda x: x["file_name"].lower())
+    elif sort_by == "annotations_asc":
+        image_data_list.sort(key=lambda x: x["total_annotations"])
+    elif sort_by == "annotations_desc":
+        image_data_list.sort(key=lambda x: x["total_annotations"], reverse=True)
+    # "index" is already the default order
+
+    # Apply pagination
+    start_idx = page * page_size
+    end_idx = start_idx + page_size
+    page_images = image_data_list[start_idx:end_idx]
+    has_more = end_idx < total_filtered
+
+    return page_images, total_images, total_filtered, has_more

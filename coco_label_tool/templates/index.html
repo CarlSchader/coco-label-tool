@@ -10,481 +10,544 @@
     <link rel="stylesheet" href="/static/css/styles.css" />
   </head>
   <body>
-    <h1>COCO labeling</h1>
+    <!-- Navigation Bar -->
+    <nav class="main-nav">
+      <div class="nav-brand">COCO Labeling</div>
+      <div class="nav-links">
+        <a href="/?view=editor" id="nav-editor" class="nav-link active"
+          >Editor</a
+        >
+        <a href="/?view=gallery" id="nav-gallery" class="nav-link">Gallery</a>
+      </div>
+    </nav>
 
-    <!-- S3 Info Banner (hidden by default, shown for S3 datasets) -->
-    <div id="s3-banner" class="s3-info-banner" style="display: none">
-      <div class="s3-banner-header">
-        <strong>S3 Dataset:</strong> <span id="s3-source-uri"></span>
-        <span
-          id="s3-dirty-indicator"
-          class="s3-dirty-badge"
-          style="display: none"
-          >UNSAVED CHANGES</span
+    <!-- Editor View -->
+    <div id="editor-view" class="view-container">
+      <!-- S3 Info Banner (hidden by default, shown for S3 datasets) -->
+      <div id="s3-banner" class="s3-info-banner" style="display: none">
+        <div class="s3-banner-header">
+          <strong>S3 Dataset:</strong> <span id="s3-source-uri"></span>
+          <span
+            id="s3-dirty-indicator"
+            class="s3-dirty-badge"
+            style="display: none"
+            >UNSAVED CHANGES</span
+          >
+        </div>
+        <small
+          >Local edits are cached. Click "Save to S3" to upload changes.</small
         >
       </div>
-      <small
-        >Local edits are cached. Click "Save to S3" to upload changes.</small
-      >
-    </div>
 
-    <div class="controls">
-      <button id="btn-previous">Previous</button>
-      <button id="btn-next">Next</button>
-      <span id="counter"></span>
-      <input
-        type="number"
-        id="index-input"
-        min="1"
-        placeholder="Go to..."
-        style="
-          width: 80px;
-          padding: 8px;
-          background: #333;
-          color: #fff;
-          border: 1px solid #555;
-          border-radius: 4px;
-          text-align: center;
-        "
-      />
-      <button id="btn-reset-prompts" style="background-color: #ffc107">
-        Reset Prompts
-      </button>
-      <button id="btn-merge-masks" style="background-color: #17a2b8">
-        Merge Masks
-      </button>
-      <button id="toggle-annotations-btn">
-        <span id="toggle-annotations-text">Hide Annotations</span>
-        <span style="opacity: 0.5; font-size: 11px; margin-left: 6px"
-          >(Ctrl/Cmd+H)</span
-        >
-      </button>
-      <span style="color: #aaa; font-size: 12px; margin-left: 10px"
-        >Drag for box (Left=positive, Right=negative), Click for points • Click
-        prompts to remove</span
-      >
-      <select
-        id="mode-select"
-        style="
-          padding: 10px;
-          background: #333;
-          color: #48d1cc;
-          border: 2px solid #48d1cc;
-          border-radius: 4px;
-          font-weight: bold;
-        "
-      >
-        <option value="sam2">SAM2</option>
-        <option value="sam3-pvs-image">SAM3 PVS Image</option>
-        <option value="sam3-pcs-image">SAM3 PCS Image</option>
-      </select>
-      <div id="text-prompt-container" style="display: none">
+      <div class="controls">
+        <button id="btn-previous">Previous</button>
+        <button id="btn-next">Next</button>
+        <span id="counter"></span>
         <input
-          type="text"
-          id="text-prompt"
-          placeholder="Text prompt (e.g., 'laptop', 'handle')"
-          maxlength="100"
+          type="number"
+          id="index-input"
+          min="1"
+          placeholder="Go to..."
+          style="
+            width: 80px;
+            padding: 8px;
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 4px;
+            text-align: center;
+          "
         />
+        <button id="btn-reset-prompts" style="background-color: #ffc107">
+          Reset Prompts
+        </button>
+        <button id="btn-merge-masks" style="background-color: #17a2b8">
+          Merge Masks
+        </button>
+        <button id="toggle-annotations-btn">
+          <span id="toggle-annotations-text">Hide Annotations</span>
+          <span style="opacity: 0.5; font-size: 11px; margin-left: 6px"
+            >(Ctrl/Cmd+H)</span
+          >
+        </button>
+        <span style="color: #aaa; font-size: 12px; margin-left: 10px"
+          >Drag for box (Left=positive, Right=negative), Click for points •
+          Click prompts to remove</span
+        >
+        <select
+          id="mode-select"
+          style="
+            padding: 10px;
+            background: #333;
+            color: #48d1cc;
+            border: 2px solid #48d1cc;
+            border-radius: 4px;
+            font-weight: bold;
+          "
+        >
+          <option value="sam2">SAM2</option>
+          <option value="sam3-pvs-image">SAM3 PVS Image</option>
+          <option value="sam3-pcs-image">SAM3 PCS Image</option>
+        </select>
+        <div id="text-prompt-container" style="display: none">
+          <input
+            type="text"
+            id="text-prompt"
+            placeholder="Text prompt (e.g., 'laptop', 'handle')"
+            maxlength="100"
+          />
+        </div>
+        <select
+          id="model-size-select"
+          style="
+            padding: 10px;
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 4px;
+          "
+        >
+          <option value="">Loading models...</option>
+        </select>
+        <button id="btn-manage-categories" style="background-color: #6c757d">
+          Manage Categories
+        </button>
+        <button id="save-btn" style="background-color: #28a745">
+          Save Annotation
+        </button>
+        <button id="btn-delete-image" class="delete">Delete Image</button>
+
+        <!-- Save to S3 button (hidden by default, shown only for S3 datasets) -->
+        <button id="save-to-s3-btn" class="s3-save-btn" style="display: none">
+          Save to S3
+        </button>
+        <div id="s3-save-status" style="display: none; margin-left: 10px">
+          <span id="s3-save-message"></span>
+          <div
+            id="s3-progress-container"
+            style="display: none; margin-top: 4px"
+          >
+            <div class="s3-progress-bar">
+              <div id="s3-progress-fill" class="s3-progress-fill"></div>
+            </div>
+            <span id="s3-progress-text" class="s3-progress-text"
+              >Uploading...</span
+            >
+          </div>
+        </div>
       </div>
-      <select
-        id="model-size-select"
+
+      <div id="deleteModal" class="modal">
+        <div class="modal-content">
+          <h2>Confirm Deletion</h2>
+          <p>Are you sure you want to delete this image and its annotations?</p>
+          <p><strong>Image ID:</strong> <span id="delete-image-id"></span></p>
+          <p><strong>File:</strong> <span id="delete-file-name"></span></p>
+          <p style="color: #ff6b6b; margin-top: 15px">
+            This action cannot be undone.
+          </p>
+          <div class="modal-buttons">
+            <button id="btn-delete-cancel">Cancel</button>
+            <button id="btn-delete-confirm" class="delete">Delete</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="incompleteSupercategoryModal" class="modal">
+        <div class="modal-content">
+          <h2>Incomplete Supercategory Annotations</h2>
+          <p>
+            The following supercategories have annotations but are missing some
+            subcategories:
+          </p>
+          <div
+            id="incomplete-supercategory-list"
+            style="
+              background: #1a1f2e;
+              padding: 15px;
+              border-radius: 4px;
+              margin: 15px 0;
+              max-height: 200px;
+              overflow-y: auto;
+            "
+          ></div>
+          <p style="color: #d29922; margin-top: 15px">
+            Are you sure you want to navigate away?
+          </p>
+          <div class="modal-buttons">
+            <button id="btn-incomplete-cancel">Cancel</button>
+            <button
+              id="btn-incomplete-continue"
+              style="background-color: #d29922; border-color: #d29922"
+            >
+              Continue Anyway
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="nestedMaskMismatchModal" class="modal">
+        <div class="modal-content">
+          <h2>Nested Mask Supercategory Mismatch</h2>
+          <p>
+            The following masks are nested inside other masks but have
+            mismatched supercategories:
+          </p>
+          <div
+            id="nested-mask-mismatch-list"
+            style="
+              background: #1a1f2e;
+              padding: 15px;
+              border-radius: 4px;
+              margin: 15px 0;
+              max-height: 200px;
+              overflow-y: auto;
+            "
+          ></div>
+          <p style="color: #f85149; margin-top: 15px">
+            This may indicate a spatial or labeling error. Are you sure you want
+            to navigate away?
+          </p>
+          <div class="modal-buttons">
+            <button id="btn-nested-cancel">Cancel</button>
+            <button
+              id="btn-nested-continue"
+              style="background-color: #f85149; border-color: #f85149"
+            >
+              Continue Anyway
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="combinedWarningModal" class="modal">
+        <div class="modal-content" style="max-width: 600px">
+          <h2>Multiple Issues Detected</h2>
+          <div
+            id="combined-warning-content"
+            style="max-height: 400px; overflow-y: auto"
+          ></div>
+          <p style="color: #f85149; margin-top: 15px">
+            Are you sure you want to navigate away?
+          </p>
+          <div class="modal-buttons">
+            <button id="btn-combined-cancel">Cancel</button>
+            <button
+              id="btn-combined-continue"
+              style="background-color: #f85149; border-color: #f85149"
+            >
+              Continue Anyway
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="categoryModal" class="modal">
+        <div class="modal-content" style="max-width: 700px">
+          <h2>Manage Categories</h2>
+          <div style="margin-bottom: 20px">
+            <h3 style="margin-bottom: 10px">Add New Category</h3>
+            <input
+              type="text"
+              id="new-category-super"
+              placeholder="Supercategory"
+              style="
+                padding: 8px;
+                margin-right: 10px;
+                background: #333;
+                color: #fff;
+                border: 1px solid #555;
+                border-radius: 4px;
+              "
+            />
+            <input
+              type="text"
+              id="new-category-name"
+              placeholder="Category Name"
+              style="
+                padding: 8px;
+                margin-right: 10px;
+                background: #333;
+                color: #fff;
+                border: 1px solid #555;
+                border-radius: 4px;
+              "
+            />
+            <button id="btn-add-category">Add</button>
+          </div>
+          <div>
+            <h3 style="margin-bottom: 10px">Existing Categories</h3>
+            <div
+              id="category-list"
+              style="max-height: 300px; overflow-y: auto"
+            ></div>
+          </div>
+          <div class="modal-buttons">
+            <button id="btn-close-categories">Close</button>
+          </div>
+        </div>
+      </div>
+      <div class="main-layout">
+        <div class="category-badges">
+          <div id="category-badges"></div>
+        </div>
+        <div class="image-container">
+          <div class="spinner" id="spinner"></div>
+          <div class="image-wrapper" id="image-wrapper">
+            <img id="image" src="" alt="Dataset image" />
+            <canvas id="canvas"></canvas>
+            <canvas id="crosshair-canvas"></canvas>
+            <!-- Mask category dropdown overlay -->
+            <div id="mask-category-overlay"></div>
+          </div>
+          <div class="info">
+            <p><strong>ID:</strong> <span id="image-id"></span></p>
+            <p><strong>File:</strong> <span id="file-name"></span></p>
+            <p><strong>Dimensions:</strong> <span id="dimensions"></span></p>
+          </div>
+          <div
+            class="annotation-list"
+            id="annotation-list"
+            style="display: none"
+          >
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 10px;
+              "
+            >
+              <div>
+                <h4 style="margin: 0; display: inline">
+                  Annotations on this image:
+                </h4>
+                <span style="font-size: 11px; color: #888; margin-left: 8px"
+                  >Hold Ctrl/Cmd to select multiple</span
+                >
+              </div>
+            </div>
+            <div id="annotation-items"></div>
+          </div>
+        </div>
+        <div
+          class="annotation-editor"
+          id="annotation-editor"
+          style="display: none"
+        >
+          <h4>
+            Edit Selected Annotations (<span id="selected-count">0</span>)
+          </h4>
+          <div class="editor-section">
+            <label>Change Category</label>
+            <select id="edit-category-select">
+              <option value="">-- Select Category --</option>
+            </select>
+            <button id="btn-apply-category">Apply</button>
+          </div>
+          <div class="editor-section">
+            <button
+              id="btn-merge-annotations"
+              style="background-color: #17a2b8"
+            >
+              Merge Selected
+            </button>
+            <button id="btn-delete-annotations" class="delete">
+              Delete Selected
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="mergeCategoryModal" class="modal">
+        <div class="modal-content">
+          <h2>Select Category for Merged Annotation</h2>
+          <p>
+            The selected annotations have different categories. Choose the
+            category for the merged annotation:
+          </p>
+          <div
+            id="merge-category-options"
+            style="
+              background: #1a1f2e;
+              padding: 15px;
+              border-radius: 4px;
+              margin: 15px 0;
+              max-height: 200px;
+              overflow-y: auto;
+            "
+          ></div>
+          <div class="modal-buttons">
+            <button id="btn-merge-cancel">Cancel</button>
+            <button
+              id="btn-merge-confirm"
+              style="background-color: #17a2b8; border-color: #17a2b8"
+            >
+              Merge
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="cache-info" id="cache-info"></div>
+
+      <div
+        id="mobile-debug-console"
         style="
+          position: fixed;
+          bottom: 60px;
+          left: 10px;
+          right: 10px;
+          max-height: 150px;
+          background: rgba(0, 0, 0, 0.9);
+          color: #48d1cc;
+          font-size: 11px;
           padding: 10px;
-          background: #333;
-          color: #fff;
-          border: 1px solid #555;
-          border-radius: 4px;
+          border: 1px solid #48d1cc;
+          overflow-y: auto;
+          z-index: 9998;
+          display: none;
+          font-family: monospace;
+        "
+      ></div>
+      <button
+        id="toggle-debug-console"
+        style="
+          position: fixed;
+          bottom: 10px;
+          left: 10px;
+          padding: 8px 12px;
+          background: rgba(0, 0, 0, 0.8);
+          color: #48d1cc;
+          border: 1px solid #48d1cc;
+          font-size: 12px;
+          z-index: 9999;
+          font-family: monospace;
         "
       >
-        <option value="">Loading models...</option>
-      </select>
-      <button id="btn-manage-categories" style="background-color: #6c757d">
-        Manage Categories
+        Debug
       </button>
-      <button id="save-btn" style="background-color: #28a745">
-        Save Annotation
-      </button>
-      <button id="btn-delete-image" class="delete">Delete Image</button>
 
-      <!-- Save to S3 button (hidden by default, shown only for S3 datasets) -->
-      <button id="save-to-s3-btn" class="s3-save-btn" style="display: none">
-        Save to S3
-      </button>
-      <div id="s3-save-status" style="display: none; margin-left: 10px">
-        <span id="s3-save-message"></span>
-        <div id="s3-progress-container" style="display: none; margin-top: 4px">
-          <div class="s3-progress-bar">
-            <div id="s3-progress-fill" class="s3-progress-fill"></div>
-          </div>
-          <span id="s3-progress-text" class="s3-progress-text"
-            >Uploading...</span
-          >
-        </div>
-      </div>
-    </div>
-
-    <div id="deleteModal" class="modal">
-      <div class="modal-content">
-        <h2>Confirm Deletion</h2>
-        <p>Are you sure you want to delete this image and its annotations?</p>
-        <p><strong>Image ID:</strong> <span id="delete-image-id"></span></p>
-        <p><strong>File:</strong> <span id="delete-file-name"></span></p>
-        <p style="color: #ff6b6b; margin-top: 15px">
-          This action cannot be undone.
-        </p>
-        <div class="modal-buttons">
-          <button id="btn-delete-cancel">Cancel</button>
-          <button id="btn-delete-confirm" class="delete">Delete</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="incompleteSupercategoryModal" class="modal">
-      <div class="modal-content">
-        <h2>Incomplete Supercategory Annotations</h2>
-        <p>
-          The following supercategories have annotations but are missing some
-          subcategories:
-        </p>
-        <div
-          id="incomplete-supercategory-list"
-          style="
-            background: #1a1f2e;
-            padding: 15px;
-            border-radius: 4px;
-            margin: 15px 0;
-            max-height: 200px;
-            overflow-y: auto;
-          "
-        ></div>
-        <p style="color: #d29922; margin-top: 15px">
-          Are you sure you want to navigate away?
-        </p>
-        <div class="modal-buttons">
-          <button id="btn-incomplete-cancel">Cancel</button>
-          <button
-            id="btn-incomplete-continue"
-            style="background-color: #d29922; border-color: #d29922"
-          >
-            Continue Anyway
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div id="nestedMaskMismatchModal" class="modal">
-      <div class="modal-content">
-        <h2>Nested Mask Supercategory Mismatch</h2>
-        <p>
-          The following masks are nested inside other masks but have mismatched
-          supercategories:
-        </p>
-        <div
-          id="nested-mask-mismatch-list"
-          style="
-            background: #1a1f2e;
-            padding: 15px;
-            border-radius: 4px;
-            margin: 15px 0;
-            max-height: 200px;
-            overflow-y: auto;
-          "
-        ></div>
-        <p style="color: #f85149; margin-top: 15px">
-          This may indicate a spatial or labeling error. Are you sure you want
-          to navigate away?
-        </p>
-        <div class="modal-buttons">
-          <button id="btn-nested-cancel">Cancel</button>
-          <button
-            id="btn-nested-continue"
-            style="background-color: #f85149; border-color: #f85149"
-          >
-            Continue Anyway
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div id="combinedWarningModal" class="modal">
-      <div class="modal-content" style="max-width: 600px">
-        <h2>Multiple Issues Detected</h2>
-        <div
-          id="combined-warning-content"
-          style="max-height: 400px; overflow-y: auto"
-        ></div>
-        <p style="color: #f85149; margin-top: 15px">
-          Are you sure you want to navigate away?
-        </p>
-        <div class="modal-buttons">
-          <button id="btn-combined-cancel">Cancel</button>
-          <button
-            id="btn-combined-continue"
-            style="background-color: #f85149; border-color: #f85149"
-          >
-            Continue Anyway
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div id="categoryModal" class="modal">
-      <div class="modal-content" style="max-width: 700px">
-        <h2>Manage Categories</h2>
-        <div style="margin-bottom: 20px">
-          <h3 style="margin-bottom: 10px">Add New Category</h3>
-          <input
-            type="text"
-            id="new-category-super"
-            placeholder="Supercategory"
-            style="
-              padding: 8px;
-              margin-right: 10px;
-              background: #333;
-              color: #fff;
-              border: 1px solid #555;
-              border-radius: 4px;
-            "
-          />
-          <input
-            type="text"
-            id="new-category-name"
-            placeholder="Category Name"
-            style="
-              padding: 8px;
-              margin-right: 10px;
-              background: #333;
-              color: #fff;
-              border: 1px solid #555;
-              border-radius: 4px;
-            "
-          />
-          <button id="btn-add-category">Add</button>
-        </div>
-        <div>
-          <h3 style="margin-bottom: 10px">Existing Categories</h3>
-          <div
-            id="category-list"
-            style="max-height: 300px; overflow-y: auto"
-          ></div>
-        </div>
-        <div class="modal-buttons">
-          <button id="btn-close-categories">Close</button>
-        </div>
-      </div>
-    </div>
-    <div class="main-layout">
-      <div class="category-badges">
-        <div id="category-badges"></div>
-      </div>
-      <div class="image-container">
-        <div class="spinner" id="spinner"></div>
-        <div class="image-wrapper" id="image-wrapper">
-          <img id="image" src="" alt="Dataset image" />
-          <canvas id="canvas"></canvas>
-          <canvas id="crosshair-canvas"></canvas>
-          <!-- Mask category dropdown overlay -->
-          <div id="mask-category-overlay"></div>
-        </div>
-        <div class="info">
-          <p><strong>ID:</strong> <span id="image-id"></span></p>
-          <p><strong>File:</strong> <span id="file-name"></span></p>
-          <p><strong>Dimensions:</strong> <span id="dimensions"></span></p>
-        </div>
-        <div class="annotation-list" id="annotation-list" style="display: none">
-          <div
-            style="
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              margin-bottom: 10px;
-            "
-          >
-            <div>
-              <h4 style="margin: 0; display: inline">
-                Annotations on this image:
-              </h4>
-              <span style="font-size: 11px; color: #888; margin-left: 8px"
-                >Hold Ctrl/Cmd to select multiple</span
-              >
-            </div>
-          </div>
-          <div id="annotation-items"></div>
-        </div>
-      </div>
       <div
-        class="annotation-editor"
-        id="annotation-editor"
-        style="display: none"
+        id="model-loading-overlay"
+        style="
+          display: none;
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(10, 14, 20, 0.95);
+          z-index: 9999;
+          align-items: center;
+          justify-content: center;
+          flex-direction: column;
+        "
       >
-        <h4>Edit Selected Annotations (<span id="selected-count">0</span>)</h4>
-        <div class="editor-section">
-          <label>Change Category</label>
-          <select id="edit-category-select">
-            <option value="">-- Select Category --</option>
-          </select>
-          <button id="btn-apply-category">Apply</button>
-        </div>
-        <div class="editor-section">
-          <button id="btn-merge-annotations" style="background-color: #17a2b8">
-            Merge Selected
-          </button>
-          <button id="btn-delete-annotations" class="delete">
-            Delete Selected
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div id="mergeCategoryModal" class="modal">
-      <div class="modal-content">
-        <h2>Select Category for Merged Annotation</h2>
-        <p>
-          The selected annotations have different categories. Choose the
-          category for the merged annotation:
-        </p>
-        <div
-          id="merge-category-options"
-          style="
-            background: #1a1f2e;
-            padding: 15px;
-            border-radius: 4px;
-            margin: 15px 0;
-            max-height: 200px;
-            overflow-y: auto;
-          "
-        ></div>
-        <div class="modal-buttons">
-          <button id="btn-merge-cancel">Cancel</button>
-          <button
-            id="btn-merge-confirm"
-            style="background-color: #17a2b8; border-color: #17a2b8"
-          >
-            Merge
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div class="cache-info" id="cache-info"></div>
-
-    <div
-      id="mobile-debug-console"
-      style="
-        position: fixed;
-        bottom: 60px;
-        left: 10px;
-        right: 10px;
-        max-height: 150px;
-        background: rgba(0, 0, 0, 0.9);
-        color: #48d1cc;
-        font-size: 11px;
-        padding: 10px;
-        border: 1px solid #48d1cc;
-        overflow-y: auto;
-        z-index: 9998;
-        display: none;
-        font-family: monospace;
-      "
-    ></div>
-    <button
-      id="toggle-debug-console"
-      style="
-        position: fixed;
-        bottom: 10px;
-        left: 10px;
-        padding: 8px 12px;
-        background: rgba(0, 0, 0, 0.8);
-        color: #48d1cc;
-        border: 1px solid #48d1cc;
-        font-size: 12px;
-        z-index: 9999;
-        font-family: monospace;
-      "
-    >
-      Debug
-    </button>
-
-    <div
-      id="model-loading-overlay"
-      style="
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(10, 14, 20, 0.95);
-        z-index: 9999;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-      "
-    >
-      <div style="text-align: center">
-        <div
-          style="
-            font-size: 18px;
-            color: #33ff00;
-            margin-bottom: 20px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-          "
-        >
-          Loading Model...
-        </div>
-        <div
-          style="
-            width: 400px;
-            height: 4px;
-            background: #1a1f2e;
-            border: 2px solid #33ff00;
-            position: relative;
-            overflow: hidden;
-          "
-        >
+        <div style="text-align: center">
           <div
-            id="model-loading-bar"
             style="
-              height: 100%;
-              background: #33ff00;
-              width: 0%;
-              transition: width 0.3s;
+              font-size: 18px;
+              color: #33ff00;
+              margin-bottom: 20px;
+              text-transform: uppercase;
+              letter-spacing: 2px;
             "
+          >
+            Loading Model...
+          </div>
+          <div
+            style="
+              width: 400px;
+              height: 4px;
+              background: #1a1f2e;
+              border: 2px solid #33ff00;
+              position: relative;
+              overflow: hidden;
+            "
+          >
+            <div
+              id="model-loading-bar"
+              style="
+                height: 100%;
+                background: #33ff00;
+                width: 0%;
+                transition: width 0.3s;
+              "
+            ></div>
+          </div>
+          <div
+            id="model-loading-text"
+            style="margin-top: 15px; color: #33ff00; font-size: 14px"
           ></div>
         </div>
-        <div
-          id="model-loading-text"
-          style="margin-top: 15px; color: #33ff00; font-size: 14px"
-        ></div>
       </div>
-    </div>
 
-    <div id="keyboard-hints" class="keyboard-hints">
-      <div class="keyboard-hints-toggle" id="keyboard-hints-toggle">?</div>
-      <div class="keyboard-hints-content" id="keyboard-hints-content">
-        <h3>Keyboard Shortcuts</h3>
-        <div class="keyboard-hint">
-          <kbd>Shift</kbd> + Click → Select annotation
+      <div id="keyboard-hints" class="keyboard-hints">
+        <div class="keyboard-hints-toggle" id="keyboard-hints-toggle">?</div>
+        <div class="keyboard-hints-content" id="keyboard-hints-content">
+          <h3>Keyboard Shortcuts</h3>
+          <div class="keyboard-hint">
+            <kbd>Shift</kbd> + Click → Select annotation
+          </div>
+          <div class="keyboard-hint">
+            <kbd>Shift</kbd> + Drag → Box-select annotations
+          </div>
+          <div class="keyboard-hint">
+            <kbd>ESC</kbd> → Clear selection & prompts
+          </div>
+          <div class="keyboard-hint">
+            <kbd>←</kbd> <kbd>→</kbd> → Navigate images
+          </div>
+          <div class="keyboard-hint">
+            <kbd>Ctrl/Cmd</kbd> + <kbd>H</kbd> → Toggle annotations
+          </div>
+          <div class="keyboard-hint">
+            <kbd>Ctrl/Cmd</kbd> + <kbd>M</kbd> → Merge masks
+          </div>
+          <div class="keyboard-hint"><kbd>Enter</kbd> → Save annotation</div>
         </div>
-        <div class="keyboard-hint">
-          <kbd>Shift</kbd> + Drag → Box-select annotations
-        </div>
-        <div class="keyboard-hint">
-          <kbd>ESC</kbd> → Clear selection & prompts
-        </div>
-        <div class="keyboard-hint">
-          <kbd>←</kbd> <kbd>→</kbd> → Navigate images
-        </div>
-        <div class="keyboard-hint">
-          <kbd>Ctrl/Cmd</kbd> + <kbd>H</kbd> → Toggle annotations
-        </div>
-        <div class="keyboard-hint">
-          <kbd>Ctrl/Cmd</kbd> + <kbd>M</kbd> → Merge masks
-        </div>
-        <div class="keyboard-hint"><kbd>Enter</kbd> → Save annotation</div>
       </div>
     </div>
+    <!-- End Editor View -->
+
+    <!-- Gallery View -->
+    <div id="gallery-view" class="view-container" style="display: none">
+      <div class="gallery-toolbar">
+        <div class="gallery-filters">
+          <label>Filter:</label>
+          <select id="gallery-filter">
+            <option value="all">All Images</option>
+            <option value="annotated">Annotated</option>
+            <option value="unannotated">Unannotated</option>
+          </select>
+
+          <label>Sort:</label>
+          <select id="gallery-sort">
+            <option value="index">Index</option>
+            <option value="filename">Filename</option>
+            <option value="annotations_desc">Most Annotations</option>
+            <option value="annotations_asc">Least Annotations</option>
+          </select>
+        </div>
+        <div class="gallery-stats">
+          <span id="gallery-count">Loading...</span>
+        </div>
+      </div>
+
+      <div id="gallery-grid" class="gallery-grid">
+        <!-- Gallery items rendered here by JavaScript -->
+      </div>
+
+      <div id="gallery-loading" class="gallery-loading" style="display: none">
+        Loading more images...
+      </div>
+
+      <div id="gallery-empty" class="gallery-empty" style="display: none">
+        No images match your filter.
+      </div>
+    </div>
+    <!-- End Gallery View -->
 
     <script type="module" src="/static/js/app.js"></script>
   </body>
