@@ -134,6 +134,8 @@ export function createGalleryItemHtml(imageData) {
 
   // Note: onload/onerror handlers are attached programmatically in renderGalleryItems
   // because inline handlers don't work when HTML is inserted via innerHTML
+  // Note: We don't use loading="lazy" because the image starts with display:none,
+  // and lazy loading won't load hidden images, creating a deadlock.
   return `
     <div class="${itemClass}" data-index="${index}" data-image-id="${id}">
       <div class="gallery-thumbnail-container">
@@ -142,7 +144,6 @@ export function createGalleryItemHtml(imageData) {
           class="gallery-thumbnail" 
           src="/api/thumbnail/${id}?size=64" 
           alt="${escapedFilename}"
-          loading="lazy"
         >
       </div>
       <div class="gallery-item-info">
