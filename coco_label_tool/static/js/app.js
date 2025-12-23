@@ -3656,6 +3656,14 @@ function setupEventListeners() {
     .getElementById("btn-previous")
     ?.addEventListener("click", previousImage);
   document.getElementById("btn-next")?.addEventListener("click", nextImage);
+  document.getElementById("btn-gallery")?.addEventListener("click", () => {
+    handleViewChange(ViewType.GALLERY, {});
+    window.history.pushState(
+      { view: ViewType.GALLERY, params: {} },
+      "",
+      "/?view=gallery",
+    );
+  });
 
   document
     .getElementById("btn-reset-prompts")
