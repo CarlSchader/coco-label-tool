@@ -56,6 +56,11 @@ import {
   mergeAnnotationSegmentations,
 } from "./utils/mask-merging.js";
 import { ImagePreloader } from "./utils/image-preloader.js";
+import {
+  getCrosshairLines,
+  isMouseInCanvas,
+  CROSSHAIR_DEFAULTS,
+} from "./utils/crosshair.js";
 import { ModeRegistry } from "./modes/mode-registry.js";
 import { ModeManager } from "./modes/mode-manager.js";
 import { SAM2Mode } from "./modes/sam2-mode.js";
@@ -106,6 +111,9 @@ let selectionBoxDrag = null;
 let hoveredAnnotationId = null;
 let mouseDownTime = null;
 let potentialBoxInteraction = null;
+
+// Crosshair guide position (null when mouse is outside canvas)
+let crosshairPosition = null;
 
 // Per-mask category selection
 let maskCategoryIds = []; // Array of category IDs, one per mask
@@ -1591,6 +1599,7 @@ function setupCanvas() {
   wrapper.onmousedown = handleBoxStart;
   wrapper.onmousemove = handleMouseMove;
   wrapper.onmouseup = handleBoxEnd;
+  wrapper.onmouseleave = handleMouseLeave;
 
   document.addEventListener("mousedown", handleDocumentMouseDown);
   document.addEventListener("mousemove", handleDocumentMouseMove);
@@ -1911,11 +1920,43 @@ function removeBox() {
 function redrawCanvas() {
   if (!canvas) return;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawCrosshairs();
   drawExistingAnnotations();
   if (currentSegmentation) {
     drawSegmentationMasks(currentSegmentation.segmentation);
   }
   drawAllPrompts();
+}
+
+function drawCrosshairs() {
+  if (!crosshairPosition || !ctx) return;
+
+  const lines = getCrosshairLines(
+    crosshairPosition.x,
+    crosshairPosition.y,
+    canvas.width,
+    canvas.height,
+  );
+
+  ctx.save();
+  ctx.strokeStyle = CROSSHAIR_DEFAULTS.strokeStyle;
+  ctx.lineWidth = CROSSHAIR_DEFAULTS.lineWidth;
+  ctx.globalAlpha = CROSSHAIR_DEFAULTS.globalAlpha;
+  ctx.setLineDash(CROSSHAIR_DEFAULTS.dashPattern);
+
+  // Draw horizontal line
+  ctx.beginPath();
+  ctx.moveTo(lines.horizontal.x1, lines.horizontal.y1);
+  ctx.lineTo(lines.horizontal.x2, lines.horizontal.y2);
+  ctx.stroke();
+
+  // Draw vertical line
+  ctx.beginPath();
+  ctx.moveTo(lines.vertical.x1, lines.vertical.y1);
+  ctx.lineTo(lines.vertical.x2, lines.vertical.y2);
+  ctx.stroke();
+
+  ctx.restore();
 }
 
 function handleBoxStart(e) {
@@ -1986,6 +2027,27 @@ function handleBoxStart(e) {
 }
 
 function handleMouseMove(e) {
+  // Update crosshair position (only if canvas is initialized)
+  if (canvas) {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    if (isMouseInCanvas(mouseX, mouseY, canvas.width, canvas.height)) {
+      const needsRedraw =
+        !crosshairPosition ||
+        crosshairPosition.x !== mouseX ||
+        crosshairPosition.y !== mouseY;
+      crosshairPosition = { x: mouseX, y: mouseY };
+      if (needsRedraw && !selectionBoxStart && !boxStart) {
+        redrawCanvas();
+      }
+    } else if (crosshairPosition) {
+      crosshairPosition = null;
+      redrawCanvas();
+    }
+  }
+
   if (selectionBoxStart) {
     handleSelectionDrag(e);
   } else if (boxStart) {
@@ -1994,6 +2056,13 @@ function handleMouseMove(e) {
     checkAnnotationHover(e);
   } else {
     checkPromptHover(e);
+  }
+}
+
+function handleMouseLeave() {
+  if (crosshairPosition) {
+    crosshairPosition = null;
+    redrawCanvas();
   }
 }
 
@@ -2034,8 +2103,12 @@ function handleSelectionDrag(e) {
   const scaleX = originalDims.width / img.width;
   const scaleY = originalDims.height / img.height;
 
-  const x = (e.clientX - rect.left) * scaleX;
-  const y = (e.clientY - rect.top) * scaleY;
+  const mouseX = e.clientX - rect.left;
+  const mouseY = e.clientY - rect.top;
+  crosshairPosition = { x: mouseX, y: mouseY };
+
+  const x = mouseX * scaleX;
+  const y = mouseY * scaleY;
 
   selectionBoxDrag = calculateDragBox(
     selectionBoxStart.x,
@@ -2045,6 +2118,7 @@ function handleSelectionDrag(e) {
   );
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawCrosshairs();
   drawExistingAnnotations();
   drawAllPrompts();
   drawSelectionBox();
@@ -2060,8 +2134,12 @@ function handleBoxDrag(e) {
   const scaleX = originalDims.width / img.width;
   const scaleY = originalDims.height / img.height;
 
-  const x = (e.clientX - rect.left) * scaleX;
-  const y = (e.clientY - rect.top) * scaleY;
+  const mouseX = e.clientX - rect.left;
+  const mouseY = e.clientY - rect.top;
+  crosshairPosition = { x: mouseX, y: mouseY };
+
+  const x = mouseX * scaleX;
+  const y = mouseY * scaleY;
 
   if (potentialBoxInteraction && !boxInteractionMode && mouseDownTime) {
     const elapsed = Date.now() - mouseDownTime;
@@ -2079,6 +2157,7 @@ function handleBoxDrag(e) {
   }
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawCrosshairs();
   drawExistingAnnotations();
   drawAllPrompts();
 
