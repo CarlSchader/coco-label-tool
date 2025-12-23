@@ -142,7 +142,7 @@ export function createGalleryItemHtml(imageData) {
         <div class="gallery-thumbnail-spinner"></div>
         <img 
           class="gallery-thumbnail" 
-          src="/api/thumbnail/${id}?size=64" 
+          src="/api/thumbnail/${id}?size=256" 
           alt="${escapedFilename}"
         >
       </div>

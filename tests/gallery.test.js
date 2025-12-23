@@ -106,7 +106,7 @@ describe("createGalleryItemHtml", () => {
 
   test("includes thumbnail image", () => {
     const html = createGalleryItemHtml(sampleImage);
-    expect(html).toContain('src="/api/thumbnail/123?size=64"');
+    expect(html).toContain('src="/api/thumbnail/123?size=256"');
     expect(html).toContain('class="gallery-thumbnail"');
   });
 
@@ -256,7 +256,7 @@ describe("Thumbnail URL generation", () => {
       annotation_counts: {},
       total_annotations: 0,
     });
-    expect(html).toContain('src="/api/thumbnail/456?size=64"');
+    expect(html).toContain('src="/api/thumbnail/456?size=256"');
   });
 
   test("uses image ID not index in URL", () => {
