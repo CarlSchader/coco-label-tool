@@ -968,6 +968,15 @@ p {
   font-style: italic;
 }
 
+.gallery-item-warning {
+  font-size: var(--font-size-xs);
+  color: var(--accent-warning);
+  margin-top: var(--spacing-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Loading & Empty States */
 .gallery-loading,
 .gallery-empty {

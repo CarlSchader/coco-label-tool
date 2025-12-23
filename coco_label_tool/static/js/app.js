@@ -71,7 +71,12 @@ import {
   ViewType,
   updateUrlParams,
 } from "./utils/view-manager.js";
-import { initGallery, cleanupGallery, resetGalleryState } from "./gallery.js";
+import {
+  initGallery,
+  cleanupGallery,
+  resetGalleryState,
+  setWarningFunction,
+} from "./gallery.js";
 
 let images = [];
 let currentModelType = "sam2";
@@ -667,11 +672,10 @@ async function showImage(index) {
 
   const imgElement = document.getElementById("image");
   imgElement.onload = () => {
+    document.getElementById("spinner").classList.remove("show");
     setupCanvas();
     drawExistingAnnotations();
   };
-
-  document.getElementById("spinner").classList.remove("show");
 }
 
 function drawExistingAnnotations() {
@@ -1294,6 +1298,14 @@ function nextImage() {
 
 function navigateToImage(targetIndex) {
   console.log("Navigate to image:", targetIndex, "from:", currentIndex);
+
+  // Skip validation warnings if disabled in config
+  if (!CONFIG.navigation.showWarnings) {
+    console.log("Navigation warnings disabled, navigating directly");
+    showImage(targetIndex);
+    return;
+  }
+
   const incomplete = checkIncompleteSupercategoriesLocal();
   const nestedMismatches = checkNestedMaskSupercategoryMismatchLocal();
 
@@ -3846,6 +3858,39 @@ function setupMobileDebugConsole() {
 
 setupMobileDebugConsole();
 setupEventListeners();
+
+/**
+ * Get validation warnings for a specific image.
+ * Used by gallery view to display warning indicators.
+ * @param {number} imageId - The image ID to check
+ * @returns {Object|null} Warning data or null if no warnings
+ */
+function getImageWarnings(imageId) {
+  const imageData = Object.values(imageMap).find((img) => img.id === imageId);
+  if (!imageData) return null;
+
+  const incomplete = checkIncompleteSupercategories(
+    imageData,
+    annotationsByImage,
+    categories,
+  );
+
+  const nested = checkNestedMaskSupercategoryMismatch(
+    imageData,
+    annotationsByImage,
+    categories,
+  );
+
+  if (!incomplete && !nested) return null;
+
+  return {
+    incomplete: incomplete || [],
+    nested: nested || [],
+  };
+}
+
+// Inject warning function into gallery module
+setWarningFunction(getImageWarnings);
 
 // Initialize view manager to handle URL-based view switching
 const initialViewState = initViewManager(handleViewChange);

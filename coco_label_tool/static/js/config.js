@@ -29,6 +29,10 @@ export const CONFIG = {
     minPolygonPoints: 3,
   },
 
+  navigation: {
+    showWarnings: false, // Show warnings for incomplete/nested issues when navigating
+  },
+
   cache: {
     refreshThreshold: 16,
     margin: 32,

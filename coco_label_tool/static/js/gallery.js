@@ -16,6 +16,18 @@ import {
   ViewType,
 } from "./utils/view-manager.js";
 
+// Warning function injected from app.js to avoid circular dependency
+let getImageWarningsFunc = null;
+
+/**
+ * Set the warning function for gallery items.
+ * Called from app.js during initialization.
+ * @param {Function} fn - Function that takes imageId and returns warnings
+ */
+export function setWarningFunction(fn) {
+  getImageWarningsFunc = fn;
+}
+
 // Annotation type abbreviations for display
 export const TYPE_ABBREVIATIONS = {
   object_detection: "ObjDet",
@@ -119,6 +131,30 @@ function escapeHtml(str) {
 }
 
 /**
+ * Format warning text for display in gallery item.
+ * @param {Object} warnings - Warning data from getImageWarnings
+ * @returns {string} Formatted warning text
+ */
+export function formatWarningText(warnings) {
+  if (!warnings) return "";
+
+  const parts = [];
+
+  if (warnings.incomplete && warnings.incomplete.length > 0) {
+    const supercats = warnings.incomplete
+      .map((w) => w.supercategory)
+      .join(", ");
+    parts.push(`Incomplete: ${supercats}`);
+  }
+
+  if (warnings.nested && warnings.nested.length > 0) {
+    parts.push(`Nested mismatch: ${warnings.nested.length}`);
+  }
+
+  return parts.join("; ");
+}
+
+/**
  * Create HTML for a single gallery item.
  * @param {Object} imageData - Image data from API
  * @returns {string} HTML string
@@ -131,6 +167,13 @@ export function createGalleryItemHtml(imageData) {
   const isUnannotated = total_annotations === 0;
   const itemClass = isUnannotated ? "gallery-item unannotated" : "gallery-item";
   const escapedFilename = escapeHtml(file_name);
+
+  // Check for validation warnings (if warning function is available)
+  const warnings = getImageWarningsFunc ? getImageWarningsFunc(id) : null;
+  const warningText = formatWarningText(warnings);
+  const warningHtml = warnings
+    ? `<div class="gallery-item-warning" title="${escapeHtml(warningText)}">⚠️ ${escapeHtml(warningText)}</div>`
+    : "";
 
   // Note: onload/onerror handlers are attached programmatically in renderGalleryItems
   // because inline handlers don't work when HTML is inserted via innerHTML
@@ -149,6 +192,7 @@ export function createGalleryItemHtml(imageData) {
       <div class="gallery-item-info">
         <div class="gallery-item-filename" title="${escapedFilename}">${escapedFilename}</div>
         <div class="gallery-item-counts">${countsStr}</div>
+        ${warningHtml}
       </div>
     </div>
   `.trim();
