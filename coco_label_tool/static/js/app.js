@@ -1011,7 +1011,7 @@ async function mergeSelectedAnnotations() {
     return;
   }
 
-  const currentImage = images[currentIndex];
+  const currentImage = imageMap[currentIndex];
   if (!currentImage) return;
 
   const annotations = annotationsByImage[currentImage.id] || [];
@@ -1135,7 +1135,7 @@ function cancelMerge() {
 }
 
 async function performMerge(categoryId, selectedAnnotations) {
-  const currentImage = images[currentIndex];
+  const currentImage = imageMap[currentIndex];
   if (!currentImage) return;
 
   // Merge all segmentations
