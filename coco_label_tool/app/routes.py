@@ -1,7 +1,9 @@
 """API route handlers."""
 
+import asyncio
 import logging
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -14,7 +16,6 @@ from fastapi.templating import Jinja2Templates
 
 from . import create_app, dataset
 from .cache import ImageCache
-from .dataset_manager import dataset_manager
 from .config import (
     CACHE_HEAD,
     CACHE_SIZE,
@@ -27,6 +28,7 @@ from .config import (
     SAM3_PCS_MODEL_SIZES,
 )
 from .dataset import resolve_image_path
+from .dataset_manager import dataset_manager
 from .exceptions import AnnotationNotFoundError, CategoryInUseError
 from .models import (
     AddCategoryRequest,
@@ -51,6 +53,9 @@ from .sam3_pcs import get_sam3_pcs_service
 from .uri_utils import detect_uri_type, download_s3_image, get_s3_client, parse_s3_uri
 
 logger = logging.getLogger(__name__)
+
+# Thread pool for running blocking I/O (S3 downloads) concurrently
+_thumbnail_executor = ThreadPoolExecutor(max_workers=10)
 
 app = create_app()
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
@@ -702,6 +707,26 @@ async def save_to_s3():
 # =============================================================================
 
 
+def _generate_thumbnail_sync(image_uri: str, uri_type: str, size: int):
+    """Synchronous thumbnail generation (runs in thread pool).
+
+    Downloads S3 image if needed and generates thumbnail.
+    Returns (thumb_bytes, content_type) or raises exception.
+    """
+    from .thumbnail_cache import thumbnail_cache
+
+    if uri_type == "s3":
+        # For S3 images, download first then generate thumbnail
+        local_path = download_s3_image(image_uri)
+        return thumbnail_cache.get_or_generate(str(local_path), size)
+    else:
+        # Local file
+        image_path = Path(image_uri)
+        if not image_path.exists():
+            raise FileNotFoundError(f"Image file not found: {image_path}")
+        return thumbnail_cache.get_or_generate(str(image_path), size)
+
+
 @app.get("/api/thumbnail/{image_id}")
 async def get_thumbnail(image_id: int, size: int = 64):
     """Serve cached thumbnail for an image.
@@ -709,12 +734,13 @@ async def get_thumbnail(image_id: int, size: int = 64):
     Thumbnails are generated on first request and cached to disk.
     Subsequent requests return the cached version.
 
+    For S3 images, the download runs in a thread pool to allow concurrent
+    thumbnail requests (otherwise each request would block the event loop).
+
     Args:
         image_id: Image ID to get thumbnail for
         size: Maximum dimension (default 64)
     """
-    from .thumbnail_cache import thumbnail_cache
-
     # Use dataset_manager to look up image by ID (works for all images, not just cached ones)
     image_data = dataset_manager.get_image_by_id(image_id)
     if not image_data:
@@ -725,21 +751,15 @@ async def get_thumbnail(image_id: int, size: int = 64):
     uri_type = detect_uri_type(image_uri)
 
     try:
-        if uri_type == "s3":
-            # For S3 images, download first then generate thumbnail
-            local_path = download_s3_image(image_uri)
-            thumb_bytes, content_type = thumbnail_cache.get_or_generate(
-                str(local_path), size
-            )
-        else:
-            # Local file
-            image_path = Path(image_uri)
-            if not image_path.exists():
-                raise HTTPException(status_code=404, detail="Image file not found")
-
-            thumb_bytes, content_type = thumbnail_cache.get_or_generate(
-                str(image_path), size
-            )
+        # Run blocking I/O in thread pool to allow concurrent requests
+        loop = asyncio.get_event_loop()
+        thumb_bytes, content_type = await loop.run_in_executor(
+            _thumbnail_executor,
+            _generate_thumbnail_sync,
+            image_uri,
+            uri_type,
+            size,
+        )
 
         return Response(
             content=thumb_bytes,

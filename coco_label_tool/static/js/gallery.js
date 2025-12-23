@@ -35,7 +35,7 @@ const TYPE_ORDER = [
 ];
 
 // Constants
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 20; // Keep small for S3 datasets (each thumbnail requires full image download)
 const SCROLL_THRESHOLD = 300; // px from bottom to trigger load
 
 // Module state
