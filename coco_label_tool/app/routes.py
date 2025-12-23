@@ -715,7 +715,8 @@ async def get_thumbnail(image_id: int, size: int = 64):
     """
     from .thumbnail_cache import thumbnail_cache
 
-    image_data = cache.get_image_by_id(image_id)
+    # Use dataset_manager to look up image by ID (works for all images, not just cached ones)
+    image_data = dataset_manager.get_image_by_id(image_id)
     if not image_data:
         raise HTTPException(status_code=404, detail="Image not found")
 

@@ -137,6 +137,14 @@ def mock_get_gallery_page(
     return page_images, total_images, total_filtered, has_more
 
 
+def mock_get_image_by_id(image_id: int) -> Dict | None:
+    """Mock implementation of dataset_manager.get_image_by_id."""
+    for img in MOCK_GALLERY_DATASET["images"]:
+        if img["id"] == image_id:
+            return img
+    return None
+
+
 def create_test_image(width: int = 200, height: int = 150) -> bytes:
     """Create a test JPEG image in memory."""
     img = Image.new("RGB", (width, height), color="red")
@@ -197,7 +205,12 @@ def gallery_client():
                                 "coco_label_tool.app.dataset.get_gallery_page",
                                 side_effect=mock_get_gallery_page,
                             ):
-                                yield TestClient(app)
+                                # Mock dataset_manager.get_image_by_id for thumbnail endpoint
+                                with patch(
+                                    "coco_label_tool.app.routes.dataset_manager.get_image_by_id",
+                                    side_effect=mock_get_image_by_id,
+                                ):
+                                    yield TestClient(app)
 
 
 class TestGalleryDataEndpoint:

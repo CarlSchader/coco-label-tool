@@ -221,6 +221,14 @@ class DatasetManager:
         with self._lock:
             return list(self.data.get("images", []))
 
+    def get_image_by_id(self, image_id: int) -> Optional[Dict]:
+        """Get image by ID, or None if not found."""
+        with self._lock:
+            for img in self.data.get("images", []):
+                if img.get("id") == image_id:
+                    return dict(img)
+            return None
+
     def get_annotations(self) -> List[Dict]:
         """Get all annotations (returns a copy)."""
         with self._lock:
