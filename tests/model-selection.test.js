@@ -38,6 +38,15 @@ describe("Model Selection Utilities", () => {
     test("defaults to SAM2 endpoint for unknown model type", () => {
       expect(getSegmentEndpoint("unknown")).toBe("/api/segment");
     });
+
+    test("returns null for manual model type (frontend-only)", () => {
+      expect(getSegmentEndpoint("manual")).toBeNull();
+    });
+
+    test("returns null for manual model type case-insensitive", () => {
+      expect(getSegmentEndpoint("MANUAL")).toBeNull();
+      expect(getSegmentEndpoint("Manual")).toBeNull();
+    });
   });
 
   describe("getModelInfoEndpoint", () => {
@@ -67,6 +76,15 @@ describe("Model Selection Utilities", () => {
 
     test("defaults to SAM2 for unknown type", () => {
       expect(getModelInfoEndpoint("unknown")).toBe("/api/model-info");
+    });
+
+    test("returns null for manual model type (no ML model)", () => {
+      expect(getModelInfoEndpoint("manual")).toBeNull();
+    });
+
+    test("returns null for manual model type case-insensitive", () => {
+      expect(getModelInfoEndpoint("MANUAL")).toBeNull();
+      expect(getModelInfoEndpoint("Manual")).toBeNull();
     });
   });
 
@@ -99,6 +117,15 @@ describe("Model Selection Utilities", () => {
 
     test("defaults to SAM2 for unknown type", () => {
       expect(getSetModelSizeEndpoint("unknown")).toBe("/api/set-model-size");
+    });
+
+    test("returns null for manual model type (no model sizes)", () => {
+      expect(getSetModelSizeEndpoint("manual")).toBeNull();
+    });
+
+    test("returns null for manual model type case-insensitive", () => {
+      expect(getSetModelSizeEndpoint("MANUAL")).toBeNull();
+      expect(getSetModelSizeEndpoint("Manual")).toBeNull();
     });
   });
 
@@ -168,6 +195,16 @@ describe("Model Selection Utilities", () => {
         "SAM2 BASE-PLUS",
       );
     });
+
+    test("formats manual model type", () => {
+      expect(formatModelDisplayName("manual", null)).toBe("MANUAL");
+      expect(formatModelDisplayName("manual", "")).toBe("MANUAL");
+    });
+
+    test("formats manual model type case-insensitive", () => {
+      expect(formatModelDisplayName("MANUAL", null)).toBe("MANUAL");
+      expect(formatModelDisplayName("Manual", null)).toBe("MANUAL");
+    });
   });
 
   describe("Edge cases", () => {
@@ -178,6 +215,8 @@ describe("Model Selection Utilities", () => {
       expect(getSegmentEndpoint("Sam3")).toBe("/api/segment-sam3");
       expect(getSegmentEndpoint("SAM3-PCS")).toBe("/api/segment-sam3-pcs");
       expect(getSegmentEndpoint("sam3-PCS")).toBe("/api/segment-sam3-pcs");
+      expect(getSegmentEndpoint("MANUAL")).toBeNull();
+      expect(getSegmentEndpoint("Manual")).toBeNull();
     });
 
     test("formatModelDisplayName preserves original case in output", () => {

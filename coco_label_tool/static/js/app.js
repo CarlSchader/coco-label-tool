@@ -66,6 +66,8 @@ import { ModeManager } from "./modes/mode-manager.js";
 import { SAM2Mode } from "./modes/sam2-mode.js";
 import { SAM3PVSImageMode } from "./modes/sam3-pvs-image-mode.js";
 import { SAM3PCSImageMode } from "./modes/sam3-pcs-image-mode.js";
+import { ManualMode } from "./modes/manual-mode.js";
+import { createManualSegmentationResult } from "./utils/manual-mask.js";
 import {
   initViewManager,
   ViewType,
@@ -296,6 +298,12 @@ modeRegistry.register("sam3-pcs-image", SAM3PCSImageMode, {
   displayName: "SAM3 PCS Image",
   description: "SAM3 Concept Search with text prompts to find ALL instances",
   modelType: "sam3-pcs",
+});
+
+modeRegistry.register("manual", ManualMode, {
+  displayName: "Manual",
+  description: "Draw rectangular masks directly without ML model",
+  modelType: "manual",
 });
 
 // View Management Functions
@@ -2415,6 +2423,34 @@ async function runSegmentation() {
   const imgData = imageMap[currentIndex];
   if (!imgData) return;
 
+  // Handle manual mode - generate masks locally without API call
+  if (currentModelType === "manual") {
+    if (currentBoxes.length === 0 && !currentBox) {
+      console.log("⚠️  Manual mode requires at least one box");
+      return;
+    }
+
+    const boxesToUse = currentBoxes.length > 0 ? currentBoxes : [currentBox];
+    const result = createManualSegmentationResult(boxesToUse);
+
+    if (result) {
+      currentSegmentation = result;
+      drawSegmentation(result.segmentation);
+      console.log(
+        `📐 Manual segmentation: ${result.segmentation.length} rectangular mask(s)`,
+      );
+
+      // Initialize mask category IDs and render dropdowns
+      maskCategoryIds = initializeMaskCategories(
+        result.segmentation.length,
+        selectedCategoryId,
+      );
+      renderMaskCategoryDropdowns();
+      updateMergeButtonState();
+    }
+    return;
+  }
+
   const requestBody = {
     image_id: imgData.id,
   };
@@ -3482,6 +3518,22 @@ async function handleModelSizeChange(e) {
 }
 
 async function loadModelInfo() {
+  const select = document.getElementById("model-size-select");
+
+  // Handle manual mode - no ML model, hide model size selector
+  if (currentModelType === "manual") {
+    if (select) {
+      select.style.display = "none";
+    }
+    console.log("Manual mode - no ML model to load");
+    return;
+  }
+
+  // Show model size selector for ML modes
+  if (select) {
+    select.style.display = "";
+  }
+
   const loadingText = `${currentModelType.toUpperCase()}`;
   const loadingInterval = showModelLoading(loadingText);
 
