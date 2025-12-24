@@ -74,6 +74,10 @@ describe("ManualMode", () => {
     test("supportsNegativePrompts() returns false", () => {
       expect(mode.supportsNegativePrompts()).toBe(false);
     });
+
+    test("supportsMaskDrawing() returns true", () => {
+      expect(mode.supportsMaskDrawing()).toBe(true);
+    });
   });
 
   describe("UI configuration", () => {

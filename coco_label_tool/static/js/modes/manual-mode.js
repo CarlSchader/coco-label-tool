@@ -77,6 +77,10 @@ export class ManualMode extends BaseMode {
     return false;
   }
 
+  supportsMaskDrawing() {
+    return true;
+  }
+
   requiresModelLoading() {
     return false;
   }

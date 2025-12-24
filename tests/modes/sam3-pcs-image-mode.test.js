@@ -57,6 +57,10 @@ describe("SAM3PCSImageMode", () => {
     test("supportsNegativePrompts() returns true for boxes", () => {
       expect(mode.supportsNegativePrompts()).toBe(true);
     });
+
+    test("supportsMaskDrawing() returns false", () => {
+      expect(mode.supportsMaskDrawing()).toBe(false);
+    });
   });
 
   describe("UI methods", () => {

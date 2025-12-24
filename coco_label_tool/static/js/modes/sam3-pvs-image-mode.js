@@ -78,4 +78,8 @@ export class SAM3PVSImageMode extends BaseMode {
   supportsNegativePrompts() {
     return true; // For points only, not boxes
   }
+
+  supportsMaskDrawing() {
+    return true;
+  }
 }

@@ -69,6 +69,18 @@ import { SAM3PCSImageMode } from "./modes/sam3-pcs-image-mode.js";
 import { ManualMode } from "./modes/manual-mode.js";
 import { createManualSegmentationResult } from "./utils/manual-mask.js";
 import {
+  simplifyPath,
+  isPathClosed,
+  closePath,
+  screenToNaturalPolygon,
+  naturalToScreenPolygon,
+  flattenPolygon,
+  unflattenPolygon,
+  isPointInPolygon as isPointInPolygonObjects,
+  calculatePolygonCentroid,
+  createMaskSegmentationResult,
+} from "./utils/mask-prompt.js";
+import {
   initViewManager,
   ViewType,
   updateUrlParams,
@@ -125,6 +137,11 @@ let selectionBoxDrag = null;
 let hoveredAnnotationId = null;
 let mouseDownTime = null;
 let potentialBoxInteraction = null;
+
+// Mask drawing state (CMD/CTRL + drag to draw freehand masks)
+let maskDrawing = false; // True while CMD/CTRL + drag in progress
+let maskDrawingPoints = []; // Screen coordinates of current drawing [{x, y}, ...]
+let currentMaskPrompts = []; // Array of completed mask polygons in natural coords (COCO flat format)
 
 // Crosshair guide position (null when mouse is outside canvas)
 let crosshairPosition = null;
@@ -1904,6 +1921,52 @@ function checkPromptHover(e) {
     }
   }
 
+  // Check mask prompts for hover
+  if (!foundHover && currentMaskPrompts.length > 0) {
+    const deleteButtonSize = CONFIG.canvas.deleteButtonSize;
+
+    for (let i = currentMaskPrompts.length - 1; i >= 0; i--) {
+      const flatPolygon = currentMaskPrompts[i];
+      const polygon = unflattenPolygon(flatPolygon);
+      const screenPolygon = naturalToScreenPolygon(polygon, scaleX, scaleY);
+
+      // Check delete button at centroid
+      const centroid = calculatePolygonCentroid(screenPolygon);
+      if (centroid) {
+        const deleteX = centroid.x - deleteButtonSize / 2;
+        const deleteY = centroid.y - deleteButtonSize / 2;
+
+        if (
+          mouseX >= deleteX &&
+          mouseX <= deleteX + deleteButtonSize &&
+          mouseY >= deleteY &&
+          mouseY <= deleteY + deleteButtonSize
+        ) {
+          if (hoveredPromptType !== "mask-prompt" || hoveredPromptIndex !== i) {
+            hoveredPromptType = "mask-prompt";
+            hoveredPromptIndex = i;
+            canvas.style.cursor = "pointer";
+            redrawCanvas();
+          }
+          foundHover = true;
+          break;
+        }
+      }
+
+      // Check if hovering inside the mask polygon
+      if (isPointInPolygonObjects(mouseX, mouseY, screenPolygon)) {
+        if (hoveredPromptType !== "mask-prompt" || hoveredPromptIndex !== i) {
+          hoveredPromptType = "mask-prompt";
+          hoveredPromptIndex = i;
+          canvas.style.cursor = "pointer";
+          redrawCanvas();
+        }
+        foundHover = true;
+        break;
+      }
+    }
+  }
+
   if (
     !foundHover &&
     (hoveredPromptIndex !== null || hoveredPromptType !== null)
@@ -1985,6 +2048,40 @@ function checkPromptClick(mouseX, mouseY) {
     }
   }
 
+  // Check mask prompts for delete button click or click inside mask
+  if (currentMaskPrompts.length > 0) {
+    const deleteButtonSize = CONFIG.canvas.deleteButtonSize;
+
+    for (let i = currentMaskPrompts.length - 1; i >= 0; i--) {
+      const flatPolygon = currentMaskPrompts[i];
+      const polygon = unflattenPolygon(flatPolygon);
+      const screenPolygon = naturalToScreenPolygon(polygon, scaleX, scaleY);
+
+      // Check delete button at centroid
+      const centroid = calculatePolygonCentroid(screenPolygon);
+      if (centroid) {
+        const deleteX = centroid.x - deleteButtonSize / 2;
+        const deleteY = centroid.y - deleteButtonSize / 2;
+
+        if (
+          mouseX >= deleteX &&
+          mouseX <= deleteX + deleteButtonSize &&
+          mouseY >= deleteY &&
+          mouseY <= deleteY + deleteButtonSize
+        ) {
+          removeMaskPrompt(i);
+          return true;
+        }
+      }
+
+      // Also check if clicking inside the mask polygon
+      if (isPointInPolygonObjects(mouseX, mouseY, screenPolygon)) {
+        removeMaskPrompt(i);
+        return true;
+      }
+    }
+  }
+
   return false;
 }
 
@@ -2015,6 +2112,34 @@ function removeBox() {
     updateSaveButtonState();
   } else {
     runSegmentation();
+  }
+}
+
+function removeMaskPrompt(index) {
+  if (index >= 0 && index < currentMaskPrompts.length) {
+    currentMaskPrompts.splice(index, 1);
+    console.log(`Removed mask prompt ${index + 1}`);
+    hoveredPromptIndex = null;
+    hoveredPromptType = null;
+    canvas.style.cursor = "crosshair";
+
+    // Check if we have any prompts left
+    const hasPrompts =
+      clickPoints.length > 0 ||
+      currentBoxes.length > 0 ||
+      currentBox ||
+      currentMaskPrompts.length > 0;
+
+    if (!hasPrompts) {
+      currentSegmentation = null;
+      redrawCanvas();
+      updateSaveButtonState();
+    } else if (currentModelType === "manual") {
+      // Re-run segmentation for manual mode
+      runSegmentationWithMasks();
+    } else {
+      redrawCanvas();
+    }
   }
 }
 
@@ -2088,6 +2213,17 @@ function handleBoxStart(e) {
     return;
   }
 
+  // Check for Alt/Option + drag for freehand mask drawing
+  if (e.altKey && modeManager) {
+    const mode = modeManager.getCurrentMode();
+    if (mode && mode.supportsMaskDrawing()) {
+      maskDrawing = true;
+      maskDrawingPoints = [{ x: mouseX, y: mouseY }];
+      console.log("🎨 Starting freehand mask drawing (Alt+drag)");
+      return;
+    }
+  }
+
   // Check if clicking on an existing box in currentBoxes (SAM3 multi-box support)
   if (currentBoxes.length > 0) {
     const boxIndex = findBoxIndexAtPoint(
@@ -2141,13 +2277,19 @@ function handleMouseMove(e) {
         crosshairPosition.x !== mouseX ||
         crosshairPosition.y !== mouseY;
       crosshairPosition = { x: mouseX, y: mouseY };
-      if (needsRedraw && !selectionBoxStart && !boxStart) {
+      if (needsRedraw && !selectionBoxStart && !boxStart && !maskDrawing) {
         redrawCanvas();
       }
     } else if (crosshairPosition) {
       crosshairPosition = null;
       redrawCanvas();
     }
+  }
+
+  // Handle freehand mask drawing
+  if (maskDrawing) {
+    handleMaskDrawingDrag(e);
+    return;
   }
 
   if (selectionBoxStart) {
@@ -2180,7 +2322,9 @@ function handleDocumentMouseDown(e) {
 }
 
 function handleDocumentMouseMove(e) {
-  if (selectionBoxStart || boxStart) {
+  if (maskDrawing) {
+    handleMaskDrawingDrag(e);
+  } else if (selectionBoxStart || boxStart) {
     if (selectionBoxStart) {
       handleSelectionDrag(e);
     } else {
@@ -2190,7 +2334,9 @@ function handleDocumentMouseMove(e) {
 }
 
 function handleDocumentMouseUp(e) {
-  if (selectionBoxStart || boxStart) {
+  if (maskDrawing) {
+    handleMaskDrawingEnd(e);
+  } else if (selectionBoxStart || boxStart) {
     handleBoxEnd(e);
   }
 }
@@ -2282,8 +2428,138 @@ function handleBoxDrag(e) {
   drawCrosshairs();
 }
 
+function handleMaskDrawingDrag(e) {
+  e.preventDefault();
+
+  const rect = canvas.getBoundingClientRect();
+  const mouseX = e.clientX - rect.left;
+  const mouseY = e.clientY - rect.top;
+
+  // Update crosshair position
+  crosshairPosition = { x: mouseX, y: mouseY };
+
+  // Add point to drawing path
+  maskDrawingPoints.push({ x: mouseX, y: mouseY });
+
+  // Redraw canvas with current mask drawing
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawExistingAnnotations();
+  drawAllPrompts();
+
+  if (currentSegmentation) {
+    drawSegmentationMasks(currentSegmentation.segmentation);
+  }
+
+  // Draw the current freehand drawing path
+  drawMaskDrawingPath();
+  drawCrosshairs();
+}
+
+function drawMaskDrawingPath() {
+  if (maskDrawingPoints.length < 2) return;
+
+  ctx.strokeStyle = CONFIG.colors.maskPrompt || "#ff00ff"; // Magenta for mask drawing
+  ctx.lineWidth = 2;
+  ctx.setLineDash([]);
+
+  ctx.beginPath();
+  ctx.moveTo(maskDrawingPoints[0].x, maskDrawingPoints[0].y);
+
+  for (let i = 1; i < maskDrawingPoints.length; i++) {
+    ctx.lineTo(maskDrawingPoints[i].x, maskDrawingPoints[i].y);
+  }
+
+  ctx.stroke();
+
+  // Draw points at start and current position
+  ctx.fillStyle = CONFIG.colors.maskPrompt || "#ff00ff";
+  ctx.beginPath();
+  ctx.arc(maskDrawingPoints[0].x, maskDrawingPoints[0].y, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  const lastPoint = maskDrawingPoints[maskDrawingPoints.length - 1];
+  ctx.beginPath();
+  ctx.arc(lastPoint.x, lastPoint.y, 4, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function handleMaskDrawingEnd() {
+  if (!maskDrawing || maskDrawingPoints.length < 3) {
+    // Not enough points for a valid polygon
+    console.log("⚠️  Not enough points for mask (need at least 3)");
+    maskDrawing = false;
+    maskDrawingPoints = [];
+    redrawCanvas();
+    return;
+  }
+
+  const img = document.getElementById("image");
+  const originalDims = getOriginalImageDimensions();
+  const scaleX = originalDims.width / img.width;
+  const scaleY = originalDims.height / img.height;
+
+  // Simplify the path to reduce noise
+  const simplifiedPath = simplifyPath(
+    maskDrawingPoints,
+    CONFIG.maskDrawing?.simplifyTolerance || 2.0,
+  );
+
+  if (simplifiedPath.length < 3) {
+    console.log("⚠️  Simplified path has less than 3 points");
+    maskDrawing = false;
+    maskDrawingPoints = [];
+    redrawCanvas();
+    return;
+  }
+
+  // Auto-close the path if not already closed
+  const closedPath = isPathClosed(
+    simplifiedPath,
+    CONFIG.maskDrawing?.closeThreshold || 20,
+  )
+    ? simplifiedPath
+    : closePath(simplifiedPath);
+
+  // Convert from screen coordinates to natural (image) coordinates
+  const naturalPolygon = screenToNaturalPolygon(closedPath, scaleX, scaleY);
+
+  // Flatten to COCO format [x1, y1, x2, y2, ...]
+  const flatPolygon = flattenPolygon(naturalPolygon);
+
+  // Add to current mask prompts
+  currentMaskPrompts.push(flatPolygon);
+
+  console.log(
+    `✅ Added mask prompt ${currentMaskPrompts.length}: ${naturalPolygon.length} points`,
+  );
+
+  // Reset drawing state
+  maskDrawing = false;
+  maskDrawingPoints = [];
+
+  // Redraw canvas with new mask prompt
+  redrawCanvas();
+
+  // For Manual mode, directly create the segmentation result
+  if (currentModelType === "manual") {
+    runSegmentationWithMasks();
+  } else {
+    // For SAM modes, trigger segmentation with mask prompts (future: Phase 2/3)
+    // For now, just redraw to show the mask prompt
+    console.log(
+      "ℹ️  Mask prompts for SAM2/SAM3 will be sent in Phase 2/3 implementation",
+    );
+  }
+}
+
 function handleBoxEnd(e) {
   e.preventDefault();
+
+  // Handle freehand mask drawing end
+  if (maskDrawing) {
+    handleMaskDrawingEnd(e);
+    return;
+  }
 
   if (selectionBoxStart) {
     const rect = canvas.getBoundingClientRect();
@@ -2419,35 +2695,71 @@ function handleBoxEnd(e) {
   }
 }
 
+function runSegmentationWithMasks() {
+  // Handle manual mode with both boxes and freehand mask prompts
+  const hasBoxes = currentBoxes.length > 0 || currentBox;
+  const hasMasks = currentMaskPrompts.length > 0;
+
+  if (!hasBoxes && !hasMasks) {
+    console.log("⚠️  Manual mode requires at least one box or mask");
+    return;
+  }
+
+  const allSegmentations = [];
+
+  // Add rectangular masks from boxes
+  if (hasBoxes) {
+    const boxesToUse = currentBoxes.length > 0 ? currentBoxes : [currentBox];
+    const boxResult = createManualSegmentationResult(boxesToUse);
+    if (boxResult && boxResult.segmentation) {
+      allSegmentations.push(...boxResult.segmentation);
+    }
+  }
+
+  // Add freehand mask polygons
+  if (hasMasks) {
+    for (const flatPolygon of currentMaskPrompts) {
+      // Each mask prompt is already in COCO format [x1, y1, x2, y2, ...]
+      // Wrap in array since createMaskSegmentationResult expects array of polygons
+      const maskResult = createMaskSegmentationResult([flatPolygon]);
+      if (maskResult && maskResult.segmentation) {
+        allSegmentations.push(...maskResult.segmentation);
+      }
+    }
+  }
+
+  if (allSegmentations.length === 0) {
+    console.log("⚠️  No valid segmentations created");
+    return;
+  }
+
+  const result = {
+    segmentation: allSegmentations,
+    scores: allSegmentations.map(() => 1.0), // Manual masks have perfect score
+  };
+
+  currentSegmentation = result;
+  drawSegmentation(result.segmentation);
+  console.log(
+    `📐 Manual segmentation: ${result.segmentation.length} mask(s) (${currentBoxes.length || (currentBox ? 1 : 0)} boxes, ${currentMaskPrompts.length} freehand)`,
+  );
+
+  // Initialize mask category IDs and render dropdowns
+  maskCategoryIds = initializeMaskCategories(
+    result.segmentation.length,
+    selectedCategoryId,
+  );
+  renderMaskCategoryDropdowns();
+  updateMergeButtonState();
+}
+
 async function runSegmentation() {
   const imgData = imageMap[currentIndex];
   if (!imgData) return;
 
   // Handle manual mode - generate masks locally without API call
   if (currentModelType === "manual") {
-    if (currentBoxes.length === 0 && !currentBox) {
-      console.log("⚠️  Manual mode requires at least one box");
-      return;
-    }
-
-    const boxesToUse = currentBoxes.length > 0 ? currentBoxes : [currentBox];
-    const result = createManualSegmentationResult(boxesToUse);
-
-    if (result) {
-      currentSegmentation = result;
-      drawSegmentation(result.segmentation);
-      console.log(
-        `📐 Manual segmentation: ${result.segmentation.length} rectangular mask(s)`,
-      );
-
-      // Initialize mask category IDs and render dropdowns
-      maskCategoryIds = initializeMaskCategories(
-        result.segmentation.length,
-        selectedCategoryId,
-      );
-      renderMaskCategoryDropdowns();
-      updateMergeButtonState();
-    }
+    runSegmentationWithMasks();
     return;
   }
 
@@ -2912,6 +3224,74 @@ function drawAllPrompts() {
     ctx.lineTo(deleteX + 5, deleteY + deleteButtonSize - 5);
     ctx.stroke();
   }
+
+  // Draw mask prompts (freehand drawn masks)
+  if (currentMaskPrompts.length > 0) {
+    drawMaskPrompts(scaleX, scaleY);
+  }
+}
+
+function drawMaskPrompts(scaleX, scaleY) {
+  const maskColor = CONFIG.colors.maskPrompt || "#ff00ff"; // Magenta
+
+  for (let i = 0; i < currentMaskPrompts.length; i++) {
+    const flatPolygon = currentMaskPrompts[i];
+    const polygon = unflattenPolygon(flatPolygon);
+    const isHovered =
+      hoveredPromptType === "mask-prompt" && hoveredPromptIndex === i;
+
+    // Convert from natural to screen coordinates
+    const screenPolygon = naturalToScreenPolygon(polygon, scaleX, scaleY);
+
+    if (screenPolygon.length < 3) continue;
+
+    // Draw filled polygon with transparency
+    ctx.fillStyle = isHovered
+      ? "rgba(255, 0, 255, 0.4)"
+      : "rgba(255, 0, 255, 0.2)";
+    ctx.beginPath();
+    ctx.moveTo(screenPolygon[0].x, screenPolygon[0].y);
+    for (let j = 1; j < screenPolygon.length; j++) {
+      ctx.lineTo(screenPolygon[j].x, screenPolygon[j].y);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // Draw outline
+    ctx.strokeStyle = isHovered ? CONFIG.colors.hover : maskColor;
+    ctx.lineWidth = isHovered ? 3 : 2;
+    ctx.stroke();
+
+    // Draw delete button at centroid
+    const centroid = calculatePolygonCentroid(screenPolygon);
+    if (centroid) {
+      const deleteButtonSize = CONFIG.canvas.deleteButtonSize;
+      const deleteX = centroid.x - deleteButtonSize / 2;
+      const deleteY = centroid.y - deleteButtonSize / 2;
+
+      // Draw button background
+      ctx.fillStyle = isHovered ? CONFIG.colors.negative : "#cc0000";
+      ctx.fillRect(deleteX, deleteY, deleteButtonSize, deleteButtonSize);
+
+      // Draw white border
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(deleteX, deleteY, deleteButtonSize, deleteButtonSize);
+
+      // Draw X
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(deleteX + 5, deleteY + 5);
+      ctx.lineTo(
+        deleteX + deleteButtonSize - 5,
+        deleteY + deleteButtonSize - 5,
+      );
+      ctx.moveTo(deleteX + deleteButtonSize - 5, deleteY + 5);
+      ctx.lineTo(deleteX + 5, deleteY + deleteButtonSize - 5);
+      ctx.stroke();
+    }
+  }
 }
 
 function drawPrompts() {
@@ -3009,6 +3389,11 @@ function resetPrompts() {
   selectionBoxStart = null;
   selectionBoxDrag = null;
   hoveredAnnotationId = null;
+
+  // Clear mask drawing state
+  maskDrawing = false;
+  maskDrawingPoints = [];
+  currentMaskPrompts = [];
 
   // Clear text prompt input field
   const textPromptInput = document.getElementById("text-prompt");

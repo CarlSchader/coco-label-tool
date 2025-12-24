@@ -119,4 +119,10 @@ export class BaseMode {
       "BaseMode.supportsNegativePrompts() must be implemented by subclass",
     );
   }
+
+  supportsMaskDrawing() {
+    throw new Error(
+      "BaseMode.supportsMaskDrawing() must be implemented by subclass",
+    );
+  }
 }

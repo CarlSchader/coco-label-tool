@@ -22,6 +22,12 @@ export const CONFIG = {
     deleteButton: "#cc0000",
     deleteButtonHover: "#ff0000",
     white: "#ffffff",
+    maskPrompt: "#ff00ff", // Magenta for freehand mask drawing
+  },
+
+  maskDrawing: {
+    simplifyTolerance: 2.0, // Douglas-Peucker simplification tolerance in pixels
+    closeThreshold: 20, // Distance threshold to auto-close path (pixels)
   },
 
   validation: {

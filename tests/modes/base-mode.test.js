@@ -177,6 +177,12 @@ describe("BaseMode", () => {
       );
     });
 
+    test("supportsMaskDrawing() throws NotImplementedError", () => {
+      expect(() => mode.supportsMaskDrawing()).toThrow(
+        "BaseMode.supportsMaskDrawing() must be implemented by subclass",
+      );
+    });
+
     test("supportsNegativePrompts() throws NotImplementedError", () => {
       expect(() => mode.supportsNegativePrompts()).toThrow(
         "BaseMode.supportsNegativePrompts() must be implemented by subclass",

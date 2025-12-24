@@ -57,6 +57,10 @@ describe("SAM2Mode", () => {
     test("supportsNegativePrompts() returns true", () => {
       expect(mode.supportsNegativePrompts()).toBe(true);
     });
+
+    test("supportsMaskDrawing() returns true", () => {
+      expect(mode.supportsMaskDrawing()).toBe(true);
+    });
   });
 
   describe("UI methods", () => {

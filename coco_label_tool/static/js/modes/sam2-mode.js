@@ -77,4 +77,8 @@ export class SAM2Mode extends BaseMode {
   supportsNegativePrompts() {
     return true;
   }
+
+  supportsMaskDrawing() {
+    return true;
+  }
 }

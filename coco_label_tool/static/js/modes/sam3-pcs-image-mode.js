@@ -79,4 +79,8 @@ export class SAM3PCSImageMode extends BaseMode {
   supportsNegativePrompts() {
     return true; // For boxes only (not points since points aren't supported)
   }
+
+  supportsMaskDrawing() {
+    return false; // PCS only supports text + boxes
+  }
 }

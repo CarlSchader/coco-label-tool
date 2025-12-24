@@ -57,6 +57,10 @@ describe("SAM3PVSImageMode", () => {
     test("supportsNegativePrompts() returns true for points", () => {
       expect(mode.supportsNegativePrompts()).toBe(true);
     });
+
+    test("supportsMaskDrawing() returns true", () => {
+      expect(mode.supportsMaskDrawing()).toBe(true);
+    });
   });
 
   describe("UI methods", () => {
