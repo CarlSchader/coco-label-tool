@@ -58,8 +58,8 @@ describe("SAM3PVSImageMode", () => {
       expect(mode.supportsNegativePrompts()).toBe(true);
     });
 
-    test("supportsMaskDrawing() returns true", () => {
-      expect(mode.supportsMaskDrawing()).toBe(true);
+    test("supportsMaskDrawing() returns false", () => {
+      expect(mode.supportsMaskDrawing()).toBe(false);
     });
   });
 

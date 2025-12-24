@@ -2540,15 +2540,10 @@ function handleMaskDrawingEnd() {
   // Redraw canvas with new mask prompt
   redrawCanvas();
 
-  // For Manual mode, directly create the segmentation result
+  // Manual mode only: create segmentation locally without API call
+  // (SAM2/SAM3 don't support freehand mask prompts in this way)
   if (currentModelType === "manual") {
     runSegmentationWithMasks();
-  } else {
-    // For SAM modes, trigger segmentation with mask prompts (future: Phase 2/3)
-    // For now, just redraw to show the mask prompt
-    console.log(
-      "ℹ️  Mask prompts for SAM2/SAM3 will be sent in Phase 2/3 implementation",
-    );
   }
 }
 

@@ -79,6 +79,6 @@ export class SAM2Mode extends BaseMode {
   }
 
   supportsMaskDrawing() {
-    return true;
+    return false;
   }
 }

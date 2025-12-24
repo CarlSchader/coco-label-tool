@@ -80,6 +80,6 @@ export class SAM3PVSImageMode extends BaseMode {
   }
 
   supportsMaskDrawing() {
-    return true;
+    return false;
   }
 }
