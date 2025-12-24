@@ -86,7 +86,7 @@ export function calculateCombinedBbox(polygons) {
 
 /**
  * Merge multiple mask polygons into a single logical mask
- * Preserves all polygons to maintain non-contiguous regions
+ * Unions overlapping polygons while preserving non-contiguous regions
  * @param {Array<Array<number>>} polygons - Array of polygon coordinate arrays
  * @returns {{mergedPolygons: Array<Array<number>>, bbox: Array<number>, area: number}|null}
  */
@@ -102,8 +102,13 @@ export function mergeMaskPolygons(polygons) {
     return null;
   }
 
-  // Keep all valid polygons (preserves non-contiguous regions)
-  const mergedPolygons = validPolygons;
+  // Union overlapping polygons - this merges overlapping shapes into single polygons
+  // while preserving non-contiguous (non-overlapping) regions as separate polygons
+  const mergedPolygons = unionOverlappingPolygons(validPolygons);
+
+  if (mergedPolygons.length === 0) {
+    return null;
+  }
 
   // Calculate combined bbox and total area
   const bbox = calculateCombinedBbox(mergedPolygons);

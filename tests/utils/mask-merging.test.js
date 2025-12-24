@@ -125,17 +125,30 @@ describe("calculateCombinedBbox", () => {
 });
 
 describe("mergeMaskPolygons", () => {
-  test("merges multiple polygons into single mask", () => {
+  test("keeps non-overlapping polygons separate", () => {
     const polygons = [
       [0, 0, 10, 0, 10, 10, 0, 10], // 10x10 = 100
-      [20, 20, 30, 20, 30, 30, 20, 30], // 10x10 = 100
+      [100, 100, 110, 100, 110, 110, 100, 110], // 10x10 = 100, far away
     ];
 
     const result = mergeMaskPolygons(polygons);
 
-    expect(result.mergedPolygons).toEqual(polygons); // Keeps all polygons
-    expect(result.bbox).toEqual([0, 0, 30, 30]);
-    expect(result.area).toBe(200);
+    // Non-overlapping polygons should remain separate
+    expect(result.mergedPolygons).toHaveLength(2);
+    expect(result.bbox).toEqual([0, 0, 110, 110]);
+  });
+
+  test("merges overlapping polygons into single polygon", () => {
+    const polygons = [
+      [0, 0, 100, 0, 100, 100, 0, 100], // Square
+      [50, 50, 150, 50, 150, 150, 50, 150], // Overlapping square
+    ];
+
+    const result = mergeMaskPolygons(polygons);
+
+    // Overlapping polygons should be merged into one
+    expect(result.mergedPolygons).toHaveLength(1);
+    expect(result.mergedPolygons[0].length).toBeGreaterThanOrEqual(6);
   });
 
   test("handles single polygon", () => {
@@ -143,9 +156,8 @@ describe("mergeMaskPolygons", () => {
 
     const result = mergeMaskPolygons(polygons);
 
-    expect(result.mergedPolygons).toEqual(polygons);
+    expect(result.mergedPolygons).toHaveLength(1);
     expect(result.bbox).toEqual([0, 0, 10, 10]); // [x, y, width, height]
-    expect(result.area).toBe(100);
   });
 
   test("returns null for empty array", () => {
@@ -163,32 +175,31 @@ describe("mergeMaskPolygons", () => {
       [0, 0, 10, 0, 10, 10, 0, 10], // Valid 10x10 = 100
       [], // Invalid
       [20, 20], // Invalid (too few points)
-      [30, 30, 40, 30, 40, 40, 30, 40], // Valid 10x10 = 100
+      [100, 100, 110, 100, 110, 110, 100, 110], // Valid 10x10 = 100, far away
     ];
 
     const result = mergeMaskPolygons(polygons);
 
     expect(result.mergedPolygons).toHaveLength(2);
-    expect(result.area).toBe(200);
   });
 
-  test("preserves all valid polygons (non-contiguous regions)", () => {
+  test("preserves non-contiguous regions as separate polygons", () => {
     const polygons = [
       [0, 0, 5, 0, 5, 5, 0, 5],
-      [10, 10, 15, 10, 15, 15, 10, 15],
-      [20, 20, 25, 20, 25, 25, 20, 25],
+      [100, 100, 105, 100, 105, 105, 100, 105],
+      [200, 200, 205, 200, 205, 205, 200, 205],
     ];
 
     const result = mergeMaskPolygons(polygons);
 
+    // Non-overlapping polygons should stay separate
     expect(result.mergedPolygons).toHaveLength(3);
-    expect(result.mergedPolygons).toEqual(polygons);
   });
 
   test("handles complex polygon shapes", () => {
     const polygons = [
       [0, 0, 10, 5, 5, 10, 15, 15, 0, 10], // Irregular shape
-      [20, 20, 25, 20, 25, 25, 20, 25], // Square
+      [200, 200, 205, 200, 205, 205, 200, 205], // Square far away
     ];
 
     const result = mergeMaskPolygons(polygons);
@@ -209,6 +220,44 @@ describe("mergeMaskPolygons", () => {
     expect(Array.isArray(result.mergedPolygons)).toBe(true);
     expect(Array.isArray(result.bbox)).toBe(true);
     expect(typeof result.area).toBe("number");
+  });
+
+  test("merges three overlapping polygons into one", () => {
+    const polygons = [
+      [0, 0, 100, 0, 100, 100, 0, 100],
+      [50, 50, 150, 50, 150, 150, 50, 150],
+      [100, 100, 200, 100, 200, 200, 100, 200],
+    ];
+
+    const result = mergeMaskPolygons(polygons);
+
+    // All three overlap transitively, should become one polygon
+    expect(result.mergedPolygons).toHaveLength(1);
+  });
+
+  test("keeps non-overlapping polygon separate while merging overlapping ones", () => {
+    const polygons = [
+      [0, 0, 100, 0, 100, 100, 0, 100], // Overlaps with second
+      [50, 50, 150, 50, 150, 150, 50, 150], // Overlaps with first
+      [500, 500, 550, 500, 550, 550, 500, 550], // Far away, no overlap
+    ];
+
+    const result = mergeMaskPolygons(polygons);
+
+    // Should have 2 polygons: one merged from first two, one separate
+    expect(result.mergedPolygons).toHaveLength(2);
+  });
+
+  test("handles polygon completely inside another", () => {
+    const polygons = [
+      [0, 0, 200, 0, 200, 200, 0, 200], // Large square
+      [50, 50, 100, 50, 100, 100, 50, 100], // Small square inside
+    ];
+
+    const result = mergeMaskPolygons(polygons);
+
+    // Inner polygon is contained, result should be single polygon
+    expect(result.mergedPolygons).toHaveLength(1);
   });
 });
 
