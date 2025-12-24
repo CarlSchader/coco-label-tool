@@ -367,6 +367,22 @@ input[type="text"]:focus {
 .spinner.show {
   display: block;
 }
+.empty-image-message {
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--text-secondary);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  z-index: 10;
+}
+.empty-image-message.show {
+  display: block;
+}
 @keyframes spin {
   0% {
     transform: translate(-50%, -50%) rotate(0deg);

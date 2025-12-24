@@ -616,6 +616,7 @@ async function showImage(index) {
   }
 
   document.getElementById("spinner").classList.add("show");
+  document.getElementById("empty-image-message").classList.remove("show");
 
   await ensureImageLoaded(currentIndex);
 
@@ -673,8 +674,17 @@ async function showImage(index) {
   const imgElement = document.getElementById("image");
   imgElement.onload = () => {
     document.getElementById("spinner").classList.remove("show");
+    // Check for empty image (0x0 dimensions)
+    if (imgElement.naturalWidth === 0 || imgElement.naturalHeight === 0) {
+      document.getElementById("empty-image-message").classList.add("show");
+      return;
+    }
     setupCanvas();
     drawExistingAnnotations();
+  };
+  imgElement.onerror = () => {
+    document.getElementById("spinner").classList.remove("show");
+    document.getElementById("empty-image-message").classList.add("show");
   };
 }
 
