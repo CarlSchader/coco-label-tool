@@ -182,3 +182,18 @@ def get_sam3_tracker_service() -> SAM3TrackerService:
     if _sam3_tracker_service is None:
         _sam3_tracker_service = SAM3TrackerService()
     return _sam3_tracker_service
+
+
+def clear_sam3_tracker_service() -> None:
+    """Clear SAM3 Tracker service from memory.
+
+    Deletes the model and processor to free GPU memory.
+    Safe to call even if service was never initialized.
+    """
+    global _sam3_tracker_service
+    if _sam3_tracker_service is not None:
+        print("Clearing SAM3 Tracker service from memory...")
+        del _sam3_tracker_service.model
+        del _sam3_tracker_service.processor
+        _sam3_tracker_service = None
+        print("SAM3 Tracker service cleared")

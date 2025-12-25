@@ -113,3 +113,19 @@ def get_sam2_service() -> SAM2Service:
     if _sam2_service is None:
         _sam2_service = SAM2Service()
     return _sam2_service
+
+
+def clear_sam2_service() -> None:
+    """Clear SAM2 service from memory.
+
+    Deletes the model and processor to free GPU memory.
+    Safe to call even if service was never initialized.
+    """
+    global _sam2_service
+    if _sam2_service is not None:
+        print("Clearing SAM2 service from memory...")
+        # Delete model and processor to free GPU memory
+        del _sam2_service.model
+        del _sam2_service.processor
+        _sam2_service = None
+        print("SAM2 service cleared")

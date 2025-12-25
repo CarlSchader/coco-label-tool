@@ -168,3 +168,18 @@ def get_sam3_pcs_service() -> SAM3PCSService:
     if _sam3_pcs_service is None:
         _sam3_pcs_service = SAM3PCSService()
     return _sam3_pcs_service
+
+
+def clear_sam3_pcs_service() -> None:
+    """Clear SAM3 PCS service from memory.
+
+    Deletes the model and processor to free GPU memory.
+    Safe to call even if service was never initialized.
+    """
+    global _sam3_pcs_service
+    if _sam3_pcs_service is not None:
+        print("Clearing SAM3 PCS service from memory...")
+        del _sam3_pcs_service.model
+        del _sam3_pcs_service.processor
+        _sam3_pcs_service = None
+        print("SAM3 PCS service cleared")
