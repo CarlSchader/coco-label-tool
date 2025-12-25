@@ -234,6 +234,11 @@ input[type="text"]:focus {
   border-radius: var(--radius-sm);
   overflow: hidden;
 }
+.image-content {
+  position: relative;
+  display: inline-block;
+  transform-origin: 0 0;
+}
 .image-container img {
   height: 85vh;
   width: auto;

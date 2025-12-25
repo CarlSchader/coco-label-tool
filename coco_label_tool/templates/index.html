@@ -135,6 +135,36 @@
         >
           Redo
         </button>
+        <div
+          class="zoom-controls"
+          style="
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 10px;
+          "
+        >
+          <button id="btn-zoom-out" title="Zoom Out (-)">-</button>
+          <span
+            id="zoom-level"
+            style="
+              min-width: 50px;
+              text-align: center;
+              color: #48d1cc;
+              font-size: 12px;
+            "
+            >100%</span
+          >
+          <button id="btn-zoom-in" title="Zoom In (+)">+</button>
+          <button
+            id="btn-zoom-reset"
+            title="Reset View (0)"
+            disabled
+            style="opacity: 0.5"
+          >
+            Reset
+          </button>
+        </div>
         <button id="btn-delete-image" class="delete">Delete Image</button>
 
         <!-- Save to S3 button (hidden by default, shown only for S3 datasets) -->
@@ -317,11 +347,13 @@
             Empty image
           </div>
           <div class="image-wrapper" id="image-wrapper">
-            <img id="image" src="" alt="Dataset image" />
-            <canvas id="canvas"></canvas>
-            <canvas id="crosshair-canvas"></canvas>
-            <!-- Mask category dropdown overlay -->
-            <div id="mask-category-overlay"></div>
+            <div class="image-content" id="image-content">
+              <img id="image" src="" alt="Dataset image" />
+              <canvas id="canvas"></canvas>
+              <canvas id="crosshair-canvas"></canvas>
+              <!-- Mask category dropdown overlay -->
+              <div id="mask-category-overlay"></div>
+            </div>
           </div>
           <div class="info">
             <p><strong>ID:</strong> <span id="image-id"></span></p>
@@ -538,6 +570,12 @@
             <kbd>Ctrl/Cmd</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> → Redo
           </div>
           <div class="keyboard-hint"><kbd>Enter</kbd> → Save annotation</div>
+          <div class="keyboard-hint">
+            <kbd>+</kbd> / <kbd>-</kbd> → Zoom in/out
+          </div>
+          <div class="keyboard-hint"><kbd>0</kbd> → Reset view</div>
+          <div class="keyboard-hint"><kbd>Space</kbd> + Drag → Pan view</div>
+          <div class="keyboard-hint">Mouse wheel → Zoom at cursor</div>
         </div>
       </div>
     </div>

@@ -92,6 +92,7 @@ import {
   setWarningFunction,
 } from "./gallery.js";
 import { UndoManager } from "./utils/undo.js";
+import { ViewTransform } from "./utils/view-transform.js";
 
 let images = [];
 let currentModelType = "sam2";
@@ -163,6 +164,12 @@ let galleryInitialized = false;
 
 // Undo/Redo manager
 const undoManager = new UndoManager(50);
+
+// View transform for zoom/pan
+const viewTransform = new ViewTransform();
+let isPanning = false;
+let panStartX = 0;
+let panStartY = 0;
 
 // S3 Support functions
 function updateS3UI() {
@@ -560,6 +567,57 @@ function updateUndoRedoButtons() {
 // Register undo manager callback to update UI
 undoManager.onChange(updateUndoRedoButtons);
 
+function updateZoomDisplay() {
+  const zoomLevel = document.getElementById("zoom-level");
+  const resetBtn = document.getElementById("btn-zoom-reset");
+
+  if (zoomLevel) {
+    zoomLevel.textContent = viewTransform.getScalePercent();
+  }
+
+  if (resetBtn) {
+    resetBtn.disabled = viewTransform.isAtDefaultView();
+    resetBtn.style.opacity = viewTransform.isAtDefaultView() ? "0.5" : "1";
+  }
+}
+
+/**
+ * Apply the current view transform to the image content using CSS transforms.
+ * This transforms both the image and the overlaid canvases together,
+ * while the wrapper stays fixed as a clipping viewport.
+ */
+function applyViewTransform() {
+  const content = document.getElementById("image-content");
+  if (!content) return;
+
+  const matrix = viewTransform.getTransformMatrix();
+  content.style.transform = `matrix(${matrix.a}, ${matrix.b}, ${matrix.c}, ${matrix.d}, ${matrix.e}, ${matrix.f})`;
+}
+
+/**
+ * Convert viewport event coordinates to canvas coordinates,
+ * accounting for the CSS transform on the image content.
+ *
+ * @param {MouseEvent} e - Mouse event
+ * @returns {{canvasX: number, canvasY: number}} Coordinates in canvas space
+ */
+function getCanvasCoordinates(e) {
+  const wrapper = document.getElementById("image-wrapper");
+  const wrapperRect = wrapper.getBoundingClientRect();
+
+  // Get click position relative to the wrapper (fixed viewport)
+  const viewportX = e.clientX - wrapperRect.left;
+  const viewportY = e.clientY - wrapperRect.top;
+
+  // Convert from viewport space to canvas space:
+  // 1. Subtract pan offset (content is translated by panX, panY)
+  // 2. Divide by scale (content is scaled)
+  const canvasX = (viewportX - viewTransform.panX) / viewTransform.scale;
+  const canvasY = (viewportY - viewTransform.panY) / viewTransform.scale;
+
+  return { canvasX, canvasY };
+}
+
 function updateCacheInfo() {
   if (cachedIndices.length === 0) {
     document.getElementById("cache-info").textContent = "Cache: empty";
@@ -723,6 +781,9 @@ async function showImage(index, options = {}) {
   if (!preserveUndoStack) {
     undoManager.clear(); // Clear undo stack when changing images
   }
+  // Reset view transform (zoom/pan) when changing images
+  viewTransform.reset();
+  updateZoomDisplay();
   updateAnnotationEditor();
   if (canvas) {
     canvas.style.cursor = "crosshair";
@@ -1695,6 +1756,25 @@ document.addEventListener("keydown", (e) => {
     }
   }
 
+  // Space key for panning mode - prevent default to stop page scrolling
+  if (e.code === "Space") {
+    // Don't block space if typing in an input
+    const activeEl = document.activeElement;
+    const isTextInput =
+      activeEl &&
+      (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA");
+    if (!isTextInput) {
+      e.preventDefault(); // Always prevent scroll
+      if (!isPanning && !e.repeat) {
+        isPanning = true;
+        const wrapper = document.getElementById("image-wrapper");
+        if (wrapper) {
+          wrapper.style.cursor = "grab";
+        }
+      }
+    }
+  }
+
   if (deleteModal.isVisible()) {
     handleModalKeydown(e);
   } else if (
@@ -1786,6 +1866,31 @@ document.addEventListener("keydown", (e) => {
         console.warn("ℹ️  All boxes are treated as positive prompts");
       }
     }
+    // Zoom in: + or =
+    if (e.key === "+" || e.key === "=") {
+      e.preventDefault();
+      if (canvas) {
+        viewTransform.zoomIn(canvas.width / 2, canvas.height / 2);
+        redrawCanvas();
+        updateZoomDisplay();
+      }
+    }
+    // Zoom out: -
+    if (e.key === "-") {
+      e.preventDefault();
+      if (canvas) {
+        viewTransform.zoomOut(canvas.width / 2, canvas.height / 2);
+        redrawCanvas();
+        updateZoomDisplay();
+      }
+    }
+    // Reset view: 0 (without modifier keys)
+    if (e.key === "0" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      viewTransform.reset();
+      redrawCanvas();
+      updateZoomDisplay();
+    }
   }
 });
 
@@ -1796,6 +1901,15 @@ document.addEventListener("keyup", (e) => {
     if (canvas) {
       canvas.style.cursor = "crosshair";
       redrawCanvas();
+    }
+  }
+
+  // Release space key for panning
+  if (e.code === "Space" && isPanning) {
+    isPanning = false;
+    const wrapper = document.getElementById("image-wrapper");
+    if (wrapper) {
+      wrapper.style.cursor = "crosshair";
     }
   }
 });
@@ -1941,6 +2055,28 @@ function setupCanvas() {
   wrapper.onmouseup = handleBoxEnd;
   wrapper.onmouseleave = handleMouseLeave;
 
+  // Mouse wheel zoom
+  wrapper.addEventListener(
+    "wheel",
+    (e) => {
+      e.preventDefault();
+
+      const rect = canvas.getBoundingClientRect();
+      const centerX = e.clientX - rect.left;
+      const centerY = e.clientY - rect.top;
+
+      if (e.deltaY < 0) {
+        viewTransform.zoomIn(centerX, centerY);
+      } else {
+        viewTransform.zoomOut(centerX, centerY);
+      }
+
+      redrawCanvas();
+      updateZoomDisplay();
+    },
+    { passive: false },
+  );
+
   document.addEventListener("mousedown", handleDocumentMouseDown);
   document.addEventListener("mousemove", handleDocumentMouseMove);
   document.addEventListener("mouseup", handleDocumentMouseUp);
@@ -1949,16 +2085,18 @@ function setupCanvas() {
 function handleImageClick(e) {
   e.preventDefault();
 
-  const canvas = document.getElementById("canvas");
-  const rect = canvas.getBoundingClientRect();
   const img = document.getElementById("image");
   // Scale from display to original image dimensions for SAM coordinates
   const originalDims = getOriginalImageDimensions();
   const scaleX = originalDims.width / img.width;
   const scaleY = originalDims.height / img.height;
 
-  const x = (e.clientX - rect.left) * scaleX;
-  const y = (e.clientY - rect.top) * scaleY;
+  // Get canvas coordinates (accounting for CSS transform)
+  const { canvasX, canvasY } = getCanvasCoordinates(e);
+
+  // Convert from canvas to natural (image) coordinates
+  const x = canvasX * scaleX;
+  const y = canvasY * scaleY;
 
   if (!isPointInFrame(x, y)) {
     return;
@@ -2367,13 +2505,21 @@ function removeMaskPrompt(index) {
 
 function redrawCanvas() {
   if (!canvas) return;
+
+  // Clear canvas (no transform needed - we use CSS transforms on the wrapper)
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Draw content in native canvas coordinates
+  // The CSS transform on image-wrapper handles zoom/pan visually
   drawExistingAnnotations();
   if (currentSegmentation) {
     drawSegmentationMasks(currentSegmentation.segmentation);
   }
   drawAllPrompts();
   drawCrosshairs();
+
+  // Apply CSS transform to the image wrapper
+  applyViewTransform();
 }
 
 function drawCrosshairs() {
@@ -2411,18 +2557,31 @@ function drawCrosshairs() {
 function handleBoxStart(e) {
   e.preventDefault();
 
-  const rect = canvas.getBoundingClientRect();
+  // Handle panning mode
+  if (isPanning) {
+    const wrapper = document.getElementById("image-wrapper");
+    if (wrapper) {
+      wrapper.style.cursor = "grabbing";
+    }
+    panStartX = e.clientX;
+    panStartY = e.clientY;
+    return;
+  }
+
   const img = document.getElementById("image");
   // Scale from display to original image dimensions
   const originalDims = getOriginalImageDimensions();
   const scaleX = originalDims.width / img.width;
   const scaleY = originalDims.height / img.height;
 
-  const mouseX = e.clientX - rect.left;
-  const mouseY = e.clientY - rect.top;
+  // Get canvas coordinates (accounting for CSS transform)
+  const { canvasX, canvasY } = getCanvasCoordinates(e);
+  const mouseX = canvasX;
+  const mouseY = canvasY;
 
-  const x = mouseX * scaleX;
-  const y = mouseY * scaleY;
+  // Convert from canvas to natural (image) coordinates
+  const x = canvasX * scaleX;
+  const y = canvasY * scaleY;
 
   mouseDownTime = Date.now();
 
@@ -2487,11 +2646,23 @@ function handleBoxStart(e) {
 }
 
 function handleMouseMove(e) {
+  // Handle panning
+  if (isPanning && e.buttons === 1) {
+    const deltaX = e.clientX - panStartX;
+    const deltaY = e.clientY - panStartY;
+    viewTransform.pan(deltaX, deltaY);
+    panStartX = e.clientX;
+    panStartY = e.clientY;
+    redrawCanvas();
+    return;
+  }
+
   // Update crosshair position (only if canvas is initialized)
   if (canvas) {
-    const rect = canvas.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
+    // Get canvas coordinates (accounting for CSS transform)
+    const { canvasX, canvasY } = getCanvasCoordinates(e);
+    const mouseX = canvasX;
+    const mouseY = canvasY;
 
     if (isMouseInCanvas(mouseX, mouseY, canvas.width, canvas.height)) {
       const needsRedraw =
@@ -2566,19 +2737,21 @@ function handleDocumentMouseUp(e) {
 function handleSelectionDrag(e) {
   e.preventDefault();
 
-  const rect = canvas.getBoundingClientRect();
   const img = document.getElementById("image");
   // Scale from display to original image dimensions
   const originalDims = getOriginalImageDimensions();
   const scaleX = originalDims.width / img.width;
   const scaleY = originalDims.height / img.height;
 
-  const mouseX = e.clientX - rect.left;
-  const mouseY = e.clientY - rect.top;
+  // Get canvas coordinates (accounting for CSS transform)
+  const { canvasX, canvasY } = getCanvasCoordinates(e);
+  const mouseX = canvasX;
+  const mouseY = canvasY;
   crosshairPosition = { x: mouseX, y: mouseY };
 
-  const x = mouseX * scaleX;
-  const y = mouseY * scaleY;
+  // Convert from canvas to natural (image) coordinates
+  const x = canvasX * scaleX;
+  const y = canvasY * scaleY;
 
   selectionBoxDrag = calculateDragBox(
     selectionBoxStart.x,
@@ -2597,19 +2770,21 @@ function handleSelectionDrag(e) {
 function handleBoxDrag(e) {
   e.preventDefault();
 
-  const rect = canvas.getBoundingClientRect();
   const img = document.getElementById("image");
   // Scale from display to original image dimensions
   const originalDims = getOriginalImageDimensions();
   const scaleX = originalDims.width / img.width;
   const scaleY = originalDims.height / img.height;
 
-  const mouseX = e.clientX - rect.left;
-  const mouseY = e.clientY - rect.top;
+  // Get canvas coordinates (accounting for CSS transform)
+  const { canvasX, canvasY } = getCanvasCoordinates(e);
+  const mouseX = canvasX;
+  const mouseY = canvasY;
   crosshairPosition = { x: mouseX, y: mouseY };
 
-  const x = mouseX * scaleX;
-  const y = mouseY * scaleY;
+  // Convert from canvas to natural (image) coordinates
+  const x = canvasX * scaleX;
+  const y = canvasY * scaleY;
 
   if (potentialBoxInteraction && !boxInteractionMode && mouseDownTime) {
     const elapsed = Date.now() - mouseDownTime;
@@ -2772,6 +2947,15 @@ function handleMaskDrawingEnd() {
 function handleBoxEnd(e) {
   e.preventDefault();
 
+  // Handle panning release
+  if (isPanning) {
+    const wrapper = document.getElementById("image-wrapper");
+    if (wrapper) {
+      wrapper.style.cursor = "grab";
+    }
+    return;
+  }
+
   // Handle freehand mask drawing end
   if (maskDrawing) {
     handleMaskDrawingEnd(e);
@@ -2779,15 +2963,18 @@ function handleBoxEnd(e) {
   }
 
   if (selectionBoxStart) {
-    const rect = canvas.getBoundingClientRect();
     const img = document.getElementById("image");
     // Scale from display to original image dimensions
     const originalDims = getOriginalImageDimensions();
     const scaleX = originalDims.width / img.width;
     const scaleY = originalDims.height / img.height;
 
-    const x = (e.clientX - rect.left) * scaleX;
-    const y = (e.clientY - rect.top) * scaleY;
+    // Get canvas coordinates (accounting for CSS transform)
+    const { canvasX, canvasY } = getCanvasCoordinates(e);
+
+    // Convert from canvas to natural (image) coordinates
+    const x = canvasX * scaleX;
+    const y = canvasY * scaleY;
 
     const width = Math.abs(x - selectionBoxStart.x);
     const height = Math.abs(y - selectionBoxStart.y);
@@ -2811,15 +2998,18 @@ function handleBoxEnd(e) {
 
   if (!boxStart) return;
 
-  const rect = canvas.getBoundingClientRect();
   const img = document.getElementById("image");
   // Scale from display to original image dimensions
   const originalDims = getOriginalImageDimensions();
   const scaleX = originalDims.width / img.width;
   const scaleY = originalDims.height / img.height;
 
-  const x = (e.clientX - rect.left) * scaleX;
-  const y = (e.clientY - rect.top) * scaleY;
+  // Get canvas coordinates (accounting for CSS transform)
+  const { canvasX, canvasY } = getCanvasCoordinates(e);
+
+  // Convert from canvas to natural (image) coordinates
+  const x = canvasX * scaleX;
+  const y = canvasY * scaleY;
 
   const clickDuration = mouseDownTime ? Date.now() - mouseDownTime : 0;
   const width = Math.abs(x - boxStart.x);
@@ -4532,6 +4722,27 @@ function setupEventListeners() {
     if (undoManager.canRedo()) {
       await undoManager.redo();
     }
+  });
+
+  // Zoom controls
+  document.getElementById("btn-zoom-in")?.addEventListener("click", () => {
+    if (canvas) {
+      viewTransform.zoomIn(canvas.width / 2, canvas.height / 2);
+      redrawCanvas();
+      updateZoomDisplay();
+    }
+  });
+  document.getElementById("btn-zoom-out")?.addEventListener("click", () => {
+    if (canvas) {
+      viewTransform.zoomOut(canvas.width / 2, canvas.height / 2);
+      redrawCanvas();
+      updateZoomDisplay();
+    }
+  });
+  document.getElementById("btn-zoom-reset")?.addEventListener("click", () => {
+    viewTransform.reset();
+    redrawCanvas();
+    updateZoomDisplay();
   });
 
   // S3 Save button
