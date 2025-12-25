@@ -5,6 +5,8 @@ and mutations are delegated to the DatasetManager singleton, which keeps
 the dataset in memory and handles periodic auto-save to disk.
 """
 
+import hashlib
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple
 
@@ -21,6 +23,9 @@ from .uri_utils import (
     save_cache_metadata,
     upload_json_to_s3,
 )
+
+# Server startup timestamp - used for cache busting thumbnails
+_SERVER_START_TIME = int(time.time())
 
 
 # =============================================================================
@@ -61,6 +66,24 @@ def resolve_image_path(file_name: str) -> str:
     For S3 datasets: resolves relative to DATASET_URI.
     """
     return resolve_image_uri(file_name, DATASET_URI)
+
+
+def get_thumbnail_cache_buster() -> str:
+    """Generate a cache buster string for thumbnail URLs.
+
+    The cache buster changes when:
+    - The server restarts (via _SERVER_START_TIME)
+    - The number of images changes (via total_images count)
+
+    This ensures browser-cached thumbnails are invalidated when switching
+    datasets or when the dataset content changes.
+
+    Returns:
+        Short hash string (8 characters) suitable for URL query parameter
+    """
+    total_images = len(dataset_manager.get_images())
+    cache_key = f"{_SERVER_START_TIME}:{total_images}"
+    return hashlib.sha256(cache_key.encode()).hexdigest()[:8]
 
 
 # =============================================================================

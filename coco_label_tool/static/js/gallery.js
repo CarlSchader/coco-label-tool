@@ -60,6 +60,7 @@ let state = {
   loadedImages: [],
   totalImages: 0,
   totalFiltered: 0,
+  thumbnailCacheBuster: "",
 };
 
 /**
@@ -91,6 +92,7 @@ export function resetGalleryState() {
     loadedImages: [],
     totalImages: 0,
     totalFiltered: 0,
+    thumbnailCacheBuster: "",
   };
 }
 
@@ -157,9 +159,10 @@ export function formatWarningText(warnings) {
 /**
  * Create HTML for a single gallery item.
  * @param {Object} imageData - Image data from API
+ * @param {string} cacheBuster - Cache buster string for thumbnail URL
  * @returns {string} HTML string
  */
-export function createGalleryItemHtml(imageData) {
+export function createGalleryItemHtml(imageData, cacheBuster = "") {
   const { id, index, file_name, annotation_counts, total_annotations } =
     imageData;
 
@@ -175,6 +178,10 @@ export function createGalleryItemHtml(imageData) {
     ? `<div class="gallery-item-warning" title="${escapeHtml(warningText)}">⚠️ ${escapeHtml(warningText)}</div>`
     : "";
 
+  // Build thumbnail URL with cache buster to prevent stale browser cache
+  const cacheBusterParam = cacheBuster ? `&cb=${cacheBuster}` : "";
+  const thumbnailUrl = `/api/thumbnail/${id}?size=256${cacheBusterParam}`;
+
   // Note: onload/onerror handlers are attached programmatically in renderGalleryItems
   // because inline handlers don't work when HTML is inserted via innerHTML
   // Note: We don't use loading="lazy" because the image starts with display:none,
@@ -185,7 +192,7 @@ export function createGalleryItemHtml(imageData) {
         <div class="gallery-thumbnail-spinner"></div>
         <img 
           class="gallery-thumbnail" 
-          src="/api/thumbnail/${id}?size=256" 
+          src="${thumbnailUrl}" 
           alt="${escapedFilename}"
         >
       </div>
@@ -229,7 +236,10 @@ function renderGalleryItems(images, append = false) {
   const fragment = document.createDocumentFragment();
   for (const imageData of images) {
     const div = document.createElement("div");
-    div.innerHTML = createGalleryItemHtml(imageData);
+    div.innerHTML = createGalleryItemHtml(
+      imageData,
+      state.thumbnailCacheBuster,
+    );
     const item = div.firstElementChild;
 
     // Add click handler
@@ -437,6 +447,17 @@ export async function initGallery(params = {}) {
   state.currentFilter = params.filter || "all";
   state.currentSort = params.sort || "index";
   state.currentPage = parseInt(params.page, 10) || 0;
+
+  // Fetch thumbnail cache buster to prevent stale browser cache
+  try {
+    const infoResponse = await fetch("/api/dataset-info");
+    if (infoResponse.ok) {
+      const info = await infoResponse.json();
+      state.thumbnailCacheBuster = info.thumbnail_cache_buster || "";
+    }
+  } catch (error) {
+    console.warn("Failed to fetch dataset info for cache buster:", error);
+  }
 
   // Set dropdown values
   const filterSelect = document.getElementById("gallery-filter");

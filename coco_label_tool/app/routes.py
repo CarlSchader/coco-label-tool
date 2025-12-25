@@ -676,12 +676,13 @@ async def set_model_size_sam3_pcs(request: SetModelSizeRequest):
 
 @app.get("/api/dataset-info")
 async def get_dataset_info():
-    """Get dataset source information including dirty state."""
+    """Get dataset source information including dirty state and cache buster."""
     return {
         "source_uri": DATASET_URI,
         "is_s3": DATASET_IS_S3,
         "can_save_to_s3": DATASET_IS_S3,
         "is_dirty": dataset.get_s3_dirty_status() if DATASET_IS_S3 else False,
+        "thumbnail_cache_buster": dataset.get_thumbnail_cache_buster(),
     }
 
 
