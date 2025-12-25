@@ -311,17 +311,19 @@ function handleImageClick(imageIndex) {
 }
 
 /**
- * Check if we need to load more content to fill the viewport.
- * This handles the case where the initial page doesn't fill the screen.
+ * Check if we need to load more content to fill the gallery grid.
+ * This handles the case where the initial page doesn't fill the grid.
  */
 function checkNeedMoreContent() {
   if (state.isLoading || !state.hasMore) return;
 
-  // If content doesn't fill the viewport, load more
-  const contentHeight = document.body.offsetHeight;
-  const viewportHeight = window.innerHeight;
+  const galleryGrid = document.getElementById("gallery-grid");
+  if (!galleryGrid) return;
 
-  if (contentHeight <= viewportHeight + SCROLL_THRESHOLD) {
+  // If content doesn't fill the grid (no scrollbar), load more
+  const isScrollable = galleryGrid.scrollHeight > galleryGrid.clientHeight;
+
+  if (!isScrollable) {
     loadNextPage();
   }
 }
@@ -394,26 +396,36 @@ async function handleSortChange(sort) {
 }
 
 /**
- * Setup infinite scroll listener.
+ * Setup infinite scroll listener on the gallery grid element.
  */
 function setupInfiniteScroll() {
+  const galleryGrid = document.getElementById("gallery-grid");
+  if (!galleryGrid) return () => {};
+
   const handleScroll = () => {
     if (state.isLoading || !state.hasMore) return;
 
-    const scrollBottom =
-      window.innerHeight + window.scrollY >=
-      document.body.offsetHeight - SCROLL_THRESHOLD;
+    // Only trigger if content is scrollable (scrollHeight > clientHeight)
+    // This prevents auto-loading when content doesn't fill the viewport
+    const isScrollable = galleryGrid.scrollHeight > galleryGrid.clientHeight;
+    if (!isScrollable) return;
 
-    if (scrollBottom) {
+    // Check if scrolled near the bottom of the gallery grid
+    const distanceFromBottom =
+      galleryGrid.scrollHeight -
+      galleryGrid.scrollTop -
+      galleryGrid.clientHeight;
+
+    if (distanceFromBottom <= SCROLL_THRESHOLD) {
       loadNextPage();
     }
   };
 
-  window.addEventListener("scroll", handleScroll);
+  galleryGrid.addEventListener("scroll", handleScroll);
 
   // Return cleanup function
   return () => {
-    window.removeEventListener("scroll", handleScroll);
+    galleryGrid.removeEventListener("scroll", handleScroll);
   };
 }
 

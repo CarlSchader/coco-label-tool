@@ -56,6 +56,12 @@ body {
   font-size: var(--font-size-base);
   line-height: 1.6;
 }
+
+/* Prevent body scroll when gallery view is active */
+body.gallery-active {
+  overflow: hidden;
+  height: 100vh;
+}
 h1 {
   color: var(--text-white);
   font-weight: 500;
@@ -843,6 +849,14 @@ p {
   width: 100%;
 }
 
+/* Gallery view - fixed layout, no flexbox resizing */
+#gallery-view {
+  height: calc(100vh - 60px - var(--spacing-md) * 2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 /* ========================================
    Gallery View
    ======================================== */
@@ -855,9 +869,10 @@ p {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
   flex-wrap: wrap;
   gap: var(--spacing-md);
+  flex-shrink: 0; /* Don't shrink toolbar */
 }
 
 .gallery-filters {
@@ -886,12 +901,16 @@ p {
   font-size: var(--font-size-sm);
 }
 
-/* Grid Layout */
+/* Grid Layout - fixed size items, scrollable container */
 .gallery-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-auto-rows: max-content; /* Rows size to content, never compress */
   gap: var(--spacing-md);
   padding: var(--spacing-sm);
+  flex: 1;
+  overflow-y: auto;
+  align-content: start;
 }
 
 /* Gallery Item */

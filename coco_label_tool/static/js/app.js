@@ -355,7 +355,10 @@ async function handleViewChange(view, params = {}) {
   if (view === ViewType.GALLERY) {
     // Switch to Gallery View
     if (editorView) editorView.style.display = "none";
-    if (galleryView) galleryView.style.display = "block";
+    if (galleryView) galleryView.style.display = "flex";
+
+    // Prevent body scroll in gallery view
+    document.body.classList.add("gallery-active");
 
     // Show "Back to Editor" button, hide "Browse Gallery" button
     if (navEditor) navEditor.style.display = "inline-block";
@@ -369,6 +372,9 @@ async function handleViewChange(view, params = {}) {
     // Switch to Editor View
     if (galleryView) galleryView.style.display = "none";
     if (editorView) editorView.style.display = "block";
+
+    // Re-enable body scroll in editor view
+    document.body.classList.remove("gallery-active");
 
     // Show "Browse Gallery" button, hide "Back to Editor" button
     if (navGallery) navGallery.style.display = "inline-block";
