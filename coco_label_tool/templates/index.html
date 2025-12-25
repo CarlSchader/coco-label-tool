@@ -119,6 +119,22 @@
         <button id="save-btn" style="background-color: #28a745">
           Save Annotation
         </button>
+        <button
+          id="btn-undo"
+          disabled
+          title="Nothing to undo"
+          style="background-color: #6c757d"
+        >
+          Undo
+        </button>
+        <button
+          id="btn-redo"
+          disabled
+          title="Nothing to redo"
+          style="background-color: #6c757d"
+        >
+          Redo
+        </button>
         <button id="btn-delete-image" class="delete">Delete Image</button>
 
         <!-- Save to S3 button (hidden by default, shown only for S3 datasets) -->
@@ -514,6 +530,12 @@
           </div>
           <div class="keyboard-hint">
             <kbd>Ctrl/Cmd</kbd> + <kbd>⌫</kbd> → Delete selected annotations
+          </div>
+          <div class="keyboard-hint">
+            <kbd>Ctrl/Cmd</kbd> + <kbd>Z</kbd> → Undo
+          </div>
+          <div class="keyboard-hint">
+            <kbd>Ctrl/Cmd</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> → Redo
           </div>
           <div class="keyboard-hint"><kbd>Enter</kbd> → Save annotation</div>
         </div>

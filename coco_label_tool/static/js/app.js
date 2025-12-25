@@ -91,6 +91,7 @@ import {
   resetGalleryState,
   setWarningFunction,
 } from "./gallery.js";
+import { UndoManager } from "./utils/undo.js";
 
 let images = [];
 let currentModelType = "sam2";
@@ -159,6 +160,9 @@ let s3UploadInProgress = false; // Prevent race conditions
 // View management state
 let currentView = ViewType.EDITOR;
 let galleryInitialized = false;
+
+// Undo/Redo manager
+const undoManager = new UndoManager(50);
 
 // S3 Support functions
 function updateS3UI() {
@@ -339,6 +343,7 @@ async function handleViewChange(view, params = {}) {
   const navGallery = document.getElementById("nav-gallery");
 
   currentView = view;
+  undoManager.clear(); // Clear undo stack when changing views
 
   if (view === ViewType.GALLERY) {
     // Switch to Gallery View
@@ -529,6 +534,32 @@ function updateSaveButtonState() {
   }
 }
 
+function updateUndoRedoButtons() {
+  const undoBtn = document.getElementById("btn-undo");
+  const redoBtn = document.getElementById("btn-redo");
+
+  if (undoBtn) {
+    undoBtn.disabled = !undoManager.canUndo();
+    undoBtn.title = undoManager.canUndo()
+      ? `Undo: ${undoManager.getUndoDescription()} (Ctrl+Z)`
+      : "Nothing to undo";
+    undoBtn.style.opacity = undoManager.canUndo() ? "1" : "0.5";
+    undoBtn.style.cursor = undoManager.canUndo() ? "pointer" : "not-allowed";
+  }
+
+  if (redoBtn) {
+    redoBtn.disabled = !undoManager.canRedo();
+    redoBtn.title = undoManager.canRedo()
+      ? `Redo: ${undoManager.getRedoDescription()} (Ctrl+Shift+Z)`
+      : "Nothing to redo";
+    redoBtn.style.opacity = undoManager.canRedo() ? "1" : "0.5";
+    redoBtn.style.cursor = undoManager.canRedo() ? "pointer" : "not-allowed";
+  }
+}
+
+// Register undo manager callback to update UI
+undoManager.onChange(updateUndoRedoButtons);
+
 function updateCacheInfo() {
   if (cachedIndices.length === 0) {
     document.getElementById("cache-info").textContent = "Cache: empty";
@@ -590,7 +621,7 @@ async function loadDataset(preserveIndex = false) {
 
   if (images.length > 0) {
     if (preserveIndex) {
-      showImage(currentIndex % totalImages);
+      showImage(currentIndex % totalImages, { preserveUndoStack: true });
     } else if (pendingNavigationIndex !== null) {
       // Navigation index was set from URL params before dataset loaded
       const targetIndex = Math.min(pendingNavigationIndex, totalImages - 1);
@@ -630,7 +661,8 @@ async function ensureImageLoaded(index) {
   }
 }
 
-async function showImage(index) {
+async function showImage(index, options = {}) {
+  const { preserveUndoStack = false } = options;
   if (totalImages === 0) return;
 
   currentIndex = ((index % totalImages) + totalImages) % totalImages;
@@ -688,6 +720,9 @@ async function showImage(index) {
   selectionBoxDrag = null;
   hoveredAnnotationId = null;
   selectedAnnotationIds.clear();
+  if (!preserveUndoStack) {
+    undoManager.clear(); // Clear undo stack when changing images
+  }
   updateAnnotationEditor();
   if (canvas) {
     canvas.style.cursor = "crosshair";
@@ -1061,6 +1096,21 @@ async function deleteSelectedAnnotations() {
     return;
   }
 
+  // Snapshot annotations before deletion for undo
+  const currentImage = imageMap[currentIndex];
+  const annotations = annotationsByImage[currentImage?.id] || [];
+  const annotationSnapshots = annotations
+    .filter((ann) => selectedAnnotationIds.has(ann.id))
+    .map((ann) => ({
+      id: ann.id,
+      image_id: ann.image_id,
+      category_id: ann.category_id,
+      segmentation: ann.segmentation,
+      bbox: ann.bbox,
+      area: ann.area,
+    }));
+  const savedImageId = currentImage?.id;
+
   try {
     const deletePromises = Array.from(selectedAnnotationIds).map(
       (annotationId) =>
@@ -1080,6 +1130,54 @@ async function deleteSelectedAnnotations() {
     const allSuccessful = responses.every((r) => r.ok);
 
     if (allSuccessful) {
+      // Push undo command for deleted annotations
+      if (annotationSnapshots.length > 0 && savedImageId) {
+        // Track restored annotation IDs for redo (delete again)
+        let restoredAnnotationIds = [];
+
+        undoManager.push({
+          type: "delete-annotations",
+          description: `Delete ${annotationSnapshots.length} annotation(s)`,
+          undo: async () => {
+            // Re-save each annotation from snapshot
+            restoredAnnotationIds = [];
+            for (const snapshot of annotationSnapshots) {
+              const response = await apiPost("/api/save-annotation", {
+                image_id: snapshot.image_id,
+                category_id: snapshot.category_id,
+                segmentation: snapshot.segmentation,
+              });
+              if (response.annotation?.id) {
+                restoredAnnotationIds.push(response.annotation.id);
+              }
+            }
+            const annotsData = await apiGet(`/api/annotations/${savedImageId}`);
+            annotationsByImage[savedImageId] = annotsData.annotations;
+            if (canvas) {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              drawExistingAnnotations();
+            }
+            markS3Dirty();
+          },
+          redo: async () => {
+            // Delete the restored annotations again
+            for (const annId of restoredAnnotationIds) {
+              await apiPost("/api/delete-annotation", {
+                annotation_id: annId,
+                confirmed: true,
+              });
+            }
+            const annotsData = await apiGet(`/api/annotations/${savedImageId}`);
+            annotationsByImage[savedImageId] = annotsData.annotations;
+            if (canvas) {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              drawExistingAnnotations();
+            }
+            markS3Dirty();
+          },
+        });
+      }
+
       selectedAnnotationIds.clear();
       await loadDataset(true);
       markS3Dirty(); // Mark S3 dataset as having unsaved changes (after loadDataset to avoid reset)
@@ -1248,6 +1346,17 @@ async function performMerge(categoryId, selectedAnnotations) {
   const currentImage = imageMap[currentIndex];
   if (!currentImage) return;
 
+  // Snapshot original annotations for undo
+  const originalSnapshots = selectedAnnotations.map((ann) => ({
+    id: ann.id,
+    image_id: ann.image_id,
+    category_id: ann.category_id,
+    segmentation: ann.segmentation,
+    bbox: ann.bbox,
+    area: ann.area,
+  }));
+  const savedImageId = currentImage.id;
+
   // Merge all segmentations
   const mergedResult = mergeAnnotationSegmentations(selectedAnnotations);
   if (!mergedResult) {
@@ -1291,6 +1400,88 @@ async function performMerge(categoryId, selectedAnnotations) {
 
     if (!allDeleted) {
       console.warn("Some original annotations could not be deleted");
+    }
+
+    // Push undo command for merge operation
+    if (newAnnotationId && originalSnapshots.length > 0) {
+      // Store merge data for redo
+      const mergeData = {
+        image_id: currentImage.id,
+        category_id: categoryId,
+        segmentation: mergedResult.mergedPolygons,
+      };
+      // Track current merged annotation ID and restored IDs
+      let currentMergedId = newAnnotationId;
+      let restoredOriginalIds = [];
+
+      undoManager.push({
+        type: "merge-annotations",
+        description: `Merge ${originalSnapshots.length} annotations`,
+        undo: async () => {
+          // Delete the merged annotation
+          await apiPost("/api/delete-annotation", {
+            annotation_id: currentMergedId,
+            confirmed: true,
+          });
+
+          // Re-save original annotations
+          restoredOriginalIds = [];
+          for (const snapshot of originalSnapshots) {
+            const response = await apiPost("/api/save-annotation", {
+              image_id: snapshot.image_id,
+              category_id: snapshot.category_id,
+              segmentation: snapshot.segmentation,
+            });
+            if (response.annotation?.id) {
+              restoredOriginalIds.push(response.annotation.id);
+            }
+          }
+
+          const annotsData = await apiGet(`/api/annotations/${savedImageId}`);
+          annotationsByImage[savedImageId] = annotsData.annotations;
+          selectedAnnotationIds.clear();
+          if (canvas) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawExistingAnnotations();
+          }
+          updateAnnotationEditor();
+          updateMergeAnnotationsButtonState();
+          markS3Dirty();
+        },
+        redo: async () => {
+          // Re-merge: save merged annotation
+          const saveResponse = await apiPost("/api/save-annotation", {
+            image_id: mergeData.image_id,
+            category_id: mergeData.category_id,
+            segmentation: mergeData.segmentation,
+          });
+          if (saveResponse.annotation?.id) {
+            currentMergedId = saveResponse.annotation.id;
+          }
+
+          // Delete the restored original annotations
+          for (const annId of restoredOriginalIds) {
+            await apiPost("/api/delete-annotation", {
+              annotation_id: annId,
+              confirmed: true,
+            });
+          }
+
+          const annotsData = await apiGet(`/api/annotations/${savedImageId}`);
+          annotationsByImage[savedImageId] = annotsData.annotations;
+          selectedAnnotationIds.clear();
+          if (currentMergedId) {
+            selectedAnnotationIds.add(currentMergedId);
+          }
+          if (canvas) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawExistingAnnotations();
+          }
+          updateAnnotationEditor();
+          updateMergeAnnotationsButtonState();
+          markS3Dirty();
+        },
+      });
     }
 
     // 3. Clear selection and select the new merged annotation
@@ -1568,6 +1759,24 @@ document.addEventListener("keydown", (e) => {
       e.preventDefault();
       if (selectedAnnotationIds.size > 0) {
         deleteSelectedAnnotations();
+      }
+    }
+    // Cmd/Ctrl + Z: Undo (without Shift)
+    if (e.key === "z" && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+      e.preventDefault();
+      console.log("🔄 Undo triggered, canUndo:", undoManager.canUndo());
+      if (undoManager.canUndo()) {
+        console.log("🔄 Executing undo:", undoManager.getUndoDescription());
+        undoManager.undo();
+      }
+    }
+    // Cmd/Ctrl + Shift + Z: Redo
+    if (e.key === "z" && (e.ctrlKey || e.metaKey) && e.shiftKey) {
+      e.preventDefault();
+      console.log("🔄 Redo triggered, canRedo:", undoManager.canRedo());
+      if (undoManager.canRedo()) {
+        console.log("🔄 Executing redo:", undoManager.getRedoDescription());
+        undoManager.redo();
       }
     }
     if (e.key === "t" || e.key === "T") {
@@ -2930,6 +3139,65 @@ async function saveAnnotation() {
         console.log("✅ Merged mask saved:", result);
         markS3Dirty(); // Mark S3 dataset as having unsaved changes
 
+        // Push undo command for the saved annotation
+        const savedAnnotation = result.annotation;
+        const savedImageId = imgData.id;
+        console.log(
+          "🔄 Pushing undo command for saved annotation:",
+          savedAnnotation?.id,
+        );
+        if (savedAnnotation?.id) {
+          // Store annotation data for redo
+          const annotationData = {
+            image_id: savedAnnotation.image_id,
+            category_id: savedAnnotation.category_id,
+            segmentation: savedAnnotation.segmentation,
+          };
+          // Track the current annotation ID (may change on redo)
+          let currentAnnotationId = savedAnnotation.id;
+
+          undoManager.push({
+            type: "save-annotation",
+            description: "Save annotation",
+            undo: async () => {
+              await apiPost("/api/delete-annotation", {
+                annotation_id: currentAnnotationId,
+                confirmed: true,
+              });
+              const annotsData = await apiGet(
+                `/api/annotations/${savedImageId}`,
+              );
+              annotationsByImage[savedImageId] = annotsData.annotations;
+              if (canvas) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawExistingAnnotations();
+              }
+              markS3Dirty();
+            },
+            redo: async () => {
+              // Re-save the annotation
+              const response = await apiPost("/api/save-annotation", {
+                image_id: annotationData.image_id,
+                category_id: annotationData.category_id,
+                segmentation: annotationData.segmentation,
+              });
+              // Update the tracked ID for future undo/redo cycles
+              if (response.annotation?.id) {
+                currentAnnotationId = response.annotation.id;
+              }
+              const annotsData = await apiGet(
+                `/api/annotations/${savedImageId}`,
+              );
+              annotationsByImage[savedImageId] = annotsData.annotations;
+              if (canvas) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawExistingAnnotations();
+              }
+              markS3Dirty();
+            },
+          });
+        }
+
         // Clear current segmentation and prompts
         resetPrompts();
         currentSegmentation = null;
@@ -2995,6 +3263,69 @@ async function saveAnnotation() {
       const result = await response.json();
       console.log(`✅ Batch saved ${result.count} annotations successfully`);
       markS3Dirty(); // Mark S3 dataset as having unsaved changes
+
+      // Push undo command for the batch saved annotations
+      // Backend returns {annotations: [...]} array, extract IDs and data from it
+      const savedAnnotations = result.annotations || [];
+      const savedImageId = imgData.id;
+      console.log(
+        "🔄 Pushing undo command for batch saved annotations:",
+        savedAnnotations.map((a) => a.id),
+      );
+      if (savedAnnotations.length > 0) {
+        // Store annotation data for redo
+        const annotationsData = savedAnnotations.map((a) => ({
+          image_id: a.image_id,
+          category_id: a.category_id,
+          segmentation: a.segmentation,
+        }));
+        // Track current annotation IDs (may change on redo)
+        let currentAnnotationIds = savedAnnotations.map((a) => a.id);
+
+        undoManager.push({
+          type: "save-annotations",
+          description: `Save ${savedAnnotations.length} annotation(s)`,
+          undo: async () => {
+            // Delete all saved annotations
+            for (const annId of currentAnnotationIds) {
+              await apiPost("/api/delete-annotation", {
+                annotation_id: annId,
+                confirmed: true,
+              });
+            }
+            const annotsData = await apiGet(`/api/annotations/${savedImageId}`);
+            annotationsByImage[savedImageId] = annotsData.annotations;
+            if (canvas) {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              drawExistingAnnotations();
+            }
+            markS3Dirty();
+          },
+          redo: async () => {
+            // Re-save all annotations
+            const newIds = [];
+            for (const annData of annotationsData) {
+              const response = await apiPost("/api/save-annotation", {
+                image_id: annData.image_id,
+                category_id: annData.category_id,
+                segmentation: annData.segmentation,
+              });
+              if (response.annotation?.id) {
+                newIds.push(response.annotation.id);
+              }
+            }
+            // Update tracked IDs for future undo/redo cycles
+            currentAnnotationIds = newIds;
+            const annotsData = await apiGet(`/api/annotations/${savedImageId}`);
+            annotationsByImage[savedImageId] = annotsData.annotations;
+            if (canvas) {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              drawExistingAnnotations();
+            }
+            markS3Dirty();
+          },
+        });
+      }
 
       // Clear current segmentation and prompts
       resetPrompts();
@@ -4190,6 +4521,18 @@ function setupEventListeners() {
   document
     .getElementById("btn-merge-confirm")
     ?.addEventListener("click", confirmMerge);
+
+  // Undo/Redo buttons
+  document.getElementById("btn-undo")?.addEventListener("click", async () => {
+    if (undoManager.canUndo()) {
+      await undoManager.undo();
+    }
+  });
+  document.getElementById("btn-redo")?.addEventListener("click", async () => {
+    if (undoManager.canRedo()) {
+      await undoManager.redo();
+    }
+  });
 
   // S3 Save button
   document
