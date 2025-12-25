@@ -1081,8 +1081,8 @@ async function deleteSelectedAnnotations() {
 
     if (allSuccessful) {
       selectedAnnotationIds.clear();
-      markS3Dirty(); // Mark S3 dataset as having unsaved changes
       await loadDataset(true);
+      markS3Dirty(); // Mark S3 dataset as having unsaved changes (after loadDataset to avoid reset)
       if (canvas) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         drawExistingAnnotations();
@@ -1299,9 +1299,9 @@ async function performMerge(categoryId, selectedAnnotations) {
       selectedAnnotationIds.add(newAnnotationId);
     }
 
-    // 4. Mark S3 as dirty and refresh
-    markS3Dirty();
+    // 4. Refresh dataset and mark S3 as dirty (after loadDataset to avoid reset)
     await loadDataset(true);
+    markS3Dirty();
 
     if (canvas) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1552,9 +1552,22 @@ document.addEventListener("keydown", (e) => {
     }
     if (e.key === "m" && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
-      const mergeBtn = document.getElementById("btn-merge-masks");
-      if (mergeBtn && !mergeBtn.disabled) {
-        mergeMasks();
+      // First check for selected saved annotations (merge saved)
+      if (selectedAnnotationIds.size >= 2) {
+        mergeSelectedAnnotations();
+      } else {
+        // Fall back to unsaved masks merge
+        const mergeBtn = document.getElementById("btn-merge-masks");
+        if (mergeBtn && !mergeBtn.disabled) {
+          mergeMasks();
+        }
+      }
+    }
+    // Cmd/Ctrl + Backspace: Delete selected annotations
+    if (e.key === "Backspace" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      if (selectedAnnotationIds.size > 0) {
+        deleteSelectedAnnotations();
       }
     }
     if (e.key === "t" || e.key === "T") {
@@ -3742,8 +3755,8 @@ async function addCategory() {
       document.getElementById("new-category-name").value = "";
       document.getElementById("new-category-super").value = "";
       categoryColors = {};
-      markS3Dirty(); // Mark S3 dataset as having unsaved changes
       await loadDataset(true);
+      markS3Dirty(); // Mark S3 dataset as having unsaved changes (after loadDataset to avoid reset)
       renderCategoryList();
       populateCategoryBadges();
     } else {
@@ -3786,8 +3799,8 @@ async function updateCategory(id, name, supercategory) {
 
     if (response.ok) {
       categoryColors = {};
-      markS3Dirty(); // Mark S3 dataset as having unsaved changes
       await loadDataset(true);
+      markS3Dirty(); // Mark S3 dataset as having unsaved changes (after loadDataset to avoid reset)
       renderCategoryList();
       populateCategoryBadges();
     } else {
@@ -3819,8 +3832,8 @@ async function deleteCategory(id) {
 
     if (response.ok) {
       categoryColors = {};
-      markS3Dirty(); // Mark S3 dataset as having unsaved changes
       await loadDataset(true);
+      markS3Dirty(); // Mark S3 dataset as having unsaved changes (after loadDataset to avoid reset)
       renderCategoryList();
       populateCategoryBadges();
     } else {
