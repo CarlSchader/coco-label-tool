@@ -163,7 +163,7 @@ let currentView = ViewType.EDITOR;
 let galleryInitialized = false;
 
 // Undo/Redo manager
-const undoManager = new UndoManager(50);
+const undoManager = new UndoManager(CONFIG.undo?.maxHistory ?? 50);
 
 // View transform for zoom/pan
 const viewTransform = new ViewTransform();
@@ -2838,15 +2838,15 @@ function handleBoxDrag(e) {
 function handleMaskDrawingDrag(e) {
   e.preventDefault();
 
-  const rect = canvas.getBoundingClientRect();
-  const mouseX = e.clientX - rect.left;
-  const mouseY = e.clientY - rect.top;
+  // Get canvas coordinates (accounting for zoom/pan transform)
+  // This is consistent with how box drawing and point prompts work
+  const { canvasX, canvasY } = getCanvasCoordinates(e);
 
-  // Update crosshair position
-  crosshairPosition = { x: mouseX, y: mouseY };
+  // Update crosshair position (in canvas space, consistent with other handlers)
+  crosshairPosition = { x: canvasX, y: canvasY };
 
-  // Add point to drawing path
-  maskDrawingPoints.push({ x: mouseX, y: mouseY });
+  // Add point to drawing path (in canvas space)
+  maskDrawingPoints.push({ x: canvasX, y: canvasY });
 
   // Redraw canvas with current mask drawing
   ctx.clearRect(0, 0, canvas.width, canvas.height);

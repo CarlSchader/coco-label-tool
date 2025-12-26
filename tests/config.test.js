@@ -168,6 +168,23 @@ describe("CONFIG.api properties", () => {
   });
 });
 
+describe("CONFIG.undo properties", () => {
+  test("has undo configuration", () => {
+    expect(CONFIG.undo).toBeDefined();
+    expect(typeof CONFIG.undo).toBe("object");
+  });
+
+  test("has maxHistory as positive integer", () => {
+    expect(typeof CONFIG.undo.maxHistory).toBe("number");
+    expect(CONFIG.undo.maxHistory).toBeGreaterThan(0);
+    expect(Number.isInteger(CONFIG.undo.maxHistory)).toBe(true);
+  });
+
+  test("maxHistory is set to 200", () => {
+    expect(CONFIG.undo.maxHistory).toBe(200);
+  });
+});
+
 describe("CONFIG.primaryColors array", () => {
   test("has exactly 56 colors", () => {
     expect(CONFIG.primaryColors.length).toBe(56);

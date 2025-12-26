@@ -6,7 +6,7 @@ export class ViewTransform {
   // Constants
   static MIN_SCALE = 0.1; // 10%
   static MAX_SCALE = 10; // 1000%
-  static ZOOM_STEP = 0.1; // 10% per step
+  static ZOOM_FACTOR = 1.1; // 10% multiplicative zoom per step
 
   constructor() {
     this.scale = 1; // Zoom level (MIN_SCALE to MAX_SCALE)
@@ -54,7 +54,7 @@ export class ViewTransform {
    * @param {number} centerY - Y coordinate to zoom towards (screen space)
    */
   zoomIn(centerX, centerY) {
-    this.zoomTo(this.scale + ViewTransform.ZOOM_STEP, centerX, centerY);
+    this.zoomTo(this.scale * ViewTransform.ZOOM_FACTOR, centerX, centerY);
   }
 
   /**
@@ -64,7 +64,7 @@ export class ViewTransform {
    * @param {number} centerY - Y coordinate to zoom away from (screen space)
    */
   zoomOut(centerX, centerY) {
-    this.zoomTo(this.scale - ViewTransform.ZOOM_STEP, centerX, centerY);
+    this.zoomTo(this.scale / ViewTransform.ZOOM_FACTOR, centerX, centerY);
   }
 
   /**

@@ -131,4 +131,8 @@ export const CONFIG = {
     overlapOffset: 25, // Horizontal offset for overlapping dropdowns
     overlapThreshold: 30, // Distance threshold to consider overlap (pixels)
   },
+
+  undo: {
+    maxHistory: 200, // Maximum number of undo steps to keep
+  },
 };

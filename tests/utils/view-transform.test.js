@@ -28,8 +28,8 @@ describe("ViewTransform", () => {
       expect(ViewTransform.MAX_SCALE).toBe(10);
     });
 
-    test("has ZOOM_STEP constant", () => {
-      expect(ViewTransform.ZOOM_STEP).toBe(0.1);
+    test("has ZOOM_FACTOR constant", () => {
+      expect(ViewTransform.ZOOM_FACTOR).toBe(1.1);
     });
   });
 
@@ -136,9 +136,21 @@ describe("ViewTransform", () => {
   });
 
   describe("zoomIn", () => {
-    test("increases scale by ZOOM_STEP", () => {
+    test("increases scale by ZOOM_FACTOR (multiplicative)", () => {
       transform.zoomIn(0, 0);
-      expect(transform.scale).toBeCloseTo(1.1, 10);
+      expect(transform.scale).toBeCloseTo(1.1, 10); // 1 * 1.1 = 1.1
+    });
+
+    test("zoom is multiplicative - consistent percentage at different scales", () => {
+      // At scale 2, zooming in should give 2 * 1.1 = 2.2
+      transform.scale = 2;
+      transform.zoomIn(0, 0);
+      expect(transform.scale).toBeCloseTo(2.2, 10);
+
+      // At scale 0.5, zooming in should give 0.5 * 1.1 = 0.55
+      transform.scale = 0.5;
+      transform.zoomIn(0, 0);
+      expect(transform.scale).toBeCloseTo(0.55, 10);
     });
 
     test("respects MAX_SCALE limit", () => {
@@ -175,9 +187,21 @@ describe("ViewTransform", () => {
   });
 
   describe("zoomOut", () => {
-    test("decreases scale by ZOOM_STEP", () => {
+    test("decreases scale by ZOOM_FACTOR (multiplicative)", () => {
       transform.zoomOut(0, 0);
-      expect(transform.scale).toBeCloseTo(0.9, 10);
+      expect(transform.scale).toBeCloseTo(1 / 1.1, 10); // ~0.909
+    });
+
+    test("zoom out is multiplicative - consistent percentage at different scales", () => {
+      // At scale 2, zooming out should give 2 / 1.1 = ~1.818
+      transform.scale = 2;
+      transform.zoomOut(0, 0);
+      expect(transform.scale).toBeCloseTo(2 / 1.1, 10);
+
+      // At scale 5, zooming out should give 5 / 1.1 = ~4.545
+      transform.scale = 5;
+      transform.zoomOut(0, 0);
+      expect(transform.scale).toBeCloseTo(5 / 1.1, 10);
     });
 
     test("respects MIN_SCALE limit", () => {
