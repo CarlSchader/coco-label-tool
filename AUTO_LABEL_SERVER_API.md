@@ -8,7 +8,101 @@ The auto-label feature sends images to external object detection servers and rec
 
 ---
 
-## Endpoint
+## Client Configuration
+
+The auto-label feature is configured via a YAML file passed at server startup.
+
+### Starting the Server
+
+```bash
+# Via CLI argument
+python server.py /path/to/dataset.json --auto-label-config /path/to/auto_label_config.yaml
+
+# Or via environment variable
+AUTO_LABEL_CONFIG=/path/to/config.yaml python server.py /path/to/dataset.json
+```
+
+### Configuration File Format
+
+**File: `auto_label_config.yaml`**
+
+```yaml
+endpoints:
+  # Each key is an endpoint name (shown in UI dropdown)
+  <endpoint-name>:
+    url: "<server-url>" # Required: Full URL to the detection endpoint
+    auth_token: "<token>" # Optional: Authorization header value
+    category_mapping: # Required: Maps server category IDs to dataset category IDs
+      <server_id>: <dataset_id>
+```
+
+### Configuration Fields
+
+| Field              | Type     | Required | Description                                                                |
+| ------------------ | -------- | -------- | -------------------------------------------------------------------------- |
+| `endpoints`        | `object` | **Yes**  | Map of endpoint names to their configurations                              |
+| `url`              | `string` | **Yes**  | Full URL to the server's detection endpoint                                |
+| `auth_token`       | `string` | No       | Value sent in `Authorization` header (e.g., `Bearer sk-xxx`, `ApiKey xxx`) |
+| `category_mapping` | `object` | **Yes**  | Maps server category IDs (int) to local dataset category IDs (int)         |
+
+### Example Configuration
+
+```yaml
+# auto_label_config.yaml
+
+endpoints:
+  # YOLO-based detector with API key auth
+  yolo-v8:
+    url: "https://my-ml-server.com/api/detect"
+    auth_token: "Bearer sk-abc123def456"
+    category_mapping:
+      # Server's COCO categories -> Your dataset's categories
+      1: 5 # person -> your_person_category
+      2: 12 # car -> your_vehicle_category
+      3: 12 # truck -> your_vehicle_category (multiple can map to same)
+      7: 8 # bus -> your_bus_category
+
+  # Local Florence model (no auth needed)
+  florence-local:
+    url: "http://localhost:8080/segment"
+    auth_token: ""
+    category_mapping:
+      0: 1
+      1: 2
+      2: 3
+
+  # External service with simple API key
+  cloud-detector:
+    url: "https://api.detector.io/v1/detect"
+    auth_token: "ApiKey my-secret-key-here"
+    category_mapping:
+      100: 1
+      101: 2
+```
+
+### Authentication
+
+The `auth_token` field is sent as-is in the `Authorization` HTTP header. Common formats:
+
+| Auth Type    | `auth_token` Value          | Header Sent                         |
+| ------------ | --------------------------- | ----------------------------------- |
+| Bearer Token | `Bearer sk-abc123`          | `Authorization: Bearer sk-abc123`   |
+| API Key      | `ApiKey my-key`             | `Authorization: ApiKey my-key`      |
+| Basic Auth   | `Basic dXNlcjpwYXNz`        | `Authorization: Basic dXNlcjpwYXNz` |
+| Custom       | `Token xyz`                 | `Authorization: Token xyz`          |
+| None         | `""` (empty string) or omit | No `Authorization` header sent      |
+
+### Category Mapping
+
+The `category_mapping` translates between the server's category IDs and your dataset's category IDs:
+
+- **Keys**: Category IDs returned by the external server
+- **Values**: Category IDs in your local COCO dataset
+- **Unmapped categories are silently skipped** - the server can return all detections, and the client filters to only the categories you care about
+
+---
+
+## Server API Endpoint
 
 **Method:** `POST`
 
@@ -178,27 +272,6 @@ Error response body (optional but recommended):
   "error": "Description of what went wrong"
 }
 ```
-
----
-
-## Category Mapping
-
-The `category_id` in the response is the server's internal category ID. This is mapped to the local dataset's category ID via the configuration file:
-
-```yaml
-endpoints:
-  my-detector:
-    url: "https://example.com/detect"
-    category_mapping:
-      1: 5 # Server's category 1 -> Dataset's category 5
-      2: 12 # Server's category 2 -> Dataset's category 12
-```
-
-**Important:**
-
-- Annotations with unmapped category IDs are **silently skipped**
-- This allows the server to return all detected objects, and the client filters to relevant categories
-- Any confidence filtering should be done by the server before returning annotations
 
 ---
 
