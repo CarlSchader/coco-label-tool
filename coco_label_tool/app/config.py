@@ -9,6 +9,10 @@ from typing import Optional
 # Set to None for standard AWS S3
 AWS_ENDPOINT_URL_S3: Optional[str] = os.environ.get("AWS_ENDPOINT_URL_S3")
 
+# Auto-labeling configuration (optional)
+# Path to YAML config file with external auto-label server endpoints
+AUTO_LABEL_CONFIG_PATH: Optional[str] = os.environ.get("AUTO_LABEL_CONFIG", None)
+
 
 # Inlined URI detection to avoid circular imports with uri_utils.py
 def _is_s3_uri(uri: Optional[str]) -> bool:

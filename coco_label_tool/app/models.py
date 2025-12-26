@@ -68,6 +68,13 @@ class SetModelSizeRequest(BaseModel):
     model_size: str
 
 
+class AutoLabelRequest(BaseModel):
+    """Request to auto-label an image using external server."""
+
+    image_id: int
+    endpoint_name: str
+
+
 class SegmentRequestPCS(BaseModel):
     image_id: int
     text: Optional[str] = None  # Text prompt for concept search

@@ -171,6 +171,10 @@ let isPanning = false;
 let panStartX = 0;
 let panStartY = 0;
 
+// Auto-label state
+let autoLabelEndpoints = [];
+let autoLabelEnabled = false;
+
 // S3 Support functions
 function updateS3UI() {
   const banner = document.getElementById("s3-banner");
@@ -4614,6 +4618,131 @@ if (indexInput) {
   });
 }
 
+// =============================================================================
+// Auto-Label Functions
+// =============================================================================
+
+async function initAutoLabel() {
+  try {
+    const response = await apiGet("/api/auto-label-endpoints");
+    autoLabelEnabled = response.enabled;
+    autoLabelEndpoints = response.endpoints || [];
+
+    if (autoLabelEnabled && autoLabelEndpoints.length > 0) {
+      // Show UI
+      const section = document.getElementById("auto-label-section");
+      if (section) {
+        section.style.display = "inline-flex";
+      }
+
+      // Populate dropdown
+      const select = document.getElementById("auto-label-select");
+      if (select) {
+        select.innerHTML = autoLabelEndpoints
+          .map(
+            (name) =>
+              `<option value="${name}">${name.toUpperCase().replace(/-/g, " ")}</option>`,
+          )
+          .join("");
+      }
+      console.log(
+        `Auto-label initialized with ${autoLabelEndpoints.length} endpoint(s)`,
+      );
+    }
+  } catch (e) {
+    console.log("Auto-label not available:", e.message);
+  }
+}
+
+async function handleAutoLabel() {
+  const select = document.getElementById("auto-label-select");
+  const endpointName = select?.value;
+  const imgData = imageMap[currentIndex];
+
+  if (!imgData || !endpointName) return;
+
+  // Show loading state
+  const btn = document.getElementById("auto-label-btn");
+  const originalText = btn?.textContent || "Auto Label";
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "LABELING...";
+  }
+
+  try {
+    // Reset any existing prompts/unsaved masks
+    resetPrompts();
+
+    const result = await apiPost("/api/auto-label", {
+      image_id: imgData.id,
+      endpoint_name: endpointName,
+    });
+
+    if (result.annotations && result.annotations.length > 0) {
+      // Convert annotations to currentSegmentation format
+      // Each annotation has its own segmentation (possibly multi-polygon)
+      const allSegmentations = [];
+      const allCategoryIds = [];
+
+      for (const ann of result.annotations) {
+        // Each annotation's segmentation is an array of polygons
+        // For simplicity, we treat each annotation as one "mask"
+        // that may have multiple polygons
+        allSegmentations.push(...ann.segmentation);
+        // Repeat category ID for each polygon in this annotation
+        for (let i = 0; i < ann.segmentation.length; i++) {
+          allCategoryIds.push(ann.category_id);
+        }
+      }
+
+      currentSegmentation = {
+        segmentation: allSegmentations,
+      };
+
+      // Set mask category IDs for multi-mask save
+      maskCategoryIds = allCategoryIds;
+
+      // Draw the masks
+      drawSegmentation(currentSegmentation.segmentation);
+
+      // Render category dropdowns
+      renderMaskCategoryDropdowns();
+
+      // Update UI state
+      updateSaveButtonState();
+      updateMergeButtonState();
+
+      showNotification(`Found ${result.count} objects`, "success");
+    } else {
+      showNotification("No objects detected", "info");
+    }
+  } catch (error) {
+    // Show non-intrusive error
+    const message = error.message || error.detail || "Auto-label failed";
+    showNotification(message, "error");
+    console.error("Auto-label error:", error);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+  }
+}
+
+function showNotification(message, type = "info") {
+  const notification = document.getElementById("notification-toast");
+  if (!notification) return;
+
+  notification.textContent = message;
+  notification.className = `notification-toast ${type}`;
+  notification.style.display = "block";
+
+  // Auto-hide after 3 seconds
+  setTimeout(() => {
+    notification.style.display = "none";
+  }, 3000);
+}
+
 function setupEventListeners() {
   // Navigation buttons - use view manager for client-side navigation
   document.getElementById("nav-editor")?.addEventListener("click", () => {
@@ -4653,6 +4782,9 @@ function setupEventListeners() {
   document
     .getElementById("btn-merge-masks")
     ?.addEventListener("click", mergeMasks);
+  document
+    .getElementById("auto-label-btn")
+    ?.addEventListener("click", handleAutoLabel);
   document
     .getElementById("toggle-annotations-btn")
     ?.addEventListener("click", toggleAnnotationsVisibility);
@@ -4921,6 +5053,9 @@ const initialViewState = initViewManager(handleViewChange);
 // Initialize mode system, then load model info and dataset
 initializeModeSystem().then(async () => {
   await loadDataset();
+
+  // Initialize auto-label (non-blocking, will show UI if configured)
+  initAutoLabel();
 
   // After dataset loads, switch to the correct view based on URL
   handleViewChange(initialViewState.view, initialViewState.params);

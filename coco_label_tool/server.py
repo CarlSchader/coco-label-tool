@@ -25,10 +25,20 @@ def main():
         "--reload", action="store_true", help="Enable auto-reload for development."
     )
     parser.add_argument("--log-level", type=str, default="info", help="Logging level.")
+    parser.add_argument(
+        "--auto-label-config",
+        type=str,
+        default=None,
+        help="Path to auto-labeling YAML config file.",
+    )
     args = parser.parse_args()
 
     print(f"Using COCO file: {args.coco_file}")
     os.environ["DATASET_PATH"] = args.coco_file
+
+    if args.auto_label_config:
+        os.environ["AUTO_LABEL_CONFIG"] = args.auto_label_config
+        print(f"Using auto-label config: {args.auto_label_config}")
 
     # Set up graceful shutdown handlers for SIGTERM/SIGINT
     setup_signal_handlers(args.port)

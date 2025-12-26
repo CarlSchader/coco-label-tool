@@ -93,6 +93,39 @@
           <option value="sam3-pcs-image">SAM3 PCS Image</option>
           <option value="manual">Manual</option>
         </select>
+        <!-- Auto-Label Section (hidden if not configured) -->
+        <div
+          id="auto-label-section"
+          style="display: none; align-items: center; gap: 5px"
+        >
+          <select
+            id="auto-label-select"
+            style="
+              padding: 10px;
+              background: #333;
+              color: #48d1cc;
+              border: 2px solid #48d1cc;
+              border-radius: 4px;
+            "
+          >
+            <!-- Populated dynamically -->
+          </select>
+          <button
+            id="auto-label-btn"
+            style="
+              padding: 10px 15px;
+              background: transparent;
+              color: #48d1cc;
+              border: 2px solid #48d1cc;
+              border-radius: 4px;
+              cursor: pointer;
+              text-transform: uppercase;
+              font-weight: bold;
+            "
+          >
+            Auto Label
+          </button>
+        </div>
         <div id="text-prompt-container" style="display: none">
           <input
             type="text"
@@ -578,6 +611,9 @@
           <div class="keyboard-hint">Mouse wheel → Zoom at cursor</div>
         </div>
       </div>
+
+      <!-- Notification Toast -->
+      <div id="notification-toast"></div>
     </div>
     <!-- End Editor View -->
 

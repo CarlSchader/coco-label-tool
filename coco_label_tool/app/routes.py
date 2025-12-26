@@ -32,6 +32,7 @@ from .dataset_manager import dataset_manager
 from .exceptions import AnnotationNotFoundError, CategoryInUseError
 from .models import (
     AddCategoryRequest,
+    AutoLabelRequest,
     BatchSaveAnnotationsRequest,
     DeleteAnnotationRequest,
     DeleteCategoryRequest,
@@ -47,6 +48,7 @@ from .models import (
     UpdateAnnotationRequest,
     UpdateCategoryRequest,
 )
+from .auto_label import get_auto_label_service
 from .sam2 import get_sam2_service
 from .sam3 import get_sam3_tracker_service
 from .sam3_pcs import get_sam3_pcs_service
@@ -820,3 +822,59 @@ async def get_gallery_data(request: GalleryDataRequest):
         raise HTTPException(
             status_code=500, detail=f"Error getting gallery data: {str(e)}"
         )
+
+
+# =============================================================================
+# Auto-Label Endpoints
+# =============================================================================
+
+
+@app.get("/api/auto-label-endpoints")
+async def get_auto_label_endpoints():
+    """Return list of configured auto-label endpoints."""
+    service = get_auto_label_service()
+    if service is None:
+        return {"enabled": False, "endpoints": []}
+    return {"enabled": True, "endpoints": service.get_endpoint_names()}
+
+
+@app.post("/api/auto-label")
+async def auto_label_image(request: AutoLabelRequest):
+    """Send current image to auto-label server.
+
+    Returns COCO annotations that can be displayed as unsaved masks.
+    Category IDs are mapped from server IDs to local dataset IDs.
+    """
+    import httpx
+
+    service = get_auto_label_service()
+    if service is None:
+        raise HTTPException(400, "Auto-labeling not configured")
+
+    # Get image data
+    image_data = cache.get_image_by_id(request.image_id)
+    if not image_data:
+        raise HTTPException(404, "Image not found")
+
+    image_uri = resolve_image_path(image_data["file_name"])
+
+    # For S3 images, download to local cache first
+    if detect_uri_type(image_uri) == "s3":
+        image_path = download_s3_image(image_uri)
+    else:
+        image_path = Path(image_uri)
+        if not image_path.exists():
+            raise HTTPException(404, "Image file not found")
+
+    try:
+        annotations = await service.auto_label_image(request.endpoint_name, image_path)
+        return {"success": True, "annotations": annotations, "count": len(annotations)}
+    except ValueError as e:
+        # Validation error from server response
+        raise HTTPException(400, f"Invalid response: {e}")
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(502, f"Server error: {e.response.status_code}")
+    except httpx.RequestError as e:
+        raise HTTPException(502, f"Connection error: {str(e)}")
+    except Exception as e:
+        raise HTTPException(500, f"Auto-label failed: {str(e)}")
