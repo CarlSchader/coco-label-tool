@@ -58,39 +58,6 @@ endpoints:
         assert endpoint.auth_token == "Bearer token123"
         assert endpoint.category_mapping == {1: 5, 2: 10}
 
-    def test_load_config_with_min_confidence(self):
-        """Test loading config with min_confidence field."""
-        yaml_content = """
-endpoints:
-  detector:
-    url: "https://example.com/detect"
-    min_confidence: 0.75
-    category_mapping:
-      0: 1
-"""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
-            f.write(yaml_content)
-            f.flush()
-            config = load_auto_label_config(f.name)
-
-        assert config.endpoints["detector"].min_confidence == 0.75
-
-    def test_load_config_default_min_confidence(self):
-        """Test that min_confidence defaults to 0.0."""
-        yaml_content = """
-endpoints:
-  detector:
-    url: "https://example.com/detect"
-    category_mapping:
-      0: 1
-"""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
-            f.write(yaml_content)
-            f.flush()
-            config = load_auto_label_config(f.name)
-
-        assert config.endpoints["detector"].min_confidence == 0.0
-
     def test_load_config_empty_auth_token(self):
         """Test loading config with empty auth token."""
         yaml_content = """
@@ -133,7 +100,6 @@ endpoints:
   florence:
     url: "https://florence.example.com/segment"
     auth_token: "secret"
-    min_confidence: 0.5
     category_mapping:
       0: 2
       1: 3
@@ -394,56 +360,6 @@ class TestAutoLabelService:
 
         with pytest.raises(ValueError, match="Unknown endpoint"):
             await service.auto_label_image("unknown", Path("/tmp/test.jpg"))
-
-    @pytest.mark.asyncio
-    async def test_auto_label_filters_by_confidence(self):
-        """Test that low confidence annotations are filtered."""
-        config = AutoLabelConfig(
-            endpoints={
-                "test": EndpointConfig(
-                    url="https://example.com",
-                    min_confidence=0.5,
-                    category_mapping={1: 10},
-                )
-            }
-        )
-        service = AutoLabelService(config)
-
-        # Mock HTTP response
-        mock_response = MagicMock()
-        mock_response.json.return_value = {
-            "annotations": [
-                {
-                    "category_id": 1,
-                    "segmentation": [[10, 10, 20, 10, 20, 20]],
-                    "bbox": [10, 10, 10, 10],
-                    "area": 100,
-                    "score": 0.3,  # Below threshold
-                },
-                {
-                    "category_id": 1,
-                    "segmentation": [[30, 30, 40, 30, 40, 40]],
-                    "bbox": [30, 30, 10, 10],
-                    "area": 100,
-                    "score": 0.8,  # Above threshold
-                },
-            ]
-        }
-        mock_response.raise_for_status = MagicMock()
-
-        # Create mock image file
-        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
-            f.write(b"fake image data")
-            image_path = Path(f.name)
-
-        with patch.object(service, "_get_client") as mock_client:
-            mock_client.return_value.post = AsyncMock(return_value=mock_response)
-
-            result = await service.auto_label_image("test", image_path)
-
-        # Only 1 annotation should pass the confidence filter
-        assert len(result) == 1
-        assert result[0]["category_id"] == 10
 
     @pytest.mark.asyncio
     async def test_auto_label_skips_unmapped_categories(self):

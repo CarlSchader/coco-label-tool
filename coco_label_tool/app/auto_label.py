@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 
 import httpx
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class EndpointConfig(BaseModel):
@@ -14,7 +14,6 @@ class EndpointConfig(BaseModel):
 
     url: str
     auth_token: str = ""
-    min_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
     category_mapping: Dict[int, int]  # server_cat_id -> local_cat_id
 
 
@@ -75,11 +74,6 @@ class AutoLabelService:
         for ann in annotations:
             # Validate required fields
             self._validate_annotation(ann)
-
-            # Filter by confidence if present
-            score = ann.get("score", 1.0)
-            if score < endpoint.min_confidence:
-                continue
 
             # Map category (skip if unmapped)
             mapped_ann = self._map_annotation(ann, endpoint.category_mapping)

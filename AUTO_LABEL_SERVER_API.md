@@ -60,8 +60,7 @@ The auto-label feature sends images to external object detection servers and rec
       "category_id": 1,
       "segmentation": [[x1, y1, x2, y2, x3, y3, ...]],
       "bbox": [x, y, width, height],
-      "area": 12345.0,
-      "score": 0.95
+      "area": 12345.0
     }
   ]
 }
@@ -75,7 +74,6 @@ The auto-label feature sends images to external object detection servers and rec
 | `segmentation` | `array[array[float]]` | **Yes**  | Array of polygons in COCO format. Each polygon is a flat array of coordinates `[x1, y1, x2, y2, x3, y3, ...]` |
 | `bbox`         | `array[float]`        | **Yes**  | Bounding box in COCO format: `[x, y, width, height]` where (x, y) is top-left corner                          |
 | `area`         | `float`               | **Yes**  | Area of the segmentation in pixels                                                                            |
-| `score`        | `float`               | No       | Confidence score (0.0 to 1.0). Used for filtering if `min_confidence` is configured                           |
 | `iscrowd`      | `integer`             | No       | COCO crowd flag (0 or 1). Defaults to 0 if not provided                                                       |
 
 ### Segmentation Format
@@ -145,8 +143,7 @@ Where:
         [150.5, 200.0, 250.5, 200.0, 250.5, 350.0, 150.5, 350.0]
       ],
       "bbox": [150.5, 200.0, 100.0, 150.0],
-      "area": 15000.0,
-      "score": 0.92
+      "area": 15000.0
     },
     {
       "category_id": 2,
@@ -154,8 +151,7 @@ Where:
         [400.0, 100.0, 500.0, 100.0, 500.0, 200.0, 400.0, 200.0]
       ],
       "bbox": [400.0, 100.0, 100.0, 100.0],
-      "area": 10000.0,
-      "score": 0.87
+      "area": 10000.0
     }
   ]
 }
@@ -194,31 +190,15 @@ endpoints:
   my-detector:
     url: "https://example.com/detect"
     category_mapping:
-      1: 5 # Server's category 1 → Dataset's category 5
-      2: 12 # Server's category 2 → Dataset's category 12
+      1: 5 # Server's category 1 -> Dataset's category 5
+      2: 12 # Server's category 2 -> Dataset's category 12
 ```
 
 **Important:**
 
 - Annotations with unmapped category IDs are **silently skipped**
 - This allows the server to return all detected objects, and the client filters to relevant categories
-
----
-
-## Confidence Filtering
-
-If `min_confidence` is configured, annotations with `score` below the threshold are filtered out:
-
-```yaml
-endpoints:
-  my-detector:
-    url: "https://example.com/detect"
-    min_confidence: 0.5 # Only keep annotations with score >= 0.5
-    category_mapping:
-      1: 5
-```
-
-If no `score` field is provided in the annotation, it defaults to `1.0` (always passes filter).
+- Any confidence filtering should be done by the server before returning annotations
 
 ---
 
@@ -247,7 +227,6 @@ class Annotation(BaseModel):
     segmentation: list[list[float]]
     bbox: list[float]
     area: float
-    score: float = 1.0
 
 class DetectResponse(BaseModel):
     annotations: list[Annotation]
@@ -265,14 +244,16 @@ async def detect(request: DetectRequest):
     # detections = your_model.detect(image)
 
     # Convert detections to COCO format
+    # Apply any confidence filtering here on the server side
     annotations = []
     for det in detections:
+        if det.confidence < 0.5:  # Server-side confidence filtering
+            continue
         annotations.append(Annotation(
             category_id=det.class_id,
             segmentation=[det.polygon],  # Flat list of x,y coords
             bbox=[det.x, det.y, det.width, det.height],
-            area=det.width * det.height,
-            score=det.confidence
+            area=det.width * det.height
         ))
 
     return DetectResponse(annotations=annotations)
@@ -322,8 +303,7 @@ Expected response:
       "category_id": 1,
       "segmentation": [[100, 100, 200, 100, 200, 200, 100, 200]],
       "bbox": [100, 100, 100, 100],
-      "area": 10000,
-      "score": 0.95
+      "area": 10000
     }
   ]
 }

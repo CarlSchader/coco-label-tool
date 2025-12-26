@@ -38,13 +38,12 @@ endpoints:
   yolo-v8:
     url: "https://my-server.com/api/detect"
     auth_token: "Bearer sk-abc123..." # Optional - empty string if no auth
-    min_confidence: 0.5 # Optional - filter low-confidence detections
     category_mapping:
-      # Server category ID → Local COCO dataset category ID
+      # Server category ID -> Local COCO dataset category ID
       # Unmapped categories are silently skipped
-      1: 5 # Server's "person" → Dataset's category 5
-      2: 12 # Server's "car" → Dataset's category 12
-      3: 12 # Server's "truck" → Also maps to category 12
+      1: 5 # Server's "person" -> Dataset's category 5
+      2: 12 # Server's "car" -> Dataset's category 12
+      3: 12 # Server's "truck" -> Also maps to category 12
 
   florence-2:
     url: "https://florence.example.com/segment"
@@ -68,15 +67,14 @@ import httpx
 import yaml
 from pathlib import Path
 from typing import Dict, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class EndpointConfig(BaseModel):
     """Configuration for a single auto-label endpoint."""
     url: str
     auth_token: str = ""
-    min_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
-    category_mapping: Dict[int, int]  # server_cat_id → local_cat_id
+    category_mapping: Dict[int, int]  # server_cat_id -> local_cat_id
 
 
 class AutoLabelConfig(BaseModel):
@@ -132,11 +130,6 @@ class AutoLabelService:
         for ann in annotations:
             # Validate required fields
             self._validate_annotation(ann)
-
-            # Filter by confidence if present
-            score = ann.get("score", 1.0)
-            if score < endpoint.min_confidence:
-                continue
 
             # Map category (skip if unmapped)
             mapped_ann = self._map_annotation(ann, endpoint.category_mapping)
@@ -565,15 +558,16 @@ External auto-label servers must implement:
       "category_id": 1,
       "segmentation": [[x1, y1, x2, y2, x3, y3, ...]],
       "bbox": [x, y, width, height],
-      "area": 12345.0,
-      "score": 0.95
+      "area": 12345.0
     }
   ]
 }
 ```
 
 **Required fields:** `category_id`, `segmentation`, `bbox`, `area`
-**Optional fields:** `score` (for confidence filtering), `iscrowd`
+**Optional fields:** `iscrowd`
+
+**Note:** Any confidence filtering should be done by the external server before returning annotations.
 
 ---
 
@@ -584,7 +578,6 @@ External auto-label servers must implement:
 ```python
 # Config tests
 def test_load_valid_config():
-def test_load_config_with_min_confidence():
 def test_load_config_missing_file():
 def test_load_config_invalid_yaml():
 def test_load_config_missing_endpoints():
@@ -602,10 +595,6 @@ def test_validate_annotation_polygon_too_few_points():
 def test_map_annotation_valid():
 def test_map_annotation_unmapped_returns_none():
 def test_map_annotation_preserves_fields():
-
-# Confidence filtering tests
-def test_filter_by_min_confidence():
-def test_no_filtering_when_min_confidence_zero():
 
 # Integration tests (mocked HTTP)
 def test_auto_label_success():
