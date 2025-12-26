@@ -689,7 +689,10 @@ async function loadDataset(preserveIndex = false) {
 
   if (images.length > 0) {
     if (preserveIndex) {
-      showImage(currentIndex % totalImages, { preserveUndoStack: true });
+      showImage(currentIndex % totalImages, {
+        preserveUndoStack: true,
+        preserveViewTransform: true,
+      });
     } else if (pendingNavigationIndex !== null) {
       // Navigation index was set from URL params before dataset loaded
       const targetIndex = Math.min(pendingNavigationIndex, totalImages - 1);
@@ -730,7 +733,7 @@ async function ensureImageLoaded(index) {
 }
 
 async function showImage(index, options = {}) {
-  const { preserveUndoStack = false } = options;
+  const { preserveUndoStack = false, preserveViewTransform = false } = options;
   if (totalImages === 0) return;
 
   currentIndex = ((index % totalImages) + totalImages) % totalImages;
@@ -791,9 +794,11 @@ async function showImage(index, options = {}) {
   if (!preserveUndoStack) {
     undoManager.clear(); // Clear undo stack when changing images
   }
-  // Reset view transform (zoom/pan) when changing images
-  viewTransform.reset();
-  updateZoomDisplay();
+  // Reset view transform (zoom/pan) when changing images (unless preserving)
+  if (!preserveViewTransform) {
+    viewTransform.reset();
+    updateZoomDisplay();
+  }
   updateAnnotationEditor();
   if (canvas) {
     canvas.style.cursor = "crosshair";
@@ -1023,17 +1028,16 @@ function handleAnnotationBoxSelect(box, multiSelect = false) {
 }
 
 function checkAnnotationHover(e) {
-  const rect = canvas.getBoundingClientRect();
   const img = document.getElementById("image");
   // Scale from display to original image dimensions (where annotations are stored)
   const originalDims = getOriginalImageDimensions();
   const scaleX = originalDims.width / img.width;
   const scaleY = originalDims.height / img.height;
 
-  const mouseX = e.clientX - rect.left;
-  const mouseY = e.clientY - rect.top;
-  const x = mouseX * scaleX;
-  const y = mouseY * scaleY;
+  // Get canvas coordinates (accounting for zoom/pan transform)
+  const { canvasX, canvasY } = getCanvasCoordinates(e);
+  const x = canvasX * scaleX;
+  const y = canvasY * scaleY;
 
   const imgData = imageMap[currentIndex];
   if (!imgData) return;
@@ -2064,8 +2068,23 @@ function setupCanvas() {
   wrapper.onmousemove = handleMouseMove;
   wrapper.onmouseup = handleBoxEnd;
   wrapper.onmouseleave = handleMouseLeave;
+}
 
-  // Mouse wheel zoom
+// Flag to track if canvas-related event listeners have been set up
+let canvasEventsInitialized = false;
+
+/**
+ * Set up one-time event listeners for canvas interactions.
+ * These should only be added once, not on every image load.
+ */
+function setupCanvasEventListeners() {
+  if (canvasEventsInitialized) return;
+  canvasEventsInitialized = true;
+
+  const wrapper = document.getElementById("image-wrapper");
+  if (!wrapper) return;
+
+  // Mouse wheel zoom - fixed 10% per scroll tick
   wrapper.addEventListener(
     "wheel",
     (e) => {
@@ -4744,6 +4763,9 @@ function showNotification(message, type = "info") {
 }
 
 function setupEventListeners() {
+  // Set up one-time canvas event listeners (wheel zoom, document mouse events)
+  setupCanvasEventListeners();
+
   // Navigation buttons - use view manager for client-side navigation
   document.getElementById("nav-editor")?.addEventListener("click", () => {
     handleViewChange(ViewType.EDITOR, { index: currentIndex });
