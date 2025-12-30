@@ -14,6 +14,13 @@
     <nav class="main-nav">
       <div class="nav-brand">COCO Labeling</div>
       <div class="nav-links">
+        <button
+          id="btn-unload-models"
+          class="nav-btn nav-btn-warning"
+          title="Unload all models from GPU memory"
+        >
+          Unload Models
+        </button>
         <button id="nav-gallery" class="nav-btn" style="display: none">
           Browse Gallery
         </button>
@@ -614,9 +621,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Notification Toast -->
-      <div id="notification-toast"></div>
     </div>
     <!-- End Editor View -->
 
@@ -657,6 +661,9 @@
       </div>
     </div>
     <!-- End Gallery View -->
+
+    <!-- Global Notification Toast (outside views so it's always visible) -->
+    <div id="notification-toast"></div>
 
     <script type="module" src="/static/js/app.js"></script>
   </body>

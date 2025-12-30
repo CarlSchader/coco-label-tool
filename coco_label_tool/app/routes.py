@@ -23,8 +23,11 @@ from .config import (
     DATASET_IS_S3,
     DATASET_URI,
     MAX_IMAGE_DIMENSION,
+    SAM2_DEVICE,
     SAM2_MODEL_SIZES,
+    SAM3_DEVICE,
     SAM3_MODEL_SIZES,
+    SAM3_PCS_DEVICE,
     SAM3_PCS_MODEL_SIZES,
 )
 from .dataset import resolve_image_path
@@ -49,9 +52,25 @@ from .models import (
     UpdateCategoryRequest,
 )
 from .auto_label import get_auto_label_service
-from .sam2 import get_sam2_service
-from .sam3 import get_sam3_tracker_service
-from .sam3_pcs import get_sam3_pcs_service
+from .model_manager import model_manager
+from .sam2 import (
+    clear_sam2_service,
+    get_sam2_current_model_id,
+    get_sam2_service,
+    is_sam2_loaded,
+)
+from .sam3 import (
+    clear_sam3_tracker_service,
+    get_sam3_tracker_current_model_id,
+    get_sam3_tracker_service,
+    is_sam3_tracker_loaded,
+)
+from .sam3_pcs import (
+    clear_sam3_pcs_service,
+    get_sam3_pcs_current_model_id,
+    get_sam3_pcs_service,
+    is_sam3_pcs_loaded,
+)
 from .uri_utils import detect_uri_type, download_s3_image, get_s3_client, parse_s3_uri
 
 logger = logging.getLogger(__name__)
@@ -107,10 +126,27 @@ async def startup_event():
         f"✅ Cache initialized with {len(cache.images)} images from {total_images} total"
     )
 
+    # Register models with the model manager for inactivity tracking
+    model_manager.register_model("sam2", is_sam2_loaded, clear_sam2_service)
+    model_manager.register_model(
+        "sam3", is_sam3_tracker_loaded, clear_sam3_tracker_service
+    )
+    model_manager.register_model("sam3_pcs", is_sam3_pcs_loaded, clear_sam3_pcs_service)
+
+    # Start the model inactivity monitor
+    await model_manager.start_monitor()
+    print("✅ Model inactivity monitor started")
+
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Save pending changes and clean up on application shutdown."""
+    # Stop the model inactivity monitor
+    await model_manager.stop_monitor()
+
+    # Unload all models to free memory
+    model_manager.unload_all_models()
+
     # Save any pending changes to disk
     dataset_manager.shutdown()
     cache.clear()
@@ -301,6 +337,7 @@ async def delete_image(request: DeleteImageRequest):
 @app.post("/api/segment")
 async def segment_image(request: SegmentRequest):
     """Run SAM2 segmentation on an image."""
+    model_manager.record_activity()
     print("\n" + "🟢" * 40)
     print("📥 RECEIVED SAM2 REQUEST")
     print(f"   Image ID: {request.image_id}")
@@ -488,18 +525,24 @@ async def delete_annotation(request: DeleteAnnotationRequest):
 
 @app.get("/api/model-info")
 async def get_model_info():
-    """Get current model information."""
-    sam2_service = get_sam2_service()
+    """Get current model information.
+
+    Returns model info without loading the model. The model will only be
+    loaded when actually needed (e.g., for segmentation).
+    """
+    # Don't record activity here - this is just info, not model usage
+    # Don't call get_sam2_service() - that would load the model
     return {
-        "current_model": sam2_service.model_id,
+        "current_model": get_sam2_current_model_id(),
         "available_sizes": list(SAM2_MODEL_SIZES.keys()),
-        "device": sam2_service.device,
+        "device": SAM2_DEVICE,
     }
 
 
 @app.post("/api/set-model-size")
 async def set_model_size(request: SetModelSizeRequest):
     """Change SAM2 model size."""
+    model_manager.record_activity()
     if request.model_size not in SAM2_MODEL_SIZES:
         raise HTTPException(
             status_code=400,
@@ -518,6 +561,7 @@ async def set_model_size(request: SetModelSizeRequest):
 @app.post("/api/segment-sam3")
 async def segment_image_sam3(request: SegmentRequest):
     """Run SAM3 Tracker segmentation on an image."""
+    model_manager.record_activity()
     print("\n" + "🔵" * 40)
     print("📥 RECEIVED SAM3 TRACKER REQUEST")
     print(f"   Image ID: {request.image_id}")
@@ -563,18 +607,24 @@ async def segment_image_sam3(request: SegmentRequest):
 
 @app.get("/api/model-info-sam3")
 async def get_model_info_sam3():
-    """Get current SAM3 model information."""
-    sam3_tracker_service = get_sam3_tracker_service()
+    """Get current SAM3 model information.
+
+    Returns model info without loading the model. The model will only be
+    loaded when actually needed (e.g., for segmentation).
+    """
+    # Don't record activity here - this is just info, not model usage
+    # Don't call get_sam3_tracker_service() - that would load the model
     return {
-        "current_model": sam3_tracker_service.model_id,
+        "current_model": get_sam3_tracker_current_model_id(),
         "available_sizes": list(SAM3_MODEL_SIZES.keys()),
-        "device": sam3_tracker_service.device,
+        "device": SAM3_DEVICE,
     }
 
 
 @app.post("/api/set-model-size-sam3")
 async def set_model_size_sam3(request: SetModelSizeRequest):
     """Change SAM3 model size."""
+    model_manager.record_activity()
     if request.model_size not in SAM3_MODEL_SIZES:
         raise HTTPException(
             status_code=400,
@@ -599,6 +649,7 @@ async def segment_image_sam3_pcs(request: SegmentRequestPCS):
     - Visual prompts (boxes with positive/negative labels)
     - Combined prompts (text + negative boxes for refinement)
     """
+    model_manager.record_activity()
     print("\n" + "🟣" * 40)
     print("📥 RECEIVED SAM3 PCS REQUEST")
     print(f"   Image ID: {request.image_id}")
@@ -646,18 +697,24 @@ async def segment_image_sam3_pcs(request: SegmentRequestPCS):
 
 @app.get("/api/model-info-sam3-pcs")
 async def get_model_info_sam3_pcs():
-    """Get current SAM3 PCS model information."""
-    sam3_pcs_service = get_sam3_pcs_service()
+    """Get current SAM3 PCS model information.
+
+    Returns model info without loading the model. The model will only be
+    loaded when actually needed (e.g., for segmentation).
+    """
+    # Don't record activity here - this is just info, not model usage
+    # Don't call get_sam3_pcs_service() - that would load the model
     return {
-        "current_model": sam3_pcs_service.model_id,
+        "current_model": get_sam3_pcs_current_model_id(),
         "available_sizes": list(SAM3_PCS_MODEL_SIZES.keys()),
-        "device": sam3_pcs_service.device,
+        "device": SAM3_PCS_DEVICE,
     }
 
 
 @app.post("/api/set-model-size-sam3-pcs")
 async def set_model_size_sam3_pcs(request: SetModelSizeRequest):
     """Change SAM3 PCS model size."""
+    model_manager.record_activity()
     if request.model_size not in SAM3_PCS_MODEL_SIZES:
         raise HTTPException(
             status_code=400,
@@ -671,6 +728,32 @@ async def set_model_size_sam3_pcs(request: SetModelSizeRequest):
         return {"success": True, "model_id": model_id, "model_size": request.model_size}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# Model Management Endpoints
+# =============================================================================
+
+
+@app.get("/api/model-status")
+async def get_model_status():
+    """Get which models are currently loaded (without triggering loading).
+
+    Returns a dict mapping model name to boolean loaded status.
+    This endpoint does NOT load any models - it only checks current state.
+    """
+    return model_manager.get_loaded_models()
+
+
+@app.post("/api/unload-models")
+async def unload_models():
+    """Manually unload all models to free GPU memory.
+
+    Returns which models were unloaded (True if it was loaded and is now
+    unloaded, False if it wasn't loaded).
+    """
+    unloaded = model_manager.unload_all_models()
+    return {"success": True, "unloaded": unloaded}
 
 
 # S3 Support Endpoints

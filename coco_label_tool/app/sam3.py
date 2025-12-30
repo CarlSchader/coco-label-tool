@@ -72,6 +72,8 @@ class SAM3TrackerService:
         print("=" * 80)
 
         segmentation = []
+        inputs = None
+        outputs = None
         try:
             raw_image = Image.open(image_path).convert("RGB")
 
@@ -169,11 +171,33 @@ class SAM3TrackerService:
         except Exception as e:
             print(f"❌ SAM3 TRACKER INFERENCE FAILED: {e}")
             print("=" * 80)
+        finally:
+            # Clean up GPU tensors to free memory
+            del inputs
+            del outputs
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
         return segmentation
 
 
 # Lazy initialization - service is created on first access
 _sam3_tracker_service = None
+
+
+def is_sam3_tracker_loaded() -> bool:
+    """Check if SAM3 Tracker service is currently loaded in memory."""
+    return _sam3_tracker_service is not None
+
+
+def get_sam3_tracker_current_model_id() -> str:
+    """Get the current SAM3 Tracker model ID.
+
+    Returns the model ID of the loaded service, or the default from config if not loaded.
+    Does NOT trigger model loading.
+    """
+    if _sam3_tracker_service is not None:
+        return _sam3_tracker_service.model_id
+    return SAM3_MODEL_ID
 
 
 def get_sam3_tracker_service() -> SAM3TrackerService:
@@ -190,10 +214,39 @@ def clear_sam3_tracker_service() -> None:
     Deletes the model and processor to free GPU memory.
     Safe to call even if service was never initialized.
     """
+    import gc
+
     global _sam3_tracker_service
     if _sam3_tracker_service is not None:
         print("Clearing SAM3 Tracker service from memory...")
-        del _sam3_tracker_service.model
-        del _sam3_tracker_service.processor
-        _sam3_tracker_service = None
+        service = _sam3_tracker_service
+        _sam3_tracker_service = None  # Clear global reference first
+
+        # Move model to CPU first to help release GPU memory
+        try:
+            service.model.to("cpu")
+        except Exception:
+            pass  # Ignore errors during cleanup
+
+        # Delete model and processor attributes
+        try:
+            del service.model
+            del service.processor
+        except Exception:
+            pass
+
+        # Delete the service object itself
+        del service
+
+        # Multiple GC passes to catch circular references
+        for _ in range(3):
+            gc.collect()
+
+        # Clear CUDA cache after GC
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()  # Wait for all CUDA operations
+            torch.cuda.empty_cache()
+            # Reset peak memory stats
+            torch.cuda.reset_peak_memory_stats()
+
         print("SAM3 Tracker service cleared")

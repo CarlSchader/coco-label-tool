@@ -840,6 +840,20 @@ p {
   background: rgba(72, 209, 204, 0.25);
 }
 
+.nav-btn-warning {
+  color: #f0ad4e;
+  border-color: #f0ad4e;
+}
+
+.nav-btn-warning:hover {
+  background: rgba(240, 173, 78, 0.15);
+  box-shadow: 0 0 10px rgba(240, 173, 78, 0.3);
+}
+
+.nav-btn-warning:active {
+  background: rgba(240, 173, 78, 0.25);
+}
+
 /* ========================================
    View Containers
    ======================================== */

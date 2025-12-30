@@ -63,6 +63,12 @@ MAX_IMAGE_DIMENSION = int(
     os.environ.get("MAX_IMAGE_DIMENSION", "2048")
 )  # Resize images larger than this
 
+# Model inactivity settings
+# Unload models after this many seconds of no model-related activity
+MODEL_INACTIVITY_TIMEOUT = int(os.environ.get("MODEL_INACTIVITY_TIMEOUT", "300"))
+# How often to check for inactivity (seconds)
+MODEL_CHECK_INTERVAL = int(os.environ.get("MODEL_CHECK_INTERVAL", "30"))
+
 # SAM2 model settings
 SAM2_MODEL_SIZES = {
     "tiny": "facebook/sam2-hiera-tiny",

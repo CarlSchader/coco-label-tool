@@ -3284,6 +3284,21 @@ async function runSegmentation() {
     }
   }
 
+  // Check if model needs loading and show loading animation if so
+  const status = await checkModelStatus();
+  const modelKey = getModelStatusKey(currentModelType);
+  const needsLoading = !status[modelKey];
+
+  let loadingInterval = null;
+  if (needsLoading) {
+    loadingInterval = showModelLoading(
+      `Loading ${currentModelType.toUpperCase()} model...`,
+    );
+    console.log(
+      `Model ${currentModelType} not loaded, showing loading animation for segmentation`,
+    );
+  }
+
   try {
     const endpoint = getSegmentEndpoint(currentModelType);
     const response = await fetch(endpoint, {
@@ -3310,6 +3325,10 @@ async function runSegmentation() {
     }
   } catch (error) {
     console.error("Segmentation error:", error);
+  } finally {
+    if (loadingInterval) {
+      hideModelLoading(loadingInterval);
+    }
   }
 }
 
@@ -4432,6 +4451,47 @@ function hideModelLoading(interval) {
   }, 300);
 }
 
+async function checkModelStatus() {
+  try {
+    const response = await fetch("/api/model-status");
+    return await response.json();
+  } catch (error) {
+    console.error("Failed to check model status:", error);
+    // Return all false on error so loading animation shows (safe default)
+    return { sam2: false, sam3: false, sam3_pcs: false };
+  }
+}
+
+function getModelStatusKey(modelType) {
+  if (modelType === "sam3") return "sam3";
+  if (modelType === "sam3-pcs") return "sam3_pcs";
+  return "sam2";
+}
+
+async function handleUnloadModels() {
+  try {
+    const response = await fetch("/api/unload-models", { method: "POST" });
+    const result = await response.json();
+    const unloadedNames = Object.entries(result.unloaded)
+      .filter(([, wasLoaded]) => wasLoaded)
+      .map(([name]) => name.toUpperCase());
+
+    if (unloadedNames.length > 0) {
+      showNotification(
+        `Models unloaded: ${unloadedNames.join(", ")}`,
+        "success",
+      );
+      console.log(`✅ Unloaded models: ${unloadedNames.join(", ")}`);
+    } else {
+      showNotification("No models were loaded", "info");
+      console.log("ℹ️ No models were loaded");
+    }
+  } catch (error) {
+    console.error("Failed to unload models:", error);
+    showNotification("Failed to unload models", "error");
+  }
+}
+
 async function handleModelSizeChange(e) {
   const newSize = e.target.value;
   if (!newSize) return;
@@ -4477,8 +4537,23 @@ async function loadModelInfo() {
     select.style.display = "";
   }
 
-  const loadingText = `${currentModelType.toUpperCase()}`;
-  const loadingInterval = showModelLoading(loadingText);
+  // Check if model needs loading BEFORE showing loading animation
+  const status = await checkModelStatus();
+  const modelKey = getModelStatusKey(currentModelType);
+  const needsLoading = !status[modelKey];
+
+  let loadingInterval = null;
+  if (needsLoading) {
+    const loadingText = `${currentModelType.toUpperCase()}`;
+    loadingInterval = showModelLoading(loadingText);
+    console.log(
+      `Model ${currentModelType} not loaded, showing loading animation`,
+    );
+  } else {
+    console.log(
+      `Model ${currentModelType} already loaded, skipping loading animation`,
+    );
+  }
 
   try {
     const endpoint = getModelInfoEndpoint(currentModelType);
@@ -4492,16 +4567,16 @@ async function loadModelInfo() {
     const data = await response.json();
     console.log("Model info data:", data);
 
-    const select = document.getElementById("model-size-select");
-    if (!select) {
+    const selectEl = document.getElementById("model-size-select");
+    if (!selectEl) {
       console.error("model-size-select element not found!");
       return;
     }
 
-    select.innerHTML = "";
+    selectEl.innerHTML = "";
 
     // Remove any existing event listener
-    select.removeEventListener("change", handleModelSizeChange);
+    selectEl.removeEventListener("change", handleModelSizeChange);
 
     for (const size of data.available_sizes) {
       const option = document.createElement("option");
@@ -4512,7 +4587,7 @@ async function loadModelInfo() {
         option.selected = true;
       }
 
-      select.appendChild(option);
+      selectEl.appendChild(option);
     }
 
     console.log(
@@ -4520,12 +4595,14 @@ async function loadModelInfo() {
     );
 
     // Add event listener for model size changes
-    select.addEventListener("change", handleModelSizeChange);
+    selectEl.addEventListener("change", handleModelSizeChange);
   } catch (error) {
     console.error("Model info error:", error);
     alert(`Failed to load model info: ${error.message}`);
   } finally {
-    hideModelLoading(loadingInterval);
+    if (loadingInterval) {
+      hideModelLoading(loadingInterval);
+    }
   }
 }
 
@@ -4750,7 +4827,9 @@ async function handleAutoLabel() {
 
 function showNotification(message, type = "info") {
   const notification = document.getElementById("notification-toast");
-  if (!notification) return;
+  if (!notification) {
+    return;
+  }
 
   notification.textContent = message;
   notification.className = `notification-toast ${type}`;
@@ -4784,6 +4863,11 @@ function setupEventListeners() {
       "/?view=gallery",
     );
   });
+
+  // Model management
+  document
+    .getElementById("btn-unload-models")
+    ?.addEventListener("click", handleUnloadModels);
 
   document
     .getElementById("btn-previous")

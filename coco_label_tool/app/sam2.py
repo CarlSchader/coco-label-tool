@@ -53,6 +53,8 @@ class SAM2Service:
         print("=" * 80)
 
         segmentation = []
+        inputs = None
+        outputs = None
         try:
             raw_image = Image.open(image_path).convert("RGB")
 
@@ -100,11 +102,33 @@ class SAM2Service:
         except Exception as e:
             print(f"❌ SAM2 INFERENCE FAILED: {e}")
             print("=" * 80)
+        finally:
+            # Clean up GPU tensors to free memory
+            del inputs
+            del outputs
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
         return segmentation
 
 
 # Lazy initialization - service is created on first access
 _sam2_service = None
+
+
+def is_sam2_loaded() -> bool:
+    """Check if SAM2 service is currently loaded in memory."""
+    return _sam2_service is not None
+
+
+def get_sam2_current_model_id() -> str:
+    """Get the current SAM2 model ID.
+
+    Returns the model ID of the loaded service, or the default from config if not loaded.
+    Does NOT trigger model loading.
+    """
+    if _sam2_service is not None:
+        return _sam2_service.model_id
+    return SAM2_MODEL_ID
 
 
 def get_sam2_service() -> SAM2Service:
@@ -121,11 +145,39 @@ def clear_sam2_service() -> None:
     Deletes the model and processor to free GPU memory.
     Safe to call even if service was never initialized.
     """
+    import gc
+
     global _sam2_service
     if _sam2_service is not None:
         print("Clearing SAM2 service from memory...")
-        # Delete model and processor to free GPU memory
-        del _sam2_service.model
-        del _sam2_service.processor
-        _sam2_service = None
+        service = _sam2_service
+        _sam2_service = None  # Clear global reference first
+
+        # Move model to CPU first to help release GPU memory
+        try:
+            service.model.to("cpu")
+        except Exception:
+            pass  # Ignore errors during cleanup
+
+        # Delete model and processor attributes
+        try:
+            del service.model
+            del service.processor
+        except Exception:
+            pass
+
+        # Delete the service object itself
+        del service
+
+        # Multiple GC passes to catch circular references
+        for _ in range(3):
+            gc.collect()
+
+        # Clear CUDA cache after GC
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()  # Wait for all CUDA operations
+            torch.cuda.empty_cache()
+            # Reset peak memory stats
+            torch.cuda.reset_peak_memory_stats()
+
         print("SAM2 service cleared")
