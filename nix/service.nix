@@ -1,58 +1,58 @@
 { self, ... }:
 {
-  nixosModules.service = { lib, config, pkgs, ... }: {
-    options.enable = lib.mkOption {
-      type = lib.types.bool;
-      description = "Enable the Docs Book service";
-      default = false;
-    };
+  nixosModules.service = { lib, config, pkgs, ... }: 
+  {
+    options.services.coco-label-tool = lib.mkOption {
+      type = lib.types.attrsOf (lib.types.submodule {
+        options = {
+          enable = lib.mkOption {
+            type = lib.types.bool;
+            description = "Enable the Docs Book service";
+            default = false;
+          };
 
-    options.coco-file = lib.mkOption {
-      type = lib.types.str;
-      description = "Path to COCO json file";
-      example = "/var/lib/dataset/coco.json";
-    };
+          coco-file = lib.mkOption {
+            type = lib.types.str;
+            description = "Path to COCO json file";
+            example = "/var/lib/dataset/coco.json";
+          };
 
-    options.host = lib.mkOption {
-      type = lib.types.str;
-      description = "Hostname to listen on for HTTP connections";
-      default = "localhost";
-      example = "localhost";
-    };
+          host = lib.mkOption {
+            type = lib.types.str;
+            description = "Hostname to listen on for HTTP connections";
+            default = "localhost";
+            example = "localhost";
+          };
 
-    options.port = lib.mkOption {
-      type = lib.types.str;
-      description = "Port to use for HTTP connections";
-      default = "8000";
-      example = "8000";
-    };
+          port = lib.mkOption {
+            type = lib.types.str;
+            description = "Port to use for HTTP connections";
+            default = "8000";
+            example = "8000";
+          };
 
-    options.auto-label-config = lib.mkOption {
-      type = lib.types.str;
-      description = "Path to auto-labeling YAML config file";
-      default = "";
-      example = "/etc/coco-label-tool/auto-label-config.yaml";
-    };
-
-    options.service-name = lib.mkOption {
-      type = lib.types.str;
-      description = "name of the systemd service";
-      default = "coco-label-tool";
-      example = "custom-label-server";
+          auto-label-config = lib.mkOption {
+            type = lib.types.str;
+            description = "Path to auto-labeling YAML config file";
+            default = "";
+            example = "/etc/coco-label-tool/auto-label-config.yaml";
+          };
+        };
+      });
     };
 
     config = {
-      systemd.services.${config.service-name} = lib.mkIf config.enable {
-        description = "coco label tool service";
+      systemd.services = lib.mapAttrs' (name: cfg: lib.nameValuePair name {
+        description = "${name} service";
         after = [ "network.target" ];
         wantedBy = [ "multi-user.target" ];
         serviceConfig = {
           ExecStart = ''
-            ${self.packages.${pkgs.system}.default}/bin/coco-label-tool --host ${config.host} --port ${config.port} --auto-label-config ${config.auto-label-config}
+            ${self.packages.${pkgs.system}.default}/bin/coco-label-tool --host ${cfg.host} --port ${cfg.port} --auto-label-config ${cfg.auto-label-config}
           '';
           Restart = "on-failure";
         };
-      };
+      }) config.services.coco-label-tool;
     };
   };
 }
