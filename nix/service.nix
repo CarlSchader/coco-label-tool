@@ -7,6 +7,12 @@
       default = false;
     };
 
+    options.coco-file = lib.mkOption {
+      type = lib.types.str;
+      description = "Path to COCO json file";
+      example = "/var/lib/dataset/coco.json";
+    };
+
     options.host = lib.mkOption {
       type = lib.types.str;
       description = "Hostname to listen on for HTTP connections";
