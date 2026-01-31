@@ -48,7 +48,7 @@
         wantedBy = [ "multi-user.target" ];
         serviceConfig = {
           ExecStart = ''
-            ${self.packages.${pkgs.system}.default}/bin/coco-label-tool --host ${cfg.host} --port ${cfg.port} --auto-label-config ${cfg.auto-label-config}
+            ${self.packages.${pkgs.system}.default}/bin/coco-label-tool --host ${cfg.host} --port ${cfg.port} --auto-label-config ${cfg.auto-label-config} ${cfg.coco-file}
           '';
           Restart = "on-failure";
         };
