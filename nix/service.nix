@@ -32,9 +32,9 @@
           };
 
           auto-label-config = lib.mkOption {
-            type = lib.types.str;
+            type = lib.types.nullOr lib.types.str;
             description = "Path to auto-labeling YAML config file";
-            default = "";
+            default = null; 
             example = "/etc/coco-label-tool/auto-label-config.yaml";
           };
         };
@@ -48,7 +48,11 @@
         wantedBy = [ "multi-user.target" ];
         serviceConfig = {
           ExecStart = ''
-            ${self.packages.${pkgs.system}.default}/bin/coco-label-tool --host ${cfg.host} --port ${cfg.port} --auto-label-config ${cfg.auto-label-config} ${cfg.coco-file}
+            ${self.packages.${pkgs.system}.default}/bin/coco-label-tool \
+              --host ${cfg.host} \
+              --port ${cfg.port} \
+              ${lib.optionalString (cfg.auto-label-config != null) "--auto-label-config ${cfg.auto-label-config}"} \
+              ${cfg.coco-file}
           '';
           Restart = "on-failure";
         };
