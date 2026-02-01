@@ -37,6 +37,19 @@
             default = null; 
             example = "/etc/coco-label-tool/auto-label-config.yaml";
           };
+
+          after = lib.mkOption {
+            type = lib.types.listOf lib.types.str;
+            description = "List of systemd units that this service should start after";
+            default = [ "network.target" ];
+          };
+
+          environment-file = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            description = "Path to an environment file to source for the service";
+            default = null;
+            example = "/etc/coco-label-tool/env";
+          };
         };
       });
     };
@@ -44,7 +57,7 @@
     config = {
       systemd.services = lib.mapAttrs' (name: cfg: lib.nameValuePair name {
         description = "${name} service";
-        after = [ "network.target" ];
+        after = cfg.after;
         wantedBy = [ "multi-user.target" ];
         serviceConfig = {
           ExecStart = ''
@@ -55,6 +68,7 @@
               ${cfg.coco-file}
           '';
           Restart = "on-failure";
+          EnvironmentFile = lib.optionalString (cfg.environmentFile != null) cfg.environment-file;
         };
       }) config.services.coco-label-tool;
     };
