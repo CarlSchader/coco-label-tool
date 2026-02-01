@@ -68,7 +68,7 @@
               ${cfg.coco-file}
           '';
           Restart = "on-failure";
-          EnvironmentFile = lib.optionalString (cfg.environmentFile != null) cfg.environment-file;
+          EnvironmentFile = lib.optionalString (cfg.environment-file != null) cfg.environment-file;
         };
       }) config.services.coco-label-tool;
     };
