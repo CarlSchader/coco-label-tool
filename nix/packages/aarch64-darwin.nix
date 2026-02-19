@@ -39,8 +39,11 @@ let
   venv = pythonSet.mkVirtualEnv "coco-label-tool" workspace.deps.default;
 in
 {
-  packages.${system}.default = pkgs.runCommand "coco-label-tool" { } ''
+  packages.${system}.default = pkgs.runCommand "coco-label-tool" {
+    nativeBuildInputs = [ pkgs.makeWrapper ];
+  } ''
     mkdir -p $out/bin
-    ln -s ${venv}/bin/server $out/bin/coco-label-tool
+    makeWrapper ${venv}/bin/server $out/bin/coco-label-tool \
+      --unset PYTHONPATH
   '';
 }
